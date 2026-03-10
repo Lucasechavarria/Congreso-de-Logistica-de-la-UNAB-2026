@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirmación de Inscripción al Congreso de Logística UNAB</title>
+    <style>
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        border-top: 5px solid #0056b3; /* Color azul del congreso */
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .header h1 {
+        color: #0056b3;
+        font-size: 28px;
+        margin: 0;
+      }
+      .content {
+        padding: 20px 0;
+      }
+      .content p {
+        margin-bottom: 15px;
+      }
+      .evento {
+        background: #eaf4ff;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 24px 0;
+      }
+      .logo {
+        display: block;
+        margin: 0 auto 24px auto;
+        max-width: 180px;
+      }
+      .btn {
+        display: inline-block;
+        background: #0056b3;
+        color: #fff !important;
+        padding: 12px 24px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        margin-top: 24px;
+      }
+      .footer {
+        font-size: 0.9em;
+        color: #888;
+        margin-top: 32px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+  <img src="cid:logo_congreso" alt="Logo Congreso UNAB" class="logo">
+      <h2>¡Hola {{ asistente_nombre }}!</h2>
+      <p>Tu preinscripción al <strong>{{ evento_nombre }}</strong> ha sido recibida con éxito.</p>
+      <div class="evento">
+        <strong>Fecha:</strong> {{ evento_fecha }}<br>
+        <strong>Hora:</strong> {{ evento_hora }}<br>
+        <strong>Ubicación:</strong> {{ evento_ubicacion }}
+      </div>
+      <p>Te invitamos a agendar el evento en tu calendario de Google para no perderte nada:</p>
+      <a href="{{ google_calendar_url }}" class="btn" target="_blank">Agendar en Google Calendar</a>
+      <p style="margin-top:32px;">Pronto recibirás más información sobre el evento y actividades especiales.</p>
+      <div class="footer">
+        &copy; {{ year }} Congreso de Logística UNAB<br>
+        Este mensaje fue enviado automáticamente. No respondas a este correo.
+      </div>
+    </div>
+  </body>
+</html>

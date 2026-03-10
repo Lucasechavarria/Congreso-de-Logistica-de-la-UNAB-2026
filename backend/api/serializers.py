@@ -1,0 +1,491 @@
+from rest_framework import serializers
+from .models import Disertante, Empresa, Programa, Asistente, MiembroGrupo, Inscripcion, PostulacionDisertante
+from django.db import transaction
+from .email import send_group_confirmation_emails, send_individual_confirmation_email
+import re
+
+class PostulacionDisertanteSerializer(serializers.ModelSerializer):
+    def validate_linkedin(self, value):
+        """Permite que linkedin sea opcional aceptando cadenas vacías o None."""
+        if not value or (isinstance(value, str) and not value.strip()):
+            return None
+        return value
+
+    class Meta:
+        model = PostulacionDisertante
+        fields = '__all__'
+        read_only_fields = ['edicion', 'estado']
+
+    def create(self, validated_data):
+        from .models import Edicion
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa:
+            raise serializers.ValidationError({"edicion": "No hay una edición activa configurada en el sistema."})
+
+        dni = validated_data.get('dni')
+        if not dni:
+            raise serializers.ValidationError({"dni": "El DNI es obligatorio."})
+
+        postulacion = PostulacionDisertante.objects.filter(dni=dni).first()
+        if postulacion:
+            # Update
+            for attr, value in validated_data.items():
+                setattr(postulacion, attr, value)
+            postulacion.edicion = edicion_activa
+            # Mantenemos o reseteamos a PENDIENTE, según req: 
+            # Si se edita, quizas deberia volver a pendiente para ser reevaluada. 
+            postulacion.estado = 'PENDIENTE' 
+            postulacion.save()
+        else:
+            # Create
+            validated_data['edicion'] = edicion_activa
+            postulacion = PostulacionDisertante.objects.create(**validated_data)
+        
+        return postulacion
+
+class DisertanteSerializer(serializers.ModelSerializer):
+    foto_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Disertante
+        fields = ['nombre', 'bio', 'foto_url', 'tema_presentacion', 'linkedin']
+
+    def get_foto_url(self, obj):
+        """
+        Devuelve la URL absoluta de la foto del disertante.
+        Garantiza que sea HTTPS para producción y HTTP para desarrollo local.
+        """
+        request = self.context.get('request', None)
+        foto_url = ""
+        
+        # Obtener el origen (dominio + puerto)
+        if request is not None:
+            origin = request.build_absolute_uri('/')[:-1] # quita el / final
+        else:
+            # Fallback según DEBUG
+            from django.conf import settings
+            if settings.DEBUG:
+                origin = "http://127.0.0.1:8000"
+            else:
+                origin = "https://www.congresologistica.unab.edu.ar"
+
+        # Prioridad 1: Imagen subida al sistema (ImageField)
+        if obj.foto:
+            if request is not None:
+                foto_url = request.build_absolute_uri(obj.foto.url)
+            else:
+                foto_url = f"{origin}{obj.foto.url}"
+        
+        # Prioridad 2: URL manual (CharField)
+        elif obj.foto_url:
+            foto_url = obj.foto_url.strip()
+        
+        # Si no hay foto, retornar vacío
+        if not foto_url:
+            return ""
+        
+        # Limpiar y normalizar la URL
+        # Caso 1: Rutas absolutas mal formadas con path completo del servidor
+        if "Congreso-UNAB/backend/media/" in foto_url:
+            part = foto_url.split("media/")[-1]
+            foto_url = f"{origin}/media/{part}"
+        
+        # Caso 2: Rutas relativas que empiezan con ponencias/ o media/
+        elif foto_url.startswith("ponencias/"):
+            foto_url = f"{origin}/media/{foto_url}"
+        elif foto_url.startswith("media/"):
+            foto_url = f"{origin}/{foto_url}"
+        elif foto_url.startswith("/media/"):
+            foto_url = f"{origin}{foto_url}"
+        
+        # Caso 3: Convertir a HTTPS solo si no es localhost/127.0.0.1
+        if foto_url.startswith("http://"):
+            if "localhost" not in foto_url and "127.0.0.1" not in foto_url:
+                foto_url = foto_url.replace("http://", "https://")
+        
+        return foto_url
+
+class ProgramaSerializer(serializers.ModelSerializer):
+    disertantes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Programa
+        fields = ['titulo', 'disertantes', 'hora_inicio', 'hora_fin', 'dia', 'descripcion', 'aula', 'categoria']
+    
+    def get_disertantes(self, obj):
+        """Serializa los disertantes pasando el contexto de la request"""
+        disertantes = obj.disertantes.all()
+        serializer = DisertanteSerializer(disertantes, many=True, context=self.context)
+        return serializer.data
+
+class EmpresaSerializer(serializers.ModelSerializer):
+    def to_internal_value(self, data):
+        errors = {}
+        # Solo nombre_empresa es estrictamente obligatorio aquí
+        if not data.get('nombre_empresa'):
+            errors['nombre_empresa'] = 'Este campo es obligatorio.'
+        
+        if errors:
+            raise serializers.ValidationError(errors)
+        return super().to_internal_value(data)
+
+    def validate_sitio_web(self, value):
+        """Permite que el sitio web sea opcional aceptando cadenas vacías o None."""
+        if not value or (isinstance(value, str) and not value.strip()):
+            return None
+        return value
+
+    def validate_logo(self, value):
+        """Validación flexible para el logo."""
+        if not value:
+            return None
+        return value
+
+    class Meta:
+        model = Empresa
+        fields = [
+            'nombre_empresa',
+            'cuit',
+            'direccion',
+            'telefono_empresa',
+            'email_empresa',
+            'sitio_web',
+            'descripcion',
+            'logo',
+            'nombre_contacto',
+            'email_contacto',
+            'celular_contacto',
+            'cargo_contacto',
+            'participacion_opciones',
+            'participacion_otra',
+            'edicion',
+            'estado'
+        ]
+        read_only_fields = ['edicion', 'estado']
+
+    def create(self, validated_data):
+        from .models import Edicion
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa:
+            raise serializers.ValidationError({"edicion": "No hay una edición activa configurada en el sistema."})
+
+        email_empresa = validated_data.get('email_empresa')
+        if not email_empresa:
+            raise serializers.ValidationError({"email_empresa": "El email de la empresa es obligatorio para registro."})
+
+        empresa = Empresa.objects.filter(email_empresa=email_empresa).first()
+        if empresa:
+            # Update 
+            for attr, value in validated_data.items():
+                setattr(empresa, attr, value)
+            empresa.edicion = edicion_activa
+            empresa.estado = 'PENDIENTE'
+            empresa.save()
+        else:
+            # Create
+            validated_data['edicion'] = edicion_activa
+            empresa = Empresa.objects.create(**validated_data)
+            
+        return empresa
+
+
+class EmpresaLogoSerializer(serializers.ModelSerializer):
+    """
+    Serializador simplificado para mostrar empresas en carrusel/slider.
+    Solo incluye campos necesarios para mostrar logos.
+    """
+    class Meta:
+        model = Empresa
+        fields = ['id', 'nombre_empresa', 'logo', 'sitio_web', 'descripcion']
+
+class MiembroGrupoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MiembroGrupo
+        fields = ['full_name', 'dni']
+
+class AsistenteGrupoSerializer(serializers.Serializer):
+    """Serializer para miembros de grupo individuales"""
+    first_name = serializers.CharField(max_length=100)
+    last_name = serializers.CharField(max_length=100)
+    email = serializers.EmailField()
+    dni = serializers.CharField(max_length=10)
+
+class AsistenteSerializer(serializers.ModelSerializer):
+    miembros_grupo = MiembroGrupoSerializer(many=True, required=False)  # Mantenemos compatibilidad
+    miembros_grupo_nuevos = AsistenteGrupoSerializer(many=True, required=False, write_only=True)  # Nueva estructura
+    miembros_representados = serializers.SerializerMethodField()  # Para lectura
+    phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    
+    # Overrides to disable UniqueValidator, as we do Upsert manually
+    email = serializers.EmailField()
+    dni = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True)
+
+    # Legacy fields now handled in related models, write_only to allow GET without AttributeError
+    is_unab_student = serializers.BooleanField(required=False, allow_null=True, write_only=True)
+    institution = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    career = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    year_of_study = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    career_taught = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    work_area = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    occupation = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    group_name = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    group_municipality = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    group_size = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+
+    class Meta:
+        model = Asistente
+        fields = [
+            'id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'profile_type',
+            'is_unab_student', 'institution', 'career', 'year_of_study',
+            'career_taught', 'work_area', 'occupation',
+            'group_name', 'group_municipality', 'group_size',
+            'miembros_grupo', 'miembros_grupo_nuevos', 'miembros_representados', 'rol_especifico'
+        ]
+        read_only_fields = ['id', 'miembros_representados']
+    
+    def get_miembros_representados(self, obj):
+        """Devuelve la información de los miembros representados"""
+        if obj.es_representante_grupo:
+            miembros = obj.get_miembros_grupo()
+            return [{
+                'id': m.id,
+                'first_name': m.first_name,
+                'last_name': m.last_name,
+                'email': m.email,
+                'dni': m.dni
+            } for m in miembros]
+        return []
+
+    def create(self, validated_data):
+        from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional, DetalleGrupo
+
+        miembros_data = validated_data.pop('miembros_grupo', [])  # Compatibilidad con sistema anterior
+        miembros_nuevos_data = validated_data.pop('miembros_grupo_nuevos', [])  # Nuevo sistema
+        
+        # Extraer campos de Detalle
+        is_unab_student = validated_data.pop('is_unab_student', False)
+        institution = validated_data.pop('institution', None)
+        career = validated_data.pop('career', None)
+        year_of_study = validated_data.pop('year_of_study', None)
+        career_taught = validated_data.pop('career_taught', None)
+        work_area = validated_data.pop('work_area', None)
+        occupation = validated_data.pop('occupation', None)
+        group_name = validated_data.pop('group_name', None)
+        group_municipality = validated_data.pop('group_municipality', None)
+        group_size = validated_data.pop('group_size', 0)
+
+        dni = validated_data.get('dni')
+        email = validated_data.get('email')
+
+        # Buscar Asistente existente (Upsert logic)
+        asistente = None
+        if dni:
+            asistente = Asistente.objects.filter(dni=dni).first()
+        if not asistente and email:
+            asistente = Asistente.objects.filter(email=email).first()
+
+        if asistente:
+            # Actualizar campos base
+            for attr, value in validated_data.items():
+                setattr(asistente, attr, value)
+            asistente.save()
+        else:
+            asistente = Asistente.objects.create(**validated_data)
+
+        # Upsert detalles según profile_type
+        profile_type = asistente.profile_type
+        if profile_type == Asistente.ProfileType.STUDENT:
+            DetalleEstudiante.objects.update_or_create(
+                asistente=asistente,
+                defaults={
+                    'is_unab_student': is_unab_student or False,
+                    'institution': institution,
+                    'career': career,
+                    'year_of_study': year_of_study,
+                }
+            )
+        elif profile_type == Asistente.ProfileType.TEACHER:
+            DetalleDocente.objects.update_or_create(
+                asistente=asistente,
+                defaults={
+                    'institution': institution,
+                    'career_taught': career_taught,
+                }
+            )
+        elif profile_type == Asistente.ProfileType.PROFESSIONAL:
+            DetalleProfesional.objects.update_or_create(
+                asistente=asistente,
+                defaults={
+                    'work_area': work_area,
+                    'occupation': occupation,
+                }
+            )
+        elif profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
+            DetalleGrupo.objects.update_or_create(
+                asistente=asistente,
+                defaults={
+                    'group_name': group_name,
+                    'group_municipality': group_municipality,
+                    'group_size': group_size or 0,
+                }
+            )
+
+        # Para que el serializer pueda mostrar los valores, los asignamos dinámicamente
+        asistente.is_unab_student = is_unab_student
+        asistente.institution = institution
+        asistente.career = career
+        asistente.year_of_study = year_of_study
+        asistente.career_taught = career_taught
+        asistente.work_area = work_area
+        asistente.occupation = occupation
+        asistente.group_name = group_name
+        asistente.group_municipality = group_municipality
+        asistente.group_size = group_size
+        
+        if asistente.profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
+            # Sistema anterior (MiembroGrupo) - mantenemos compatibilidad
+            for miembro_data in miembros_data:
+                MiembroGrupo.objects.get_or_create(representante=asistente, dni=miembro_data.get('dni'), defaults=miembro_data)
+            
+            # Nuevo sistema - crear/actualizar asistentes individuales
+            for miembro_data in miembros_nuevos_data:
+                m_dni = miembro_data.get('dni')
+                m_email = miembro_data.get('email')
+                
+                m_asistente = None
+                if m_dni:
+                    m_asistente = Asistente.objects.filter(dni=m_dni).first()
+                if not m_asistente and m_email:
+                    m_asistente = Asistente.objects.filter(email=m_email).first()
+                
+                m_defaults = {
+                    'first_name': miembro_data['first_name'],
+                    'last_name': miembro_data['last_name'],
+                    'email': m_email,
+                    'dni': m_dni,
+                    'profile_type': Asistente.ProfileType.VISITOR,
+                    'representante_grupo': asistente,
+                }
+
+                if m_asistente:
+                    for attr, value in m_defaults.items():
+                        setattr(m_asistente, attr, value)
+                    m_asistente.save()
+                else:
+                    Asistente.objects.create(**m_defaults)
+            
+            # Enviar emails de confirmación a todos los miembros del grupo
+            try:
+                resultado_envio = send_group_confirmation_emails(asistente)
+                asistente._email_enviado = (resultado_envio['total_fallidos'] == 0)
+                print(f"[INFO] Emails enviados: {resultado_envio['total_emails']}, Fallidos: {resultado_envio['total_fallidos']}")
+            except Exception as e:
+                asistente._email_enviado = False
+                print(f"[ERROR] Error enviando emails grupales: {e}")
+                # No interrumpimos el proceso de registro por fallos en el email
+        else:
+            # Para inscripciones individuales, enviar email de confirmación
+            try:
+                asistente._email_enviado = send_individual_confirmation_email(asistente)
+            except Exception as e:
+                asistente._email_enviado = False
+                print(f"[ERROR] Error enviando email individual: {e}")
+                # No interrumpimos el proceso de registro por fallos en el email
+        
+        return asistente
+
+    def validate_dni(self, value):
+        """Valida que el DNI tenga exactamente 8 dígitos numéricos"""
+        if value:
+            # Limpiar caracteres no numéricos
+            dni_limpio = re.sub(r'\D', '', value)
+            # Si tiene 9 dígitos y termina en 0, eliminar el último 0
+            if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
+                dni_limpio = dni_limpio[:-1]
+            # Validar que tenga exactamente 8 dígitos
+            if len(dni_limpio) != 8 or not dni_limpio.isdigit():
+                raise serializers.ValidationError('El DNI debe tener exactamente 8 dígitos numéricos.')
+            return dni_limpio
+        return value
+
+    def validate(self, data):
+        profile_type = data.get('profile_type')
+
+        if profile_type == Asistente.ProfileType.STUDENT:
+            if data.get('is_unab_student') is None:
+                raise serializers.ValidationError({"is_unab_student": "Este campo es requerido para estudiantes."})
+            if data.get('is_unab_student') is False and not data.get('institution'):
+                raise serializers.ValidationError({"institution": "La institución es requerida si no perteneces a la UNaB."})
+            if not data.get('career'):
+                raise serializers.ValidationError({"career": "La carrera es requerida para estudiantes."})
+            if not data.get('year_of_study'):
+                raise serializers.ValidationError({"year_of_study": "El año de cursada es requerido para estudiantes."})
+
+        elif profile_type == Asistente.ProfileType.TEACHER:
+            if not data.get('institution'):
+                raise serializers.ValidationError({"institution": "La institución es requerida para docentes."})
+            if not data.get('career_taught'):
+                raise serializers.ValidationError({"career_taught": "La carrera que dicta es requerida para docentes."})
+
+        elif profile_type == Asistente.ProfileType.PROFESSIONAL:
+            if not data.get('work_area'):
+                raise serializers.ValidationError({"work_area": "El área de trabajo es requerida para profesionales."})
+            if not data.get('occupation'):
+                raise serializers.ValidationError({"occupation": "El cargo es requerido para profesionales."})
+
+        elif profile_type == Asistente.ProfileType.PRESS:
+            # No hay campos obligatorios extra para prensa
+            pass
+        elif profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
+            if not data.get('group_name'):
+                raise serializers.ValidationError({"group_name": "El nombre del grupo o institución es requerido."})
+            if not data.get('group_size'):
+                raise serializers.ValidationError({"group_size": "La cantidad de personas es requerida."})
+            
+            # Validar que tenga miembros (sistema anterior o nuevo)
+            miembros_antiguos = data.get('miembros_grupo', [])
+            miembros_nuevos = data.get('miembros_grupo_nuevos', [])
+            
+            if not miembros_antiguos and not miembros_nuevos:
+                raise serializers.ValidationError({
+                    "miembros_grupo": "Debe proporcionar la lista de miembros del grupo."
+                })
+            
+            # Si usa el sistema nuevo, validar que la cantidad coincida
+            if miembros_nuevos:
+                cantidad_declarada = data.get('group_size', 0)
+                cantidad_miembros = len(miembros_nuevos)
+                if cantidad_declarada != cantidad_miembros:
+                    raise serializers.ValidationError({
+                        "group_size": f"La cantidad declarada ({cantidad_declarada}) no coincide con la cantidad de miembros proporcionados ({cantidad_miembros})."
+                    })
+        
+        return data
+
+class InscripcionSerializer(serializers.ModelSerializer):
+    asistente = AsistenteSerializer() # Nested AsistenteSerializer
+
+    class Meta:
+        model = Inscripcion
+        fields = ['asistente', 'empresa', 'fecha_inscripcion', 'edicion'] 
+        read_only_fields = ['fecha_inscripcion', 'edicion']
+
+    def create(self, validated_data):
+        from .models import Edicion
+        asistente_data = validated_data.pop('asistente')
+        
+        # Delegamos completamente la creación/upsert del asistente a AsistenteSerializer
+        asistente_serializer = AsistenteSerializer(data=asistente_data)
+        asistente_serializer.is_valid(raise_exception=True)
+        asistente = asistente_serializer.save()
+
+        edicion = Edicion.objects.filter(activa=True).first()
+        if not edicion:
+            raise serializers.ValidationError({"edicion": "No hay una edición activa disponible."})
+
+        # Prevenir duplicidad de inscripción a la misma edición
+        if Inscripcion.objects.filter(asistente=asistente, edicion=edicion).exists():
+            raise serializers.ValidationError({"detail": f"Ya te encuentras registrado/a en la edición {edicion.nombre}."})
+
+        inscripcion = Inscripcion.objects.create(asistente=asistente, edicion=edicion, **validated_data)
+        return inscripcion

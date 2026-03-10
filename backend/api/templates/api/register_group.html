@@ -1,0 +1,13 @@
+{% extends 'base.html' %} {% block content %}
+<h2>Inscripción Grupal (Empresas/Instituciones)</h2>
+<form method="post">
+  {% csrf_token %} {{ company_form.as_p }}
+  <h3>Participantes</h3>
+  {{ formset.management_form }} {% for form in formset %}
+  <div style="border: 1px solid #ccc; margin-bottom: 10px; padding: 10px">
+    {{ form.as_p }} {% if form.DELETE %}{{ form.DELETE }} Eliminar{% endif %}
+  </div>
+  {% endfor %}
+  <button type="submit">Inscribir Grupo</button>
+</form>
+{% endblock %}

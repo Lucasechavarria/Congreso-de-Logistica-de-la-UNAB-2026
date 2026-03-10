@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Bienvenido - Congreso UNaB</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #f8fafc;
+        color: #222;
+        text-align: center;
+        margin-top: 10vh;
+      }
+      .container {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px #0001;
+        display: inline-block;
+        padding: 2rem 3rem;
+      }
+      h1 {
+        color: #1d4ed8;
+      }
+      a {
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: bold;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Bienvenido al Backend del Congreso UNaB</h1>
+      <p>Este es el backend de la Convención de Logística UNaB.</p>
+      <p>Endpoints disponibles:</p>
+      <ul style="text-align: left; display: inline-block">
+        <li><a href="/admin/">Panel de administración</a></li>
+        <li><code>POST /api/inscripcion/</code> (Inscripción individual)</li>
+        <li><code>POST /api/inscripcion-grupal/</code> (Inscripción grupal)</li>
+      </ul>
+      <p>
+        Consulta la
+        <a href="/static/API_DOC.md">documentación de la API</a> para más
+        detalles.
+      </p>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirmación de Registro Empresarial - Congreso UNAB 2026</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-top: 5px solid #0891b2;
+            /* Cyan para empresas */
+        }
+
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+        }
+
+        .logo {
+            display: block;
+            margin: 0 auto 20px auto;
+            max-width: 180px;
+        }
+
+        .content {
+            padding: 20px 0;
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #0891b2;
+        }
+
+        .footer {
+            font-size: 0.85em;
+            color: #64748b;
+            margin-top: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <img src="cid:logo_congreso" alt="Logo Congreso UNAB" class="logo">
+        <div class="header">
+            <h1>¡Bienvenida, {{ empresa_nombre }}!</h1>
+        </div>
+        <div class="content">
+            <p>Estimado/a <strong>{{ contacto_nombre }}</strong>,</p>
+            <p>Es un placer confirmar el registro de su empresa/institución para el <strong>2° Congreso de Logística y
+                    Transporte UNAB 2026</strong>.</p>
+
+            <div class="info-box">
+                <p><strong>Resumen del Registro:</strong></p>
+                <p>🏢 <strong>Empresa:</strong> {{ empresa_nombre }}</p>
+                <p>📅 <strong>Fecha del Evento:</strong> 7 de Noviembre de 2026</p>
+                <p>📍 <strong>Lugar:</strong> Campus UNAB, Burzaco</p>
+            </div>
+
+            <p>Nuestro equipo de Relaciones Institucionales se pondrá en contacto con usted a la brevedad para coordinar
+                la logística de su participación, la ubicación de su espacio y enviar el manual del expositor.</p>
+
+            <p>Adjuntamos a este correo las <strong>Bases y Condiciones</strong> para patrocinadores y expositores.</p>
+
+            <p>Atentamente,<br><strong>Equipo Organizador de Alianzas - Congreso UNAB</strong></p>
+        </div>
+        <div class="footer">
+            &copy; 2026 Congreso de Logística UNAB<br>
+            Universidad Nacional de Almirante Brown
+        </div>
+    </div>
+</body>
+
+</html>

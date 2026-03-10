@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Convención Logística UNaB</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+      }
+      h2 {
+        color: #1a237e;
+      }
+      form {
+        max-width: 500px;
+        margin: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Convención Logística UNaB</h1>
+      <nav>
+        <a href="/inscripcion/">Inscripción Individual</a> |
+        <a href="/inscripcion-grupal/">Inscripción Grupal</a>
+      </nav>
+      <hr />
+    </header>
+    {% block content %}{% endblock %}
+  </body>
+</html>

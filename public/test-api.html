@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Empresa</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 20px; margin: 10px; background: #0066cc; color: white; border: none; cursor: pointer; }
+        #result { margin-top: 20px; padding: 10px; background: #f5f5f5; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Test API Registro Empresa</h1>
+    <p>Esta página prueba si la función registrarEmpresa funciona correctamente desde el frontend.</p>
+    
+    <button onclick="testAPI()">Probar Registro de Empresa</button>
+    <button onclick="clearResult()">Limpiar Resultado</button>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = window.location.origin.includes('8080') 
+            ? "http://127.0.0.1:8000/api" 
+            : "http://127.0.0.1:8000/api";
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Enviando datos...</p>';
+
+            const formData = new FormData();
+            formData.append("nombre_empresa", "Empresa Browser Test " + Date.now());
+            formData.append("cuit", "20-55555555-5");
+            formData.append("direccion", "Browser Street 789");
+            formData.append("telefono_empresa", "11-5555-6666");
+            formData.append("email_empresa", "browser" + Date.now() + "@test.com");
+            formData.append("sitio_web", "https://browser-test.com");
+            formData.append("descripcion", "Empresa de prueba desde navegador");
+            formData.append("nombre_contacto", "Usuario Browser");
+            formData.append("email_contacto", "usuario" + Date.now() + "@browser.com");
+            formData.append("celular_contacto", "11-7777-8888");
+            formData.append("cargo_contacto", "Tester Frontend");
+            
+            // Simular exactamente como lo hace el formulario
+            let opciones = ["stand", "visitor"];
+            if (!opciones || typeof opciones !== "object") {
+                opciones = [];
+            }
+            formData.append("participacion_opciones", JSON.stringify(opciones));
+            formData.append("participacion_otra", "");
+
+            try {
+                console.log("Enviando a:", `${API_BASE}/registro-empresas/`);
+                const response = await fetch(`${API_BASE}/registro-empresas/`, {
+                    method: "POST",
+                    body: formData,
+                });
+                
+                const result = await response.json();
+                console.log("Respuesta:", result);
+                
+                if (result.status === "success") {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ ¡Éxito!</h3>
+                            <p><strong>Status:</strong> ${result.status}</p>
+                            <p><strong>Mensaje:</strong> ${result.message}</p>
+                            <p><strong>ID:</strong> ${result.id}</p>
+                            <p><strong>HTTP Status:</strong> ${response.status}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Error</h3>
+                            <p><strong>Status:</strong> ${result.status}</p>
+                            <p><strong>Mensaje:</strong> ${result.message}</p>
+                            <p><strong>HTTP Status:</strong> ${response.status}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>💥 Error de Red</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p>Verifica que el servidor backend esté ejecutándose en http://127.0.0.1:8000</p>
+                    </div>
+                `;
+            }
+        }
+
+        function clearResult() {
+            document.getElementById('result').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

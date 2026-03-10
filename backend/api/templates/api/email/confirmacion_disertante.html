@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Postulación Recibida - Call for Papers Congreso UNAB 2026</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-top: 5px solid #6366f1;
+            /* Indigo para disertantes */
+        }
+
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+        }
+
+        .logo {
+            display: block;
+            margin: 0 auto 20px auto;
+            max-width: 180px;
+        }
+
+        .content {
+            padding: 20px 0;
+        }
+
+        .info-box {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #6366f1;
+        }
+
+        .footer {
+            font-size: 0.85em;
+            color: #64748b;
+            margin-top: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <img src="cid:logo_congreso" alt="Logo Congreso UNAB" class="logo">
+        <div class="header">
+            <h1>¡Gracias por postularte!</h1>
+        </div>
+        <div class="content">
+            <p>Hola <strong>{{ disertante_nombre }}</strong>,</p>
+            <p>Hemos recibido correctamente tu postulación para participar como disertante en el <strong>2° Congreso de
+                    Logística y Transporte UNAB 2026</strong>.</p>
+
+            <div class="info-box">
+                <p><strong>Detalles de la propuesta:</strong></p>
+                <p>📌 <strong>Título:</strong> {{ charla_titulo }}</p>
+                <p>📑 <strong>Ejes Temáticos:</strong> {{ charla_ejes }}</p>
+            </div>
+
+            <p>Nuestro Comité Académico revisará tu propuesta y nos pondremos en contacto contigo a la brevedad para
+                informarte el estado de tu postulación.</p>
+
+            <p>Adjuntamos a este correo las <strong>Bases y Condiciones</strong> del congreso para tu referencia.</p>
+
+            <p>Atentamente,<br><strong>Equipo Organizador del Congreso UNAB</strong></p>
+        </div>
+        <div class="footer">
+            &copy; 2026 Congreso de Logística UNAB<br>
+            Universidad Nacional de Almirante Brown
+        </div>
+    </div>
+</body>
+
+</html>

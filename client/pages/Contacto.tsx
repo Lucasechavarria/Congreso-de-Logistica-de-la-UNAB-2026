@@ -76,7 +76,9 @@ export default function Contacto() {
                   href="mailto:congresologisticaytransporte@unab.edu.ar"
                   className="text-lg text-white font-medium leading-relaxed hover:underline break-words"
                 >
-                  congresologisticaytransporte@unab.edu.ar
+                  congresologisticaytransporte
+                  <br className="md:hidden" />
+                  @unab.edu.ar
                 </a>
               </CardContent>
             </Card>

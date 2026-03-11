@@ -412,14 +412,6 @@ const RegistroDisertante: React.FC = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormInput
-                                    type="email"
-                                    label="Email de Contacto"
-                                    icon={<Mail className="h-4 w-4" />}
-                                    placeholder="laura@ejemplo.com"
-                                    {...register("email")}
-                                    error={errors.email?.message}
-                                />
-                                <FormInput
                                     type="tel"
                                     label="Teléfono Móvil"
                                     icon={<Phone className="h-4 w-4" />}
@@ -427,15 +419,14 @@ const RegistroDisertante: React.FC = () => {
                                     {...register("telefono")}
                                     error={errors.telefono?.message}
                                 />
+                                <FormInput
+                                    label="Ciudad y Provincia"
+                                    icon={<MapPin className="h-4 w-4" />}
+                                    placeholder="Ej: Almirante Brown, Buenos Aires"
+                                    {...register("ciudadProvincia")}
+                                    error={errors.ciudadProvincia?.message}
+                                />
                             </div>
-
-                            <FormInput
-                                label="Ciudad y Provincia"
-                                icon={<MapPin className="h-4 w-4" />}
-                                placeholder="Ej: Almirante Brown, Buenos Aires"
-                                {...register("ciudadProvincia")}
-                                error={errors.ciudadProvincia?.message}
-                            />
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormInput

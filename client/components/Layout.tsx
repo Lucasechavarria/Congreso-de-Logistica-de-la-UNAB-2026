@@ -46,7 +46,7 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-white flex flex-col" lang="es" translate="no">
       <Helmet>
         <title>Congreso de Logística y Transporte 2026</title>
-        <meta name="description" content="Moviendo el futuro - Innovación y desafíos en la logística y el transporte. Campus UNaB, Almirante Brown." />
+        <meta name="description" content="Nuevas oportunidades, grandes desafíos - Innovación y desafíos en la logística y el transporte. Campus UNaB, Almirante Brown." />
         <meta property="og:title" content="Congreso de Logística y Transporte 2026" />
         <meta property="og:description" content="El espacio principal para la innovación, tecnología y desarrollo en el sector del transporte y la cadena de suministro." />
         <meta property="og:type" content="website" />
@@ -131,7 +131,7 @@ export default function Layout({ children }: LayoutProps) {
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-congress-blue hover:text-white"
                       onClick={() => setIsDropdownOpen(false)}
                     >
-                      Información General
+                      Primera Edición 2025
                     </Link>
                   </div>
                 )}
@@ -205,9 +205,13 @@ export default function Layout({ children }: LayoutProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
               <h3 className="text-lg font-bold mb-4">
-                Moviendo el futuro - Innovación y desafíos en la logística y el
-                transporte
+                Nuevas oportunidades, grandes desafíos
               </h3>
+              <img
+                src="/images/CONGRESO-LOGISTICA-2.png"
+                alt="Logo del Congreso de Logística"
+                className="h-24 w-auto mt-6"
+              />
             </div>
             <div className="text-left">
               <h3 className="text-lg font-bold mb-4">Información del Evento</h3>
@@ -233,11 +237,11 @@ export default function Layout({ children }: LayoutProps) {
                 </a>
               </p>
             </div>
-            <div className="notranslate">
+            <div className="notranslate flex flex-col items-center text-center">
               <h3 className="text-lg font-bold mb-4">
                 Universidad Nacional Guillermo Brown
               </h3>
-              <div className="flex items-center space-x-3 mb-4">
+              <div className="flex items-center justify-center space-x-3 mb-4">
                 <Link
                   to="/"
                   onClick={() => {
@@ -247,35 +251,19 @@ export default function Layout({ children }: LayoutProps) {
                   }}
                 >
                   <img
-                    src="/images/CONGRESO-LOGISTICA-2.png"
-                    alt="Logo secundario del evento Logística UNAB"
-                    className="h-16 w-auto"
+                    src="/images/LogoUnab.png"
+                    alt="Logo de la Universidad Nacional Guillermo Brown"
+                    className="h-24 md:h-28 w-auto bg-white/10 p-3 rounded-xl mx-auto"
                   />
                 </Link>
-                <div>
-                  <div className="text-white font-semibold">UNaB</div>
-                  <div className="text-gray-300 text-sm">
-                    Universidad Nacional
-                  </div>
-                </div>
               </div>
-              <p className="text-gray-300">
-                Comprometida con la educación y la investigación en logística y
-                transporte.
-              </p>
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400 notranslate">
             <p>
               &copy; 2026 Universidad Nacional Guillermo Brown. Todos los
               derechos reservados. Desarrollado por{" "}
-              <a
-                href="http://folkode.vercel.app"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span className="text-white underline">Folkode</span>
-              </a>
+              <span className="text-white">LDE-System</span>.
             </p>
           </div>
         </div>

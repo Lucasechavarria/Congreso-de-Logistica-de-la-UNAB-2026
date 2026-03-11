@@ -30,11 +30,6 @@ import { FormCheckbox } from "@/components/ui/modern-form";
 
 const companyRegistrationSchema = z.object({
   companyName: z.string().min(1, "El nombre de la empresa es requerido"),
-  companyCUIT: z.string()
-    .min(1, "El CUIT de la empresa es requerido")
-    .regex(/^\d{2}-\d{8}-\d{1}$/, "El CUIT debe tener el formato XX-XXXXXXXX-X (ej: 20-32764773-4)"),
-  companyAddress: z.string().min(1, "La dirección de la empresa es requerida"),
-  companyPhone: z.string().min(1, "El teléfono de la empresa es requerido"),
   companyEmail: z.string().email("Debe ser un correo electrónico válido"),
   contactPersonName: z.string().min(1, "El nombre de la persona de contacto es requerido"),
   contactPersonEmail: z.string().email("Debe ser un correo electrónico válido"),
@@ -104,9 +99,6 @@ const RegistroEmpresas: React.FC = () => {
 
             reset({
               companyName: e.nombre_empresa || "",
-              companyCUIT: e.cuit || "",
-              companyAddress: e.direccion || "",
-              companyPhone: e.telefono_empresa || "",
               companyEmail: e.email_empresa || watchedEmail,
               website: e.sitio_web || "",
               companyDescription: e.descripcion || "",
@@ -166,9 +158,6 @@ const RegistroEmpresas: React.FC = () => {
     // Crear FormData para enviar datos y archivo
     const formData = new FormData();
     formData.append("nombre_empresa", data.companyName);
-    formData.append("cuit", data.companyCUIT);
-    formData.append("direccion", data.companyAddress);
-    formData.append("telefono_empresa", data.companyPhone);
     formData.append("email_empresa", data.companyEmail);
     // Manejo robusto del sitio web opcional
     const sitioWebValue = data.website?.trim();
@@ -221,9 +210,6 @@ const RegistroEmpresas: React.FC = () => {
           if (typeof response.message === "object") {
             const fieldMap: Record<string, string> = {
               'nombre_empresa': 'Nombre de la empresa',
-              'cuit': 'CUIT',
-              'direccion': 'Dirección',
-              'telefono_empresa': 'Teléfono corporativo',
               'email_empresa': 'Email corporativo',
               'sitio_web': 'Sitio web',
               'logo': 'Logo corporativo'
@@ -322,7 +308,7 @@ const RegistroEmpresas: React.FC = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="mb-6">
                 <FormInput
                   label="Nombre de la Empresa"
                   icon={<Building2 className="h-4 w-4" />}
@@ -330,37 +316,8 @@ const RegistroEmpresas: React.FC = () => {
                   {...register("companyName")}
                   error={errors.companyName?.message}
                 />
-                <FormInput
-                  label="CUIT"
-                  icon={<FileText className="h-4 w-4" />}
-                  placeholder="20-32764773-4"
-                  maxLength={13}
-                  {...register("companyCUIT")}
-                  onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                    const target = e.target as HTMLInputElement;
-                    let value = target.value.replace(/\D/g, "");
-                    if (value.length > 2) value = value.substring(0, 2) + "-" + value.substring(2);
-                    if (value.length > 11) value = value.substring(0, 11) + "-" + value.substring(11, 12);
-                    target.value = value;
-                  }}
-                  error={errors.companyCUIT?.message}
-                />
               </div>
-              <FormInput
-                label="Dirección"
-                icon={<MapPin className="h-4 w-4" />}
-                placeholder="Dirección, numeración, partido, provincia / estado, país"
-                {...register("companyAddress")}
-                error={errors.companyAddress?.message}
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormInput
-                  label="Teléfono Corporativo"
-                  icon={<Phone className="h-4 w-4" />}
-                  placeholder="11 1234-5678"
-                  {...register("companyPhone")}
-                  error={errors.companyPhone?.message}
-                />
+              <div className="mb-6">
                 <FormInput
                   label="Sitio Web (Opcional)"
                   icon={<Globe className="h-4 w-4" />}
@@ -427,7 +384,7 @@ const RegistroEmpresas: React.FC = () => {
               description="Suba el logo institucional para los materiales de difusión del congreso"
             >
               <FormFileInput
-                label="Logo Corporativo"
+                label="Logo Corporativo (Opcional)"
                 accept=".png,.jpg,.jpeg,.svg,.pdf,.ai,.eps,.psd"
                 hint="Formatos: PNG, JPG, SVG, PDF, AI, EPS, PSD. Soporta formatos de diseño profesional. Máx: 50MB."
                 error={errors.logo?.message as string}

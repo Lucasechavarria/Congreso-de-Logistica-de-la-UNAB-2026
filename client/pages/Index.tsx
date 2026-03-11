@@ -191,7 +191,7 @@ export default function Index() {
                 viewport={{ once: true }}
               ></motion.div>
               <h2 className="text-xl md:text-2xl font-semibold mb-4 text-congress-white">
-                MOVIENDO EL FUTURO
+                NUEVAS OPORTUNIDADES, GRANDES DESAFÍOS
               </h2>
               <p className="text-lg md:text-xl opacity-90 max-w-2xl mx-auto mb-4">
                 Innovación y desafíos en la logística y el transporte
@@ -202,19 +202,11 @@ export default function Index() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-center mb-16">
                 <motion.img
-                  src="/images/CONGRESO-LOGISTICA-2.png"
-                  alt="Logo oficial del Congreso de Logística y Transporte Multimodal 2026 organizado por la Universidad Nacional Guillermo Brown"
-                  className="h-28 md:h-36 w-auto drop-shadow-[0_0_20px_rgba(167,139,250,0.4)]"
+                  src="/images/LogoUnab.png"
+                  alt="Logo de la Universidad Nacional Guillermo Brown"
+                  className="h-28 md:h-36 w-auto drop-shadow-[0_0_20px_rgba(167,139,250,0.4)] bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20"
                   variants={scaleIn}
                 />
-                <div className="text-center sm:text-left">
-                  <span className="text-xl md:text-2xl font-bold block text-congress-cyan-light">
-                    Universidad Nacional
-                  </span>
-                  <span className="text-2xl md:text-4xl font-black block text-white tracking-widest uppercase mt-1">
-                    Guillermo Brown
-                  </span>
-                </div>
               </div>
 
               <div className="mb-8">
@@ -465,7 +457,7 @@ export default function Index() {
                     ¿Interesado en Participar como Empresa?
                   </h3>
                   <p className="text-congress-cyan-light mb-6 text-lg leading-relaxed max-w-2xl mx-auto">
-                    Sumate a las más de 50 empresas que ya confirmaron su
+                    Sumate a las más de 80 empresas que ya confirmaron su
                     participación. Es una excelente oportunidad para networking,
                     visibilidad y desarrollo de negocio.
                   </p>

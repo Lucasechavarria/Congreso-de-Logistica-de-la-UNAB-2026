@@ -30,11 +30,11 @@ export default function PreviousCongressSection() {
                     className="text-center mb-16"
                 >
                     <h2 className="text-3xl md:text-5xl font-extrabold text-[#2d1854] mb-6 tracking-tight">
-                        Nuestra Historia
+                        Conoce nuestra primera edición
                     </h2>
                     <div className="w-20 h-1 bg-[#8b5cf6] mx-auto mb-8 rounded-full"></div>
                     <p className="text-xl text-slate-600 leading-relaxed max-w-3xl mx-auto">
-                        El Primer Congreso de Logística y Transporte fue un hito para la región, reuniendo a más de 1000 asistentes y 50 empresas líderes para debatir el futuro del sector.
+                        El Primer Congreso de Logística y Transporte fue un hito para la región, reuniendo a más de 2000 personas y más de 80 empresas líderes para debatir el futuro del sector.
                     </p>
                 </motion.div>
 
@@ -80,11 +80,11 @@ export default function PreviousCongressSection() {
                         </div>
                         <div className="flex-shrink-0 grid grid-cols-2 gap-4">
                             <div className="text-center p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
-                                <div className="text-3xl font-black text-[#8b5cf6]">1000+</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-widest font-bold">Asistentes</div>
+                                <div className="text-3xl font-black text-[#8b5cf6]">2000+</div>
+                                <div className="text-xs text-slate-500 uppercase tracking-widest font-bold">Personas</div>
                             </div>
                             <div className="text-center p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
-                                <div className="text-3xl font-black text-[#8b5cf6]">50+</div>
+                                <div className="text-3xl font-black text-[#8b5cf6]">80+</div>
                                 <div className="text-xs text-slate-500 uppercase tracking-widest font-bold">Empresas</div>
                             </div>
                         </div>

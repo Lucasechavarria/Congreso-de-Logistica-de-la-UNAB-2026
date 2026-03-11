@@ -278,7 +278,14 @@ const RegistroEmpresas: React.FC = () => {
         )}
         <FormCard
           title="Registro Empresarial"
-          description="Registre su empresa para participar como expositor, patrocinador o ponente en el Congreso de Logística y Transporte UNaB 2025"
+          description={
+            <div className="flex flex-col gap-4 mt-3">
+              <span>Registre su empresa para participar como expositor, patrocinador o ponente en el Congreso de Logística y Transporte UNaB 2026.</span>
+              <div className="p-4 bg-blue-50 border border-blue-200 text-congress-blue text-base sm:text-lg font-semibold rounded-xl shadow-sm text-center">
+                La Comisión Organizadora evaluará las solicitudes recibidas y comunicará a cada empresa expositora, vía correo electrónico, la confirmación oficial del stand asignado o de la modalidad de participación.
+              </div>
+            </div>
+          }
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             {/* Información de la Empresa */}

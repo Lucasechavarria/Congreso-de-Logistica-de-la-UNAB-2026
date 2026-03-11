@@ -357,7 +357,14 @@ const RegistroDisertante: React.FC = () => {
 
                 <FormCard
                     title="Call for Papers - Disertantes"
-                    description="Detalles técnicos y estructuración de su disertación"
+                    description={
+                        <div className="flex flex-col gap-4 mt-3">
+                            <span>Detalles técnicos y estructuración de su disertación.</span>
+                            <div className="p-4 bg-blue-50 border border-blue-200 text-blue-700 text-base sm:text-lg font-semibold rounded-xl shadow-sm text-center">
+                                La Comisión Académica evaluará las postulaciones recibidas y comunicará a cada disertante, vía correo electrónico, la confirmación oficial de su participación en el Congreso.
+                            </div>
+                        </div>
+                    }
                 >
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
 

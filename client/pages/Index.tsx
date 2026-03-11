@@ -193,9 +193,7 @@ export default function Index() {
               <h2 className="text-xl md:text-2xl font-semibold mb-4 text-congress-white">
                 NUEVAS OPORTUNIDADES, GRANDES DESAFÍOS
               </h2>
-              <p className="text-lg md:text-xl opacity-90 max-w-2xl mx-auto mb-4">
-                Innovación y desafíos en la logística y el transporte
-              </p>
+
               <p className="text-congress-cyan-light font-bold text-2xl mb-6">
                 7 de Noviembre, 2026
               </p>

@@ -2,8 +2,8 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface FormCardProps {
-  title?: string;
-  description?: string;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }
@@ -29,9 +29,9 @@ export const FormCard: React.FC<FormCardProps> = ({
             </h2>
           )}
           {description && (
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            <div className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
               {description}
-            </p>
+            </div>
           )}
         </div>
       )}
@@ -43,8 +43,8 @@ export const FormCard: React.FC<FormCardProps> = ({
 };
 
 interface FormSectionProps {
-  title?: string;
-  description?: string;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }
@@ -65,9 +65,9 @@ export const FormSection: React.FC<FormSectionProps> = ({
             </h3>
           )}
           {description && (
-            <p className="text-sm text-slate-600">
+            <div className="text-sm text-slate-600">
               {description}
-            </p>
+            </div>
           )}
         </div>
       )}

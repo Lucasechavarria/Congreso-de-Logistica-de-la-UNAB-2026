@@ -46,7 +46,7 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-white flex flex-col" lang="es" translate="no">
       <Helmet>
         <title>Congreso de Logística y Transporte 2026</title>
-        <meta name="description" content="Nuevas oportunidades, grandes desafíos - Innovación y desafíos en la logística y el transporte. Campus UNaB, Almirante Brown." />
+        <meta name="description" content="Nuevas oportunidades, grandes desafíos. Campus UNaB, Almirante Brown." />
         <meta property="og:title" content="Congreso de Logística y Transporte 2026" />
         <meta property="og:description" content="El espacio principal para la innovación, tecnología y desarrollo en el sector del transporte y la cadena de suministro." />
         <meta property="og:type" content="website" />

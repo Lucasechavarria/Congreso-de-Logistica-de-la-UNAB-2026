@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div style="padding: 20px; background: #000; color: #fff;">
+    <h1>TEST V4</h1>
+    <form method="get">
+        <select name="edicion" onchange="this.form.submit()">
+            {% for ed in todas_ediciones %}
+            <option value="{{ ed.id }}" {% if edicion_seleccionada.id|add:0==ed.id|add:0 %}selected{% endif %}>
+                {{ ed.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,373 @@
+{% extends "admin/base_site.html" %} 
+{% load static %} 
+{% block extrastyle %} 
+{{ block.super }}
+<style>
+    :root {
+        --bg: #070310;
+        --card: rgba(18, 8, 38, 0.7);
+        --card-glow: rgba(43, 20, 84, 0.9);
+        --p: #a78bfa;
+        --b: rgba(167, 139, 250, 0.15);
+        --txt: #f8fafc;
+        --neon-cyan: #06b6d4;
+        --neon-magenta: #f43f5e;
+    }
+
+    body {
+        background: var(--bg) !important;
+        color: var(--txt) !important;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    #content {
+        background: var(--bg) !important;
+        padding: 25px !important;
+    }
+
+    /* Glassmorphism Header & Controls */
+    .ds-header {
+        margin-bottom: 25px;
+    }
+
+    .ds-header h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #fff;
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
+        margin-bottom: 20px;
+    }
+
+    .f-panel {
+        background: var(--card);
+        backdrop-filter: blur(12px);
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid var(--b);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(167, 139, 250, 0.05);
+    }
+
+    .f-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .f-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .f-group label {
+        font-size: 12px;
+        color: var(--p);
+        text-transform: uppercase;
+        font-weight: bold;
+        letter-spacing: 1px;
+        margin: 0;
+    }
+
+    select,
+    input[type="date"] {
+        background: transparent;
+        color: #fff;
+        border: none;
+        outline: none;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    select option {
+        background: #120826;
+        color: #fff;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+    }
+
+    .btn-apply {
+        background: linear-gradient(45deg, var(--neon-cyan), #3b82f6);
+        color: #fff;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 13px;
+        box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+    }
+
+    .btn-apply:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 25px rgba(6, 182, 212, 0.7);
+    }
+
+    /* Premium KPIs */
+    .k-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 25px;
+    }
+
+    .k-card {
+        background: linear-gradient(135deg, var(--card), var(--card-glow));
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid var(--b);
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s;
+    }
+
+    .k-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .k-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    }
+
+    .k-card span {
+        display: block;
+        font-size: 12px;
+        color: var(--p);
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        opacity: 0.8;
+        margin-bottom: 10px;
+    }
+
+    .k-card div {
+        font-size: 36px;
+        font-weight: 900;
+        color: #fff;
+        text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+    }
+
+    /* Chart Area */
+    .c-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 25px;
+    }
+
+    .c-card {
+        background: var(--card);
+        backdrop-filter: blur(10px);
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid var(--b);
+        height: 380px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    @media (max-width: 1100px) {
+        .c-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .c-card {
+            height: 300px;
+        }
+    }
+</style>
+{% endblock %} 
+
+{% block content %} 
+<div class="ds-container">
+    <div class="ds-header">
+        <h1>ANALYTICS HUB 🚀</h1>
+
+        <form method="get" class="f-panel">
+            <!-- Fila 1: Filtros de Tiempo y Contexto -->
+            <div class="f-row">
+                <div class="f-group">
+                    <label>Edición</label>
+                    <select name="edicion">
+                        {% for e in todas_ediciones %} 
+                        {% if e.id in selected_id_list %}<option value="{{e.id}}" selected>{{e.anio}}</option> 
+                        {% else %}<option value="{{e.id}}">{{e.anio}}</option>{% endif %} 
+                        {% endfor %} 
+                    </select>
+                </div>
+
+                <div class="f-group">
+                    <label>Entidad</label>
+                    <select name="entidad">
+                        {% if 'inscripciones' in selected_entidad_list %}<option value="inscripciones" selected> 
+                            Inscritos</option>{% else %}<option value="inscripciones">Inscritos</option>{% endif %} 
+                        {% if 'disertantes' in selected_entidad_list %}<option value="disertantes" selected>Ponentes 
+                        </option>{% else %}<option value="disertantes">Ponentes</option>{% endif %} 
+                        {% if 'empresas' in selected_entidad_list %}<option value="empresas" selected>Empresas</option> 
+                        {% else %}<option value="empresas">Empresas</option>{% endif %} 
+                    </select>
+                </div>
+
+                <div class="f-group">
+                    <label>Agrupar por</label>
+                    <select name="periodo">
+                        {% if 'diario' in selected_periodo_list %}<option value="diario" selected>Día</option>{% else %} 
+                        <option value="diario">Día</option>{% endif %} 
+                        {% if 'semanal' in selected_periodo_list %}<option value="semanal" selected>Semanal</option>{%                          else %}<option value="semanal">Semanal</option>{% endif %} 
+                        {% if 'mensual' in selected_periodo_list %}<option value="mensual" selected>Mensual</option>{%                          else %}<option value="mensual">Mensual</option>{% endif %} 
+                    </select>
+                </div>
+
+                <div class="f-group">
+                    <label>Desde</label>
+                    <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+                </div>
+                <div class="f-group">
+                    <label>Hasta</label>
+                    <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+                </div>
+            </div>
+
+            <!-- Fila 2: Tipos de Gráfico y Acciones -->
+            <div class="f-row" style="justify-content: space-between;">
+                <div class="f-row">
+                    <div class="f-group">
+                        <label>Gráfico Evolutivo</label>
+                        <select name="chart_type">
+                            {% if 'mix' in selected_chart_type_list %}<option value="mix" selected>Acumulado + Barras 
+                            </option>{% else %}<option value="mix">Acumulado + Barras</option>{% endif %} 
+                            {% if 'line' in selected_chart_type_list %}<option value="line" selected>Línea Clásica 
+                            </option>{% else %}<option value="line">Línea Clásica</option>{% endif %} 
+                            {% if 'bar' in selected_chart_type_list %}<option value="bar" selected>Barras Verticales 
+                            </option>{% else %}<option value="bar">Barras Verticales</option>{% endif %} 
+                            {% if 'horizontalBar' in selected_chart_type_list %}<option value="horizontalBar" selected> 
+                                Barras Horizontales</option>{% else %}<option value="horizontalBar">Barras Horizontales 
+                            </option>{% endif %} 
+                            {% if 'scatter' in selected_chart_type_list %}<option value="scatter" selected>Dispersión 
+                                (Scatter)</option>{% else %}<option value="scatter">Dispersión (Scatter)</option>{%                              endif %}
+                        </select>
+                    </div>
+                    <div class="f-group">
+                        <label>Gráfico de Proporción</label>
+                        <select name="chart_type_dist">
+                            {% if 'doughnut' in selected_chart_dist_list %}<option value="doughnut" selected>Donita 
+                            </option>{% else %}<option value="doughnut">Donita</option>{% endif %} 
+                            {% if 'pie' in selected_chart_dist_list %}<option value="pie" selected>Segmentos (Torta) 
+                            </option>{% else %}<option value="pie">Segmentos (Torta)</option>{% endif %} 
+                            {% if 'polarArea' in selected_chart_dist_list %}<option value="polarArea" selected>Área 
+                                Polar</option>{% else %}<option value="polarArea">Área Polar</option>{% endif %} 
+                            {% if 'radar' in selected_chart_dist_list %}<option value="radar" selected>Radar / Malla 
+                            </option>{% else %}<option value="radar">Radar / Malla</option>{% endif %} 
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-apply">Aplicar Filtros</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="k-row">
+        <div class="k-card"><span>Inscritos</span>
+            <div>{{kpis.total_inscritos}}</div>
+        </div>
+        <div class="k-card"><span>Ponentes</span>
+            <div>{{kpis.total_disertantes}}</div>
+        </div>
+        <div class="k-card"><span>Empresas</span>
+            <div>{{kpis.total_empresas}}</div>
+        </div>
+        <div class="k-card" style="border-top-color: var(--neon-magenta);"><span>Vuelven (Fidelidad)</span>
+            <div>{{kpis.asistentes_recurrentes}}</div>
+        </div>
+    </div>
+
+    <div class="c-grid">
+        <div class="c-card"><canvas id="c1"></canvas></div>
+        <div class="c-card" style="display:flex; justify-content:center; align-items:center;"><canvas id="c2"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    Chart.defaults.color = '#e2e8f0';
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+    Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+    const d1 = JSON.parse('{{ daily_stats_json|safe|escapejs }}');
+    const d2 = JSON.parse('{{ distribution_stats_json|safe|escapejs }}');
+
+    // Configuración Evolutiva (Izquierda)
+    const ct = '{{ chart_type_seleccionado }}';
+    let baseType = ct === 'horizontalBar' ? 'bar' : (ct === 'scatter' ? 'scatter' : (ct === 'mix' ? 'bar' : ct));
+    let c1Datasets = [];
+
+    // Soporte para Gráfico Mixto (Barras + Línea Acumulada)
+    if (ct === 'mix' && d1.length > 0 && d1[0].cumulative !== undefined) {
+        c1Datasets.push({ type: 'bar', label: 'Nuevos Registros (Periodo)', data: d1.map(x => x.count), backgroundColor: 'rgba(6, 182, 212, 0.4)', borderColor: '#06b6d4', borderWidth: 1, borderRadius: 4 });
+        c1Datasets.push({ type: 'line', label: 'Total Acumulado (Histórico filtrado)', data: d1.map(x => x.cumulative), borderColor: '#facc15', backgroundColor: 'transparent', tension: 0.4, borderWidth: 3, pointBackgroundColor: '#facc15' });
+    } else if (ct === 'scatter') {
+        c1Datasets.push({ label: 'Densidad', data: d1.map((x, i) => ({ x: i, y: x.count })), backgroundColor: '#f43f5e', pointRadius: 6, pointHoverRadius: 8 });
+    } else {
+        c1Datasets.push({ label: 'Cantidad', data: d1.map(x => x.count), borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.4)', tension: 0.4, borderWidth: 2, fill: true, borderRadius: 4 });
+    }
+
+    new Chart(document.getElementById('c1'), {
+        type: baseType,
+        data: { labels: d1.map(x => x.label), datasets: c1Datasets },
+        options: {
+            indexAxis: ct === 'horizontalBar' ? 'y' : 'x',
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } }
+        }
+    });
+
+    // Configuración Proporcional (Derecha)
+    const ct_dist = '{{ chart_type_dist_seleccionado }}';
+    const c2Colors = ['#0ea5e9', '#10b981', '#f43f5e', '#facc15', '#a855f7', '#06b6d4'];
+
+    new Chart(document.getElementById('c2'), {
+        type: ct_dist,
+        data: {
+            labels: d2.map(x => x.name),
+            datasets: [{
+                label: 'Distribución',
+                data: d2.map(x => x.value),
+                backgroundColor: ct_dist === "radar" ? 'rgba(16, 185, 129, 0.3)' : c2Colors,
+                borderColor: ct_dist === "radar" ? '#10b981' : (ct_dist === "polarArea" ? 'transparent' : '#070310'),
+                borderWidth: ct_dist === "radar" ? 2 : 1
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: ct_dist === 'radar' ? 'top' : 'right'
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

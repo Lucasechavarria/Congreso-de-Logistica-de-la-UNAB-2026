@@ -106,6 +106,7 @@ class Empresa(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='empresas')
     ESTADO_CHOICES = [('PENDIENTE', 'Pendiente'), ('APROBADO', 'Aprobado'), ('RECHAZADO', 'Rechazado')]
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', verbose_name="Estado")
+    fecha_registro = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de registro")
     # Main Info
     nombre_empresa = models.CharField(max_length=255, verbose_name="Nombre de la empresa o institución")
     cuit = models.CharField(max_length=15, blank=True, null=True, verbose_name="CUIT de la empresa")
@@ -366,3 +367,9 @@ class Inscripcion(models.Model):
 
     def __str__(self):
         return f"Inscripción de {self.asistente} - {self.edicion}"
+
+class Dashboard(models.Model):
+    class Meta:
+        managed = False
+        verbose_name = "Dashboard de Estadísticas"
+        verbose_name_plural = "📊 Dashboards de Estadísticas"

@@ -4,7 +4,8 @@ from .views import (
     DisertanteViewSet, VerificarDNIView, ProgramaViewSet, RegistroEmpresasView, 
     RegistroViewSet, AsistenteCRMView, RegistroRapidoView, EmpresaViewSet, 
     CargaMasivaAsistentesView, EnvioMasivoEmailsView, ActualizarDNIView, 
-    GetCSRFTokenView, RegistroDisertanteView, EmpresaCRMView, DisertanteCRMView
+    GetCSRFTokenView, RegistroDisertanteView, EmpresaCRMView, DisertanteCRMView,
+    StatsDashboardView
 )
 from .qr_views import GenerateStaticQRView
 

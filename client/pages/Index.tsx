@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,8 +23,6 @@ import LogoCarouselsSection from "@/components/LogoCarouselsSection";
 import CountdownTimer from "@/components/CountdownTimer";
 import PreviousCongressSection from "@/components/PreviousCongressSection";
 import FloatingParticles from "@/components/FloatingParticles";
-import { useRef, useState } from "react";
-
 import {
   Accordion,
   AccordionItem,
@@ -108,6 +107,53 @@ export default function Index() {
   };
   return (
     <Layout>
+      <Helmet>
+        <title>Congreso Logística y Transporte Multimodal 2026 | UNAB</title>
+        <meta name="description" content="Únete al Congreso de Logística y Transporte 2026 en la UNAB. Descubre tendencias en transporte multimodal, logística verde y automatización. ¡Inscríbete hoy!" />
+        <meta name="keywords" content="Congreso de logística y transporte multimodal Argentina 2026, Tendencias en logística verde y sostenibilidad en Argentina, Automatización de carga y descarga en transporte multimodal, Congreso universitario de logística sustentable UNAB 2026" />
+        <link rel="canonical" href="https://www.congresologistica.unab.edu.ar/congreso-logistica-unab-2026" />
+        {/* Schema.org for Event (Google Rich Snippets) */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Event",
+            "name": "Congreso de Logística y Transporte Multimodal 2026",
+            "startDate": "2026-11-07T09:00",
+            "endDate": "2026-11-08T18:00",
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+            "eventStatus": "https://schema.org/EventScheduled",
+            "location": {
+              "@type": "Place",
+              "name": "Campus Universidad Nacional Guillermo Brown (UNAB)",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Blas Parera 132",
+                "addressLocality": "Burzaco",
+                "addressRegion": "Buenos Aires",
+                "postalCode": "1852",
+                "addressCountry": "AR"
+              }
+            },
+            "image": [
+              "https://www.congresologistica.unab.edu.ar/images/CONGRESO-LOGISTICA-2.png"
+            ],
+            "description": "Únete al Congreso de Logística y Transporte 2026 en la UNAB. Descubre tendencias en transporte multimodal, logística verde y automatización.",
+            "offers": {
+              "@type": "Offer",
+              "url": "https://www.congresologistica.unab.edu.ar/registro-participantes",
+              "price": "0",
+              "priceCurrency": "ARS",
+              "availability": "https://schema.org/InStock",
+              "validFrom": "2026-03-01T00:00"
+            },
+            "organizer": {
+              "@type": "Organization",
+              "name": "Universidad Nacional Guillermo Brown",
+              "url": "https://www.unab.edu.ar/"
+            }
+          })}
+        </script>
+      </Helmet>
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-congress-blue to-congress-blue-dark text-white py-20 degradado-hero overflow-hidden">
         <FloatingParticles count={30} />
@@ -157,7 +203,7 @@ export default function Index() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-center mb-16">
                 <motion.img
                   src="/images/CONGRESO-LOGISTICA-2.png"
-                  alt="Logo Congreso"
+                  alt="Logo oficial del Congreso de Logística y Transporte Multimodal 2026 organizado por la Universidad Nacional Guillermo Brown"
                   className="h-28 md:h-36 w-auto drop-shadow-[0_0_20px_rgba(167,139,250,0.4)]"
                   variants={scaleIn}
                 />

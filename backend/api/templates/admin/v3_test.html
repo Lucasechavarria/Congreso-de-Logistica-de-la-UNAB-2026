@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div style="padding: 20px; background: #000; color: #fff;">
+    <h1>TEST V3</h1>
+    <form method="get">
+        <select name="edicion" onchange="this.form.submit()">
+            {% for ed in todas_ediciones %}
+            <option value="{{ ed.id }}" {% if edicion_seleccionada.id==ed.id %}selected{% endif %}>
+                {{ ed.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+        <select name="periodo" onchange="this.form.submit()">
+            <option value="diario" {% if periodo_seleccionado=='diario' %}selected{% endif %}>Diario</option>
+            <option value="semanal" {% if periodo_seleccionado=='semanal' %}selected{% endif %}>Semanal</option>
+            <option value="mensual" {% if periodo_seleccionado=='mensual' %}selected{% endif %}>Mensual</option>
+        </select>
+    </form>
+    <hr>
+    <pre>{{ daily_stats }}</pre>
+</div>
+{% endblock %}

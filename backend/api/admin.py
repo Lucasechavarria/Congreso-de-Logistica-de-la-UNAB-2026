@@ -1,82 +1,164 @@
 from django.contrib import admin
 from django.db import models
 from django.db.models import Count
-from django.db.models.functions import TruncDate
-from django.urls import path
+from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
 from django.shortcuts import render
+from django.utils.html import format_html
+from django.urls import reverse, path
 from django.utils import timezone
 import json
 from django.utils import timezone
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa
+from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante
+from django.shortcuts import redirect
 from .email import send_certificate_email
 
 
-def get_stats_data():
+def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', fecha_desde=None, fecha_hasta=None):
     """
-    Helper para obtener los datos de estadísticas.
+    Helper para obtener los datos de estadísticas, opcionalmente filtrados por edición
+    y agrupados por un periodo específico.
     """
-    # 1. Inscripciones por día (últimos 30 días)
-    hace_30_dias = timezone.now() - timezone.timedelta(days=30)
-    inscripciones_por_dia = Inscripcion.objects.filter(
-        fecha_inscripcion__gte=hace_30_dias
-    ).annotate(
-        date=TruncDate('fecha_inscripcion')
-    ).values('date').annotate(
-        count=Count('id')
-    ).order_by('date')
+    # Obtener edición actual o seleccionada
+    if edicion_id:
+        try:
+            edicion_actual = Edicion.objects.get(id=edicion_id)
+        except (Edicion.DoesNotExist, ValueError):
+            edicion_actual = Edicion.objects.filter(activa=True).first()
+    else:
+        edicion_actual = Edicion.objects.filter(activa=True).first()
 
-    daily_stats = [
-        {'date': item['date'].strftime('%Y-%m-%d'), 'count': item['count']}
-        for item in inscripciones_por_dia
-    ]
+    # Determinar la función de truncado
+    if periodo == 'semanal':
+        trunc_func = TruncWeek
+        date_format = 'Semana #%W (%Y)'
+    elif periodo == 'mensual':
+        trunc_func = TruncMonth
+        date_format = '%B %Y'
+    else:
+        trunc_func = TruncDate
+        date_format = '%Y-%m-%d'
 
-    # 2. Comparativa por Edición
-    ediciones_stats = Inscripcion.objects.values(
-        'edicion__nombre'
-    ).annotate(
-        total=Count('id')
-    ).order_by('edicion__nombre')
+    # Preparar estructuras dinámicas
+    main_stats = []
+    distribution_stats = []
 
-    comparative_stats = [
-        {'name': item['edicion__nombre'], 'total': item['total']}
-        for item in ediciones_stats
-    ]
+    if entidad == 'disertantes':
+        # 1. Main Stats: Tendencia en el tiempo (Postulaciones)
+        query = PostulacionDisertante.objects.all()
+        if edicion_actual: query = query.filter(edicion=edicion_actual)
+        if fecha_desde: query = query.filter(fecha_postulacion__date__gte=fecha_desde)
+        if fecha_hasta: query = query.filter(fecha_postulacion__date__lte=fecha_hasta)
+        stats_query = query.annotate(period=trunc_func('fecha_postulacion'))
 
-    # 3. Distribución por Tipo de Perfil (Solo edición activa)
-    perfil_stats = Asistente.objects.filter(
-        inscripciones__edicion__activa=True
-    ).values(
-        'profile_type'
-    ).annotate(
-        value=Count('id')
-    )
+        # 2. Distribution Stats: Estados de la postulación
+        dist_raw = query.values('estado').annotate(value=Count('id'))
+        estado_map = dict(PostulacionDisertante.ESTADO_CHOICES)
+        distribution_stats = [
+            {'name': estado_map.get(item['estado'], item['estado']), 'value': item['value']}
+            for item in dist_raw
+        ]
 
-    # Mapeo de tipos de perfil a nombres legibles
-    profile_map = dict(Asistente.ProfileType.choices)
-    distribution_stats = [
-        {'name': profile_map.get(item['profile_type'], item['profile_type']), 'value': item['value']}
-        for item in perfil_stats
-    ]
+    elif entidad == 'empresas':
+        # Empresas no tienen fecha_registro, usamos su modelo completo.
+        query = Empresa.objects.all()
+        if edicion_actual: query = query.filter(edicion=edicion_actual)
+        if fecha_desde: query = query.filter(fecha_registro__date__gte=fecha_desde)
+        if fecha_hasta: query = query.filter(fecha_registro__date__lte=fecha_hasta)
+        stats_query = [] 
+        
+        # 1. Main Stats Ficticio (Participaciones) para que el gráfico no esté vacío
+        part_raw = query.values('participacion_opciones').annotate(count=Count('id'))
+        main_stats = [
+            {'date': str(item['participacion_opciones']), 'label': str(item['participacion_opciones']) or 'General', 'count': item['count']}
+            for item in part_raw
+        ]
 
-    # 4. KPIs Generales
-    total_inscritos = Inscripcion.objects.filter(edicion__activa=True).count()
+        # 2. Distribution Stats: Estado de empresas
+        dist_raw = query.values('estado').annotate(value=Count('id'))
+        estado_map = dict(Empresa.ESTADO_CHOICES)
+        distribution_stats = [
+            {'name': estado_map.get(item['estado'], item['estado']), 'value': item['value']}
+            for item in dist_raw
+        ]
+
+    else:
+        # Por defecto Inscripciones
+        query = Inscripcion.objects.all()
+        if edicion_actual: query = query.filter(edicion=edicion_actual)
+        if fecha_desde: query = query.filter(fecha_inscripcion__date__gte=fecha_desde)
+        if fecha_hasta: query = query.filter(fecha_inscripcion__date__lte=fecha_hasta)
+        stats_query = query.annotate(period=trunc_func('fecha_inscripcion'))
+
+        # 2. Distribution Stats: Perfiles de los asistentes
+        perfil_stats = Asistente.objects.all()
+        if edicion_actual: perfil_stats = perfil_stats.filter(inscripciones__edicion=edicion_actual)
+        dist_raw = perfil_stats.values('profile_type').annotate(value=Count('id', distinct=True))
+        profile_map = dict(Asistente.ProfileType.choices)
+        distribution_stats = [
+            {'name': profile_map.get(item['profile_type'], item['profile_type']), 'value': item['value']}
+            for item in dist_raw
+        ]
+
+    if stats_query: # (si es QuerySet con anotación de periodo)
+        main_stats_raw = stats_query.values('period').annotate(count=Count('id')).order_by('period')
+        
+        running_total = 0
+        main_stats = []
+        for item in main_stats_raw:
+            running_total += item['count']
+            main_stats.append({
+                'date': item['period'].strftime('%Y-%m-%d') if hasattr(item['period'], 'strftime') else str(item['period']), 
+                'label': item['period'].strftime(date_format) if hasattr(item['period'], 'strftime') else str(item['period']),
+                'count': item['count'],
+                'cumulative': running_total
+            })
+
+    # 2. Comparativa por Edición (Totales)
+    comparative_stats = []
+    ediciones = Edicion.objects.all().order_by('anio')
+    for ed in ediciones:
+        comparative_stats.append({
+            'name': f"{ed.nombre} ({ed.anio})",
+            'total_inscritos': Inscripcion.objects.filter(edicion=ed).count(),
+            'total_disertantes': Disertante.objects.filter(edicion=ed).count(),
+            'total_empresas': Empresa.objects.filter(edicion=ed).count(),
+        })
+
+    # 4. Asistentes Recurrentes (Filtro por ediciones anteriores)
+    recurrentes_count = 0
+    if edicion_actual:
+        asistentes_actuales = Asistente.objects.filter(inscripciones__edicion=edicion_actual).values_list('id', flat=True)
+        asistentes_anteriores = Inscripcion.objects.exclude(edicion=edicion_actual).values_list('asistente_id', flat=True).distinct()
+        recurrentes_count = Asistente.objects.filter(id__in=asistentes_actuales).filter(id__in=asistentes_anteriores).count()
+
+    # 5. KPIs
+    total_inscritos = Inscripcion.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
+    total_disertantes = Disertante.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
+    total_empresas = Empresa.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
     total_confirmados = Asistente.objects.filter(
-        inscripciones__edicion__activa=True,
+        inscripciones__edicion=edicion_actual,
         asistencia_confirmada=True
-    ).count()
+    ).distinct().count() if edicion_actual else 0
 
     return {
-        'daily_stats': daily_stats,
+        'edicion_seleccionada': edicion_actual,
+        'periodo_seleccionado': periodo,
+        'entidad_seleccionada': entidad,
+        'daily_stats': main_stats,
         'comparative_stats': comparative_stats,
         'distribution_stats': distribution_stats,
         'kpis': {
             'total_inscritos': total_inscritos,
             'total_confirmados': total_confirmados,
+            'total_disertantes': total_disertantes,
+            'total_empresas': total_empresas,
+            'asistentes_recurrentes': recurrentes_count,
             'asistencia_ratio': round((total_confirmados / total_inscritos * 100), 2) if total_inscritos > 0 else 0
-        }
+        },
+        'todas_ediciones': Edicion.objects.all().order_by('-anio')
     }
 
 
@@ -84,13 +166,40 @@ def admin_dashboard(request):
     """
     Vista personalizada para el dashboard en el panel admin.
     """
-    stats = get_stats_data()
+    edicion_id = request.GET.get('edicion')
+    periodo = request.GET.get('periodo', 'diario')
+    entidad = request.GET.get('entidad', 'inscripciones')
+    chart_type = request.GET.get('chart_type', 'line')
+    chart_type_dist = request.GET.get('chart_type_dist', 'doughnut')
+    fecha_desde = request.GET.get('fecha_desde', '')
+    fecha_hasta = request.GET.get('fecha_hasta', '')
+    
+    stats = get_stats_data(
+        edicion_id=edicion_id, 
+        periodo=periodo, 
+        entidad=entidad, 
+        fecha_desde=fecha_desde if fecha_desde else None, 
+        fecha_hasta=fecha_hasta if fecha_hasta else None
+    )
+    
     context = {
         **admin.site.each_context(request),
-        'title': 'Dashboard de Analíticas',
-        **stats
+        'title': 'Power Dashboard Analysts',
+        **stats,
+        'chart_type_seleccionado': chart_type,
+        'chart_type_dist_seleccionado': chart_type_dist,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'selected_id_list': [stats['edicion_seleccionada'].id] if stats['edicion_seleccionada'] else [],
+        'selected_periodo_list': [periodo],
+        'selected_entidad_list': [entidad],
+        'selected_chart_type_list': [chart_type],
+        'selected_chart_dist_list': [chart_type_dist],
+        'daily_stats_json': json.dumps(stats['daily_stats']),
+        'distribution_stats_json': json.dumps(stats['distribution_stats']),
+        'comparative_stats_json': json.dumps(stats['comparative_stats']),
     }
-    return render(request, 'admin/dashboard.html', context)
+    return render(request, 'admin/dashboard_power.html', context)
 
 
 # Inyectar el dashboard en el Admin de Django
@@ -104,8 +213,12 @@ def get_urls():
     return custom_urls + urls
 
 admin.site.get_urls = get_urls
-# Cambiar el título del índice para incluir un link directo (opcional pero útil)
-admin.site.index_title = "Administración del Congreso - [Ir al Dashboard](/admin/dashboard/)"
+# Cambiar el título del índice para incluir un link directo con estilo HTML
+admin.site.index_title = format_html(
+    'Administración del Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Ir al Dashboard</a>'
+)
+admin.site.site_header = "Congreso Logística UNAB 2026 Admin"
+admin.site.site_title = "Panel Administrativo"
 
 
 
@@ -437,7 +550,14 @@ class EmpresaAdmin(admin.ModelAdmin):
         }),
     )
     list_display = ('nombre_empresa', 'logo')
+@admin.register(Dashboard)
+class DashboardAdmin(admin.ModelAdmin):
+    def changelist_view(self, request, extra_context=None):
+        return redirect('admin:admin-dashboard')
+
+# Registros finales
 admin.site.register(Asistente, AsistenteAdmin)
 admin.site.register(Inscripcion, InscripcionAdmin)
 admin.site.register(Certificado, CertificadoAdmin)
 admin.site.register(Programa, ProgramaAdmin)
+admin.site.register(Edicion)

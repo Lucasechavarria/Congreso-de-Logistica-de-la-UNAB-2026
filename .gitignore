@@ -15,13 +15,13 @@ lerna-debug.log*
 .pnpm-store/
 
 # Python / Django
-venv/
-.venv/
-env/
-.env/
-bin/
-lib/
-include/
+/venv/
+/.venv/
+/env/
+/.env/
+/bin/
+/lib/
+/include/
 *.pyc
 __pycache__/
 *.py[cod]

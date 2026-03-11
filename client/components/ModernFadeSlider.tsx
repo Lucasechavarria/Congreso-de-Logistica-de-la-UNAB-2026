@@ -75,12 +75,12 @@ const ModernFadeSlider: React.FC<ModernFadeSliderProps> = ({
             <img
               src={img.src}
               alt={img.alt}
-              className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-[1000ms] ease-in-out ${idx === current && fade ? "opacity-100 z-10" : "opacity-0 z-0"}`}
+              className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === current && fade ? "opacity-100 z-10" : "opacity-0 z-0"}`}
               style={{ transition: "opacity 1s cubic-bezier(0.4,0,0.2,1)" }}
               draggable={false}
             />
             <figcaption
-              className={`absolute bottom-0 left-0 w-full text-white text-center text-base py-2 px-4 rounded-b-xl bg-black/60 transition-opacity duration-[1000ms] ease-in-out ${idx === current && fade ? "opacity-100 z-20" : "opacity-0 z-0"}`}
+              className={`absolute bottom-0 left-0 w-full text-white text-center text-base py-2 px-4 rounded-b-xl bg-black/60 transition-opacity duration-1000 ease-in-out ${idx === current && fade ? "opacity-100 z-20" : "opacity-0 z-0"}`}
               style={{ transition: "opacity 1s cubic-bezier(0.4,0,0.2,1)" }}
             >
               {img.caption || img.alt}

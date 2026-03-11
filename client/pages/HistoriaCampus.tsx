@@ -71,8 +71,8 @@ export default function HistoriaCampus() {
         </section>
 
         {/* Sección 1: El Esplendor */}
-        <section className="py-16 md:py-24 bg-gradient-to-br from-congress-blue to-congress-blue-dark text-white relative overflow-hidden">
-          <FloatingParticles count={15} color="rgba(167, 139, 250, 0.2)" />
+        <section className="py-16 md:py-24 bg-gradient-to-br from-purple-100 to-fuchsia-100 text-gray-900 relative overflow-hidden">
+          <FloatingParticles count={40} color="rgba(88, 28, 135, 0.6)" />
           <div className="container mx-auto px-4 max-w-5xl relative z-10">
             <motion.div
               className="flex flex-col md:flex-row gap-12 items-center"
@@ -97,7 +97,7 @@ export default function HistoriaCampus() {
                 <p className="text-lg leading-relaxed mb-4">
                   La actual sede de la Universidad Nacional Guillermo Brown
                   (UNaB) se encuentra en la histórica Quinta Rocca, una casona
-                  de verano de estilo Tudor construida in 1921 por Luisa Rocca
+                  de verano de estilo Tudor construida en 1921 por Luisa Rocca
                   para su hija María Concepción, quien necesitaba "tomar aire
                   puro" por recomendación médica. La mansión, famosa por su lujo
                   y esplendor entre las décadas de 1930 y 1950, fue parte de un
@@ -120,7 +120,7 @@ export default function HistoriaCampus() {
         </section>
 
         {/* Sección 2: Galería de fotos del pasado */}
-        <section className="py-16 md:py-24 bg-white relative">
+        <section className="py-16 md:py-24 bg-gradient-to-b from-fuchsia-100 to-violet-100 relative">
           <div className="container mx-auto px-4 max-w-5xl">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-congress-cyan text-center">
               Un vistazo a la historia
@@ -141,7 +141,7 @@ export default function HistoriaCampus() {
                   mantenimiento la dejaron en ruinas: se llevaron picaportes,
                   balaustres, faroles y hasta los angelitos de la fuente. El
                   último habitante, Charly, vivió solo allí durante 17 años
-                  hasta su fallecimiento in 2006. Finalmente, in 2007 la familia
+                  hasta su fallecimiento en 2006. Finalmente, en 2007 la familia
                   vendió la propiedad al municipio de Almirante Brown, que la
                   destinó a la creación de la universidad.
                 </p>
@@ -188,8 +188,8 @@ export default function HistoriaCampus() {
         </section>
 
         {/* Sección 3: Imágenes de Abandono y Renacimiento */}
-        <section className="py-16 md:py-24 bg-gradient-to-br from-[#1a0a2e] to-congress-blue-dark text-white relative overflow-hidden">
-          <FloatingParticles count={15} color="rgba(255, 255, 255, 0.1)" />
+        <section className="py-16 md:py-24 bg-gradient-to-br from-violet-100 to-indigo-100 text-gray-900 relative overflow-hidden">
+          <FloatingParticles count={40} color="rgba(49, 46, 129, 0.6)" />
           <div className="container mx-auto px-4 max-w-5xl relative z-10">
             <motion.div
               className="flex flex-col md:flex-row gap-12 items-center"
@@ -213,11 +213,11 @@ export default function HistoriaCampus() {
                 </div>
               </div>
               <div className="md:w-1/2">
-                <h2 className="text-3xl md:text-4xl font-bold mb-8 text-congress-cyan font-display">
+                <h2 className="text-3xl md:text-4xl font-bold mb-8 text-congress-blue font-display">
                   El lento declive y el renacimiento
                 </h2>
-                <p className="text-lg leading-relaxed mb-6 opacity-90">
-                  Hoy, la UNaB trabaja in la recuperación y puesta in valor de
+                <p className="text-lg leading-relaxed mb-6">
+                  Hoy, la UNaB trabaja en la recuperación y puesta en valor de
                   este patrimonio histórico, renovando su legado como espacio de
                   educación y cultura para la comunidad.
                 </p>

@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { LogoItem, chunk } from "./data/logos";
+import { LogoItem, chunk, ALL_LOGOS } from "./data/logos";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEmpresas } from "@/hooks/use-empresas";
-
-
 const LargeLogoCarousel: React.FC = () => {
   const { logosForCarousel, loading, error } = useEmpresas();
   const [currentPage, setCurrentPage] = useState(0);
@@ -20,7 +18,10 @@ const LargeLogoCarousel: React.FC = () => {
 
   // Elegir chunking según mobile/desktop
   const logosPerPage = isMobile ? 6 : 12; // 2x3 en mobile, 4x3 en desktop
-  const chunkedLogos = chunk(logosForCarousel, logosPerPage);
+  // Fall back to 2025 ALL_LOGOS if the API returned an error or an empty list
+  const isFallback = logosForCarousel.length === 0 || !!error;
+  const logosToDisplay = isFallback ? ALL_LOGOS : logosForCarousel;
+  const chunkedLogos = chunk(logosToDisplay, logosPerPage);
 
   useEffect(() => {
     timeoutRef.current = setTimeout(() => {
@@ -58,45 +59,23 @@ const LargeLogoCarousel: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <section className="py-16 bg-gray-100">
-        <div className="w-full px-4 flex justify-center items-center h-[400px]">
-          <div className="text-center max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100 transition-all duration-300 transform hover:scale-105">
-            <div className="flex justify-center mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-congress-blue/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-gray-800 mb-3">Información no disponible</h3>
-            <p className="text-gray-600 leading-relaxed mb-6">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2.5 bg-congress-blue text-white font-medium rounded-xl hover:bg-congress-cyan transition-colors duration-300 shadow-md hover:shadow-lg"
-            >
-              Reintentar
-            </button>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (chunkedLogos.length === 0) {
-    return (
-      <section className="py-16 bg-lavender-subtle">
-        <div className="w-full px-4 flex justify-center items-center h-[400px]">
-          <div className="text-center text-gray-600">
-            No hay empresas disponibles.
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="py-16 bg-gray-100 overflow-hidden relative">
+    <section className="py-2 bg-gray-100 overflow-hidden relative">
       <div className="w-full px-4">
+        {isFallback && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-center mb-8"
+          >
+            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-100 to-fuchsia-100 border border-violet-200 text-violet-800 text-sm md:text-base font-semibold shadow-sm backdrop-blur-sm">
+              <svg className="w-5 h-5 text-fuchsia-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              Conoce a quienes nos acompañaron en la exitosa Edición 2025
+            </span>
+          </motion.div>
+        )}
         <div className="relative w-full h-[400px]">
           <AnimatePresence mode="wait">
             {chunkedLogos.map(

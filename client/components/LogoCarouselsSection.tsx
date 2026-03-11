@@ -1,7 +1,7 @@
 import * as React from "react";
 import LogoMarquee from "@/components/LogoMarquee";
 import { useEmpresas } from "@/hooks/use-empresas";
-import { chunk } from "@/components/data/logos";
+import { chunk, ALL_LOGOS } from "@/components/data/logos";
 import SkeletonLoader from "./SkeletonLoader";
 import { motion, Variants } from "framer-motion";
 
@@ -30,45 +30,14 @@ export default function LogoCarouselsSection() {
     );
   }
 
-  if (error) {
-    return (
-      <section className="bg-lavender-subtle py-10">
-        <div className="w-full px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 text-center">
-            Empresas e Instituciones Participantes
-          </h2>
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-slate-500">
-            <svg className="w-12 h-12 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-            <p className="text-lg font-medium">Próximamente más empresas</p>
-            <p className="text-sm mt-1">Estamos actualizando nuestra lista de sponsors</p>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  // Ignore error if we are falling back to ALL_LOGOS anyway
+  const isFallback = logosForCarousel.length === 0 || !!error;
+  const logosToDisplay = isFallback ? ALL_LOGOS : logosForCarousel;
 
-  if (logosForCarousel.length === 0) {
-    return (
-      <section className="bg-lavender-subtle py-10">
-        <div className="w-full px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 text-center">
-            Empresas e Instituciones Participantes
-          </h2>
-          <div className="text-center text-gray-600 py-4">
-            No hay empresas disponibles en este momento.
-            <br />
-            Las empresas se mostrarán una vez que sean cargadas desde el panel de administración.
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   // Dividir logos en tres grupos para los carruseles
-  const chunkSize = Math.ceil(logosForCarousel.length / 3);
-  const logoGroups = chunk(logosForCarousel, chunkSize);
+  const chunkSize = Math.ceil(logosToDisplay.length / 3);
+  const logoGroups = chunk(logosToDisplay, chunkSize);
   const firstCarouselLogos = logoGroups[0] || [];
   const secondCarouselLogos = logoGroups[1] || [];
   const thirdCarouselLogos = logoGroups[2] || [];
@@ -98,7 +67,22 @@ export default function LogoCarouselsSection() {
         <h2 className="text-3xl md:text-5xl font-extrabold text-[#3b1066] mb-4 text-center tracking-tight">
           Empresas e Instituciones Participantes
         </h2>
-        <div className="w-16 h-1 bg-[#8b5cf6] mx-auto mb-10 rounded-full"></div>
+        {isFallback && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="flex justify-center mb-6"
+          >
+            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-100 to-fuchsia-100 border border-violet-200 text-violet-800 text-sm md:text-base font-semibold shadow-sm backdrop-blur-sm">
+              <svg className="w-5 h-5 text-fuchsia-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              Conoce a quienes nos acompañaron en la exitosa Edición 2025
+            </span>
+          </motion.div>
+        )}
+        <div className={`w-16 h-1 bg-[#8b5cf6] mx-auto ${isFallback ? 'mb-8' : 'mb-10'} rounded-full`}></div>
         <div className="space-y-6">
           {firstCarouselLogos.length > 0 && (
             <LogoMarquee

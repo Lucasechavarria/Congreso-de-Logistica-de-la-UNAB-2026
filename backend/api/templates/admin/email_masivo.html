@@ -1,0 +1,118 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .broadcast-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #1e1e2e;
+        border-radius: 12px;
+        color: #e0e0e0;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .broadcast-header {
+        border-bottom: 2px solid #313244;
+        margin-bottom: 25px;
+        padding-bottom: 10px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #a78bfa;
+    }
+    .form-group select, .form-group input, .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #45475a;
+        background: #313244;
+        color: white;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    .form-group textarea {
+        min-height: 200px;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    .submit-btn {
+        background: #a78bfa;
+        color: #1e1e2e;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 100%;
+        font-size: 16px;
+        transition: transform 0.2s, background 0.2s;
+    }
+    .submit-btn:hover {
+        background: #c4b5fd;
+        transform: scale(1.02);
+    }
+    .help-text {
+        font-size: 12px;
+        color: #9399b2;
+        margin-top: 5px;
+    }
+    .alert {
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+    .alert-success { background: #31a354; color: white; }
+    .alert-error { background: #f38ba8; color: #1e1e2e; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="broadcast-container">
+    <div class="broadcast-header">
+        <h1>Centro de Comunicaciones Masivas - Congreso 2026</h1>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="rol">Destinatarios</label>
+            <select name="rol" id="rol" required>
+                <option value="TODOS">--- TODOS (Asistentes, Disertantes, Empresas, Prensa) ---</option>
+                <option value="ASISTENTES_TODOS">Asistentes: Todos los registrados</option>
+                <option value="ASISTENTES_CONFIRMADOS">Asistentes: Solo con Asistencia Confirmada</option>
+                <option value="DISERTANTES">Disertantes: Solo Aprobados</option>
+                <option value="EMPRESAS">Empresas: Solo Aprobadas</option>
+                <option value="PRENSA">Prensa e Influencers</option>
+            </select>
+            <p class="help-text">La opción 'TODOS' filtra correos duplicados automáticamente.</p>
+        </div>
+
+        <div class="form-group">
+            <label for="asunto">Asunto del Email</label>
+            <input type="text" name="asunto" id="asunto" placeholder="Ej: Información importante sobre el Congreso 2026" required>
+        </div>
+
+        <div class="form-group">
+            <label for="mensaje">Mensaje (SOPORTE HTML)</label>
+            <textarea name="mensaje" id="mensaje" placeholder="Puedes usar etiquetas HTML como <p>, <b>, <a>, etc." required></textarea>
+            <p class="help-text">El sistema usará automáticamente una plantilla premium con el logo del congreso.</p>
+        </div>
+
+        <button type="submit" class="submit-btn">ENVIAR COMUNICADO MASIVO</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.files.storage import storages
 from django.core.exceptions import ValidationError
 from io import BytesIO
 from django.core.files.base import ContentFile
@@ -31,7 +32,7 @@ class PostulacionDisertante(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='postulaciones_disertantes')
     # Personal & Profesional
     nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
-    dni = models.CharField(max_length=32, verbose_name="DNI / Documento")
+    dni = models.CharField(max_length=8, verbose_name="DNI / Documento")
     email = models.EmailField(verbose_name="Email de contacto")
     telefono = models.CharField(max_length=20, verbose_name="Teléfono")
     ciudad_provincia = models.CharField(max_length=255, verbose_name="Ciudad y Provincia")
@@ -52,8 +53,18 @@ class PostulacionDisertante(models.Model):
     participacion_tipo = models.JSONField(default=list, verbose_name="Tipo de participación (Array de strings)")
     
     # Aceptación
+    # Detalles de la propuesta
+    foto_perfil = models.FileField(upload_to='postulaciones_fotos/', null=True, blank=True, verbose_name="Foto de perfil (opcional)")
+    experiencia_previa = models.TextField(null=True, blank=True, verbose_name="Experiencia previa disertando")
+    duracion_estimada = models.IntegerField(default=30, verbose_name="Duración estimada (minutos)", help_text="Por defecto 30 min. Editable desde el admin.")
+    requiere_equipamiento = models.TextField(null=True, blank=True, verbose_name="Equipamiento requerido (proyector, micrófono, etc.)")
+
+    # Estado y gestión interna
     ESTADO_CHOICES = [('PENDIENTE', 'Pendiente'), ('APROBADO', 'Aprobado'), ('RECHAZADO', 'Rechazado')]
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', verbose_name="Estado de la postulación")
+    notas_admin = models.TextField(null=True, blank=True, verbose_name="Notas internas (solo admin)")
+    fecha_revision = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de revisión")
+    revisada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='postulaciones_revisadas', verbose_name="Revisada por")
     acepta_tyc = models.BooleanField(default=False, verbose_name="Declaro que la información es verídica y acepto TyC")
     fecha_postulacion = models.DateTimeField(auto_now_add=True)
 
@@ -144,6 +155,13 @@ class Empresa(models.Model):
     acciones_stand = models.TextField(blank=True, null=True, verbose_name="Acciones de difusión/sorteos en el stand")
     acepta_tyc = models.BooleanField(default=False, verbose_name="Acepta Términos y Condiciones")
 
+    # Gestión interna (solo admin)
+    cantidad_representantes = models.IntegerField(null=True, blank=True, verbose_name="Cantidad de representantes que asistirán", help_text="Editable hasta el día del evento")
+    numero_stand = models.CharField(max_length=20, null=True, blank=True, verbose_name="Número de stand asignado", help_text="Asignado y editable desde el admin")
+    notas_admin = models.TextField(null=True, blank=True, verbose_name="Notas internas (solo admin)")
+    fecha_revision = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de revisión")
+    revisada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='empresas_revisadas', verbose_name="Revisada por")
+
     def __str__(self):
         if self.nombre_empresa:
             return self.nombre_empresa
@@ -168,7 +186,7 @@ class Asistente(models.Model):
     last_name = models.CharField(max_length=100, verbose_name="Apellido")
     email = models.EmailField(unique=True, verbose_name="Correo electrónico")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de celular")
-    dni = models.CharField(max_length=32, unique=True, null=True, blank=True, verbose_name="DNI")
+    dni = models.CharField(max_length=8, unique=True, null=True, blank=True, verbose_name="DNI")
     dni_update_token = models.CharField(max_length=64, unique=True, null=True, blank=True, verbose_name="Token de actualización de DNI")
     dni_email_sent = models.BooleanField(default=False, verbose_name="Email de solicitud DNI enviado")
     dni_email_sent_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha envío email DNI")
@@ -187,6 +205,24 @@ class Asistente(models.Model):
         verbose_name="Representante del Grupo"
     )
 
+    # --- Vinculaciones para Pantallas QR (desnormalizado para velocity) ---
+    empresa_vinculada = models.ForeignKey(
+        'Empresa', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='representantes_asistente', verbose_name="Empresa vinculada"
+    )
+    disertante_vinculado = models.ForeignKey(
+        'Disertante', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='asistente_disertante', verbose_name="Disertante vinculado"
+    )
+    prensa_vinculada = models.ForeignKey(
+        'InscripcionPrensa', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='asistente_prensa', verbose_name="Inscripción prensa vinculada"
+    )
+
+    # --- Información adicional ---
+    ciudad_provincia = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ciudad / Provincia")
+    fecha_registro = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de registro")
+
     # --- Campos de Estado para QR y Certificados ---
     asistencia_confirmada = models.BooleanField(default=False, verbose_name="Asistencia Confirmada")
     fecha_confirmacion = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Confirmación")
@@ -202,10 +238,11 @@ class Asistente(models.Model):
         super().clean()
         if self.dni:
             # Limpiar caracteres no numéricos
-            dni_limpio = re.sub(r'\D', '', self.dni)
+            dni_limpio = str(re.sub(r'\D', '', str(self.dni)))
             # Si tiene 9 dígitos y termina en 0, eliminar el último 0
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
-                dni_limpio = dni_limpio[:-1]
+                # Eliminar el último carácter si es cero en un DNI de 9 dígitos
+                dni_limpio = dni_limpio[0:8]
             # Validar que tenga entre 7 y 8 dígitos
             if not (7 <= len(dni_limpio) <= 8) or not dni_limpio.isdigit():
                 raise ValidationError({
@@ -261,7 +298,7 @@ class Certificado(models.Model):
 
     asistente = models.ForeignKey(Asistente, on_delete=models.CASCADE)
     tipo_certificado = models.CharField(max_length=10, choices=TipoCertificado.choices, verbose_name="Tipo de Certificado")
-    pdf_generado = models.FileField(upload_to='certificados/', blank=True, null=True, verbose_name="PDF Generado")
+    pdf_generado = models.FileField(upload_to='certificados/', storage=storages["private"], blank=True, null=True, verbose_name="PDF Generado")
     fecha_generacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Generación")
 
     def __str__(self):
@@ -289,7 +326,7 @@ class Certificado(models.Model):
         
         # --- SOLUCIÓN: No depender de fuentes del sistema. Incluir la fuente en el proyecto. ---
         # Coloca el archivo .ttf en una carpeta dentro de tu app, por ejemplo: 'api/fonts/'
-        font_path = os.path.join(settings.BASE_DIR, 'api', 'fotns', 'DejaVu_Sans', 'DejaVuSans-Bold.ttf')
+        font_path = os.path.join(settings.BASE_DIR, 'api', 'fonts', 'DejaVu_Sans', 'DejaVuSans-Bold.ttf')
         
         # Ajustar tamaño de fuente y posición para que reemplace exactamente 'NOMBRE Y APELLIDO'
         font_size = 110  # Puedes ajustar este valor si el texto no encaja perfecto
@@ -355,6 +392,53 @@ class DetalleGrupo(models.Model):
     group_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nombre de la institución o grupo")
     group_municipality = models.CharField(max_length=255, blank=True, null=True, verbose_name="Partido al que pertenece la institución")
     group_size = models.IntegerField(default=0, verbose_name="Cantidad de personas en el grupo")
+    institution_or_workplace = models.CharField(max_length=255, null=True, blank=True, verbose_name="Institución o lugar de trabajo del representante")
+    # Checkbox multiple: ESCOLAR | UNIVERSITARIO | INSTITUCIONAL | EMPRESARIAL | OTRO
+    tipo_grupo = models.JSONField(default=list, verbose_name="Tipo de grupo", help_text="Opciones: ESCOLAR, UNIVERSITARIO, INSTITUCIONAL, EMPRESARIAL, OTRO")
+
+class InscripcionPrensa(models.Model):
+    """Registro voluntario de prensa e influencers. Sin convocatoria formal."""
+    edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='inscripciones_prensa')
+    # Identidad
+    nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
+    dni = models.CharField(max_length=8, verbose_name="DNI")
+    email = models.EmailField(verbose_name="Email de contacto")
+    telefono = models.CharField(max_length=20, verbose_name="Teléfono")
+    ciudad_provincia = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ciudad / Provincia")
+    # Perfil mediático
+    TIPO_CHOICES = [
+        ('PERIODISTA',  'Periodista / Medio de comunicación'),
+        ('INFLUENCER',  'Influencer / Creador de contenido digital'),
+        ('FOTOGRAFO',   'Fotógrafo / Camarógrafo'),
+        ('BLOGGER',     'Blogger'),
+        ('PODCASTER',   'Podcaster'),
+        ('OTRO',        'Otro perfil mediático'),
+    ]
+    tipo_perfil = models.CharField(max_length=20, choices=TIPO_CHOICES, verbose_name="Tipo de perfil")
+    medio_o_canal = models.CharField(max_length=255, verbose_name="Medio o canal")
+    # Links (al menos uno obligatorio, validado en clean())
+    url_perfil_red = models.URLField(null=True, blank=True, verbose_name="URL perfil red social (Instagram, YouTube, TikTok, etc.)")
+    url_sitio_medio = models.URLField(null=True, blank=True, verbose_name="URL sitio web del medio")
+    seguidores_aprox = models.IntegerField(null=True, blank=True, verbose_name="Seguidores aproximados (solo influencers)")
+    # Admin
+    notas_admin = models.TextField(null=True, blank=True, verbose_name="Notas internas (solo admin)")
+    acepta_tyc = models.BooleanField(default=False, verbose_name="Acepta Términos y Condiciones")
+    fecha_inscripcion = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        """Al menos un link es obligatorio."""
+        super().clean()
+        if not self.url_perfil_red and not self.url_sitio_medio:
+            raise ValidationError('Debe proporcionar al menos un link (perfil de red social o sitio web del medio).')
+
+    def __str__(self):
+        return f"{self.nombre_apellido} ({self.get_tipo_perfil_display()})"
+
+    class Meta:
+        ordering = ['-fecha_inscripcion']
+        verbose_name = "Inscripción Prensa/Influencer"
+        verbose_name_plural = "Inscripciones Prensa/Influencers"
+
 
 class Inscripcion(models.Model):
     asistente = models.ForeignKey(Asistente, on_delete=models.CASCADE, related_name='inscripciones')

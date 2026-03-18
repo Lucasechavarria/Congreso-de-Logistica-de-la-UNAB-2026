@@ -11,9 +11,10 @@ from django.utils import timezone
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante
+from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa
 from django.shortcuts import redirect
-from .email import send_certificate_email
+from .email import send_certificate_email, send_broadcast_batch_email
+from django.contrib import messages
 
 
 def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', fecha_desde=None, fecha_hasta=None):
@@ -66,16 +67,9 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
         query = Empresa.objects.all()
         if edicion_actual: query = query.filter(edicion=edicion_actual)
         if fecha_desde: query = query.filter(fecha_registro__date__gte=fecha_desde)
-        if fecha_hasta: query = query.filter(fecha_registro__date__lte=fecha_hasta)
-        stats_query = [] 
+        # 1. Main Stats: Tendencia por fecha de registro
+        stats_query = query.annotate(period=trunc_func('fecha_registro'))
         
-        # 1. Main Stats Ficticio (Participaciones) para que el gráfico no esté vacío
-        part_raw = query.values('participacion_opciones').annotate(count=Count('id'))
-        main_stats = [
-            {'date': str(item['participacion_opciones']), 'label': str(item['participacion_opciones']) or 'General', 'count': item['count']}
-            for item in part_raw
-        ]
-
         # 2. Distribution Stats: Estado de empresas
         dist_raw = query.values('estado').annotate(value=Count('id'))
         estado_map = dict(Empresa.ESTADO_CHOICES)
@@ -102,7 +96,7 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
             for item in dist_raw
         ]
 
-    if stats_query: # (si es QuerySet con anotación de periodo)
+    if stats_query is not None and not isinstance(stats_query, list):
         main_stats_raw = stats_query.values('period').annotate(count=Count('id')).order_by('period')
         
         running_total = 0
@@ -156,7 +150,8 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
             'total_disertantes': total_disertantes,
             'total_empresas': total_empresas,
             'asistentes_recurrentes': recurrentes_count,
-            'asistencia_ratio': round((total_confirmados / total_inscritos * 100), 2) if total_inscritos > 0 else 0
+            'promedio_diario': float(f"{main_stats[-1]['cumulative'] / max(1, len(main_stats)):.2f}") if main_stats else 0.0,
+            'asistencia_ratio': float(f"{(total_confirmados / total_inscritos * 100):.2f}") if total_inscritos > 0 else 0.0
         },
         'todas_ediciones': Edicion.objects.all().order_by('-anio')
     }
@@ -190,7 +185,7 @@ def admin_dashboard(request):
         'chart_type_dist_seleccionado': chart_type_dist,
         'fecha_desde': fecha_desde,
         'fecha_hasta': fecha_hasta,
-        'selected_id_list': [stats['edicion_seleccionada'].id] if stats['edicion_seleccionada'] else [],
+        'selected_id_list': [getattr(stats['edicion_seleccionada'], 'id', None)] if stats.get('edicion_seleccionada') else [],
         'selected_periodo_list': [periodo],
         'selected_entidad_list': [entidad],
         'selected_chart_type_list': [chart_type],
@@ -202,6 +197,52 @@ def admin_dashboard(request):
     return render(request, 'admin/dashboard_power.html', context)
 
 
+def broadcast_view(request):
+    """
+    Vista para el envío de comunicaciones masivas.
+    """
+    if request.method == 'POST':
+        rol = request.POST.get('rol')
+        asunto = request.POST.get('asunto')
+        mensaje_html = request.POST.get('mensaje')
+
+        emails = set()
+        
+        if rol == 'TODOS' or rol == 'ASISTENTES_TODOS':
+            emails.update(Asistente.objects.values_list('email', flat=True))
+        
+        if rol == 'ASISTENTES_CONFIRMADOS':
+            emails.update(Asistente.objects.filter(asistencia_confirmada=True).values_list('email', flat=True))
+        
+        if rol == 'TODOS' or rol == 'DISERTANTES':
+            emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))
+            
+        if rol == 'TODOS' or rol == 'EMPRESAS':
+            emails.update(Empresa.objects.filter(estado='APROBADO').values_list('email_contacto', flat=True))
+            
+        if rol == 'TODOS' or rol == 'PRENSA':
+            emails.update(InscripcionPrensa.objects.values_list('email', flat=True))
+
+        # Limpiar emails nulos o vacíos
+        emails = [e for e in emails if e]
+
+        if not emails:
+            messages.error(request, "No se encontraron destinatarios para el filtro seleccionado.")
+        else:
+            enviados, errores = send_broadcast_batch_email(emails, asunto, mensaje_html)
+            msg = f"Proceso finalizado. Enviados: {enviados}. Errores: {errores}."
+            if errores == 0:
+                messages.success(request, msg)
+            else:
+                messages.warning(request, msg)
+
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Comunicaciones Masivas',
+    }
+    return render(request, 'admin/email_masivo.html', context)
+
+
 # Inyectar el dashboard en el Admin de Django
 original_get_urls = admin.site.get_urls
 
@@ -209,13 +250,15 @@ def get_urls():
     urls = original_get_urls()
     custom_urls = [
         path('dashboard/', admin.site.admin_view(admin_dashboard), name='admin-dashboard'),
+        path('broadcast/', admin.site.admin_view(broadcast_view), name='admin-broadcast'),
     ]
     return custom_urls + urls
 
 admin.site.get_urls = get_urls
 # Cambiar el título del índice para incluir un link directo con estilo HTML
 admin.site.index_title = format_html(
-    'Administración del Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Ir al Dashboard</a>'
+    'Admin Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Dashboard</a> | '
+    '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a>'
 )
 admin.site.site_header = "Congreso Logística UNAB 2026 Admin"
 admin.site.site_title = "Panel Administrativo"
@@ -536,20 +579,130 @@ class DisertanteAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'tema_presentacion', 'linkedin')
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
+    list_display = ('nombre_empresa', 'estado', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro')
+    list_filter = ('estado', 'edicion', 'participo_edicion_anterior')
+    search_fields = ('nombre_empresa', 'cuit', 'email_contacto', 'nombre_contacto')
+    list_editable = ('estado', 'numero_stand', 'cantidad_representantes')
+    actions = ['aprobar_empresas', 'rechazar_empresas']
+    readonly_fields = ('fecha_registro', 'fecha_revision', 'revisada_por')
     fieldsets = (
-        (None, {
-            'fields': ('nombre_empresa', 'logo')
+        ('Identificación', {
+            'fields': ('edicion', 'estado', 'nombre_empresa', 'logo', 'cuit', 'descripcion')
         }),
-        ('Información opcional', {
+        ('Contacto', {
+            'fields': ('nombre_contacto', 'email_contacto', 'celular_contacto', 'cargo_contacto',
+                       'telefono_empresa', 'email_empresa', 'sitio_web', 'direccion')
+        }),
+        ('Participación', {
+            'fields': ('participacion_opciones', 'participacion_otra', 'rubro_logistico',
+                       'participo_edicion_anterior', 'acepta_tyc')
+        }),
+        ('Logística del Stand', {
             'classes': ('collapse',),
-            'fields': (
-                'cuit', 'direccion', 'telefono_empresa', 'email_empresa', 'sitio_web', 'descripcion',
-                'nombre_contacto', 'email_contacto', 'celular_contacto', 'cargo_contacto',
-                'participacion_opciones', 'participacion_otra',
-            ),
+            'fields': ('numero_stand', 'cantidad_representantes', 'requiere_electricidad',
+                       'computadora_o_pantalla', 'tipo_mobiliario', 'gazebo_propio',
+                       'estructura_adicional', 'acciones_stand')
+        }),
+        ('Gestión Interna (solo admin)', {
+            'classes': ('collapse',),
+            'fields': ('notas_admin', 'fecha_revision', 'revisada_por')
         }),
     )
-    list_display = ('nombre_empresa', 'logo')
+
+    def save_model(self, request, obj, form, change):
+        if 'estado' in form.changed_data:
+            obj.fecha_revision = timezone.now()
+            obj.revisada_por = request.user
+        super().save_model(request, obj, form, change)
+
+    def aprobar_empresas(self, request, queryset):
+        updated = queryset.update(estado='APROBADO', fecha_revision=timezone.now(), revisada_por=request.user)
+        self.message_user(request, f'{updated} empresa(s) aprobada(s).')
+    aprobar_empresas.short_description = 'Aprobar empresas seleccionadas'  # type: ignore
+
+    def rechazar_empresas(self, request, queryset):
+        updated = queryset.update(estado='RECHAZADO', fecha_revision=timezone.now(), revisada_por=request.user)
+        self.message_user(request, f'{updated} empresa(s) rechazada(s).')
+    rechazar_empresas.short_description = 'Rechazar empresas seleccionadas'  # type: ignore
+
+
+@admin.register(PostulacionDisertante)
+class PostulacionDisertanteAdmin(admin.ModelAdmin):
+    list_display = ('nombre_apellido', 'email', 'titulo_charla', 'estado', 'edicion', 'fecha_postulacion')
+    list_filter = ('estado', 'edicion', 'modalidad')
+    search_fields = ('nombre_apellido', 'dni', 'email', 'titulo_charla')
+    list_editable = ('estado',)
+    actions = ['aprobar_postulaciones', 'rechazar_postulaciones']
+    readonly_fields = ('fecha_postulacion', 'fecha_revision', 'revisada_por')
+    fieldsets = (
+        ('Datos personales', {
+            'fields': ('edicion', 'nombre_apellido', 'dni', 'email', 'telefono',
+                       'ciudad_provincia', 'profesion_cargo', 'empresa_institucion', 'linkedin', 'foto_perfil')
+        }),
+        ('Propuesta de charla', {
+            'fields': ('titulo_charla', 'ejes_tematicos', 'eje_otro', 'resumen_charla',
+                       'objetivos_charla', 'publico_dirigido', 'modalidad', 'participacion_tipo',
+                       'duracion_estimada', 'requiere_equipamiento')
+        }),
+        ('Experiencia', {
+            'classes': ('collapse',),
+            'fields': ('experiencia_previa',)
+        }),
+        ('Estado y gestión', {
+            'fields': ('estado', 'acepta_tyc', 'fecha_postulacion')
+        }),
+        ('Notas internas (solo admin)', {
+            'classes': ('collapse',),
+            'fields': ('notas_admin', 'fecha_revision', 'revisada_por')
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if 'estado' in form.changed_data:
+            obj.fecha_revision = timezone.now()
+            obj.revisada_por = request.user
+        super().save_model(request, obj, form, change)
+
+    def aprobar_postulaciones(self, request, queryset):
+        updated = queryset.update(estado='APROBADO', fecha_revision=timezone.now(), revisada_por=request.user)
+        self.message_user(request, f'{updated} postulacion(es) de disertante aprobada(s).')
+    aprobar_postulaciones.short_description = 'Aprobar postulaciones seleccionadas'  # type: ignore
+
+    def rechazar_postulaciones(self, request, queryset):
+        updated = queryset.update(estado='RECHAZADO', fecha_revision=timezone.now(), revisada_por=request.user)
+        self.message_user(request, f'{updated} postulacion(es) de disertante rechazada(s).')
+    rechazar_postulaciones.short_description = 'Rechazar postulaciones seleccionadas'  # type: ignore
+
+
+@admin.register(InscripcionPrensa)
+class InscripcionPrensaAdmin(admin.ModelAdmin):
+    list_display = ('nombre_apellido', 'tipo_perfil', 'medio_o_canal', 'edicion', 'fecha_inscripcion', 'link_display')
+    list_filter = ('tipo_perfil', 'edicion')
+    search_fields = ('nombre_apellido', 'dni', 'email', 'medio_o_canal')
+    readonly_fields = ('fecha_inscripcion',)
+    fieldsets = (
+        ('Datos personales', {
+            'fields': ('edicion', 'nombre_apellido', 'dni', 'email', 'telefono', 'ciudad_provincia')
+        }),
+        ('Perfil mediático', {
+            'fields': ('tipo_perfil', 'medio_o_canal', 'url_perfil_red', 'url_sitio_medio', 'seguidores_aprox')
+        }),
+        ('Administración', {
+            'fields': ('acepta_tyc', 'fecha_inscripcion', 'notas_admin')
+        }),
+    )
+
+    def link_display(self, obj):
+        links = []
+        if obj.url_perfil_red:
+            links.append(format_html('<a href="{}" target="_blank">Red social</a>', obj.url_perfil_red))
+        if obj.url_sitio_medio:
+            links.append(format_html('<a href="{}" target="_blank">Sitio web</a>', obj.url_sitio_medio))
+        return format_html(' | '.join(links)) if links else '—'
+    link_display.short_description = 'Links'  # type: ignore
+    link_display.allow_tags = True  # type: ignore
+
+
 @admin.register(Dashboard)
 class DashboardAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):

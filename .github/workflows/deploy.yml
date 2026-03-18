@@ -1,0 +1,74 @@
+name: Deploy Congreso Logistica UNAB
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 9 # O la versión que prefieras usar
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Build Frontend
+      run: pnpm run build:client
+
+    # --- DEPLOY: Subir al servidor ---
+    # Nota: Separamos en dos pasos para manejar correctamente las rutas
+    
+    - name: Deploy Frontend (SPA)
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        source: "dist/spa/*"
+        target: "/var/www/congreso" # Se sube el contenido de dist/spa directamente a la raíz web
+        strip_components: 2
+
+    - name: Deploy Backend (Django)
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        source: "backend/**"
+        target: "/var/www/congreso/backend" # Se sube a una subcarpeta backend
+        strip_components: 1
+
+    # --- RESTART: Comandos post-deploy ---
+    - name: Restart Services
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        script: |
+          chown -R www-data:www-data /var/www/congreso
+          
+          # Actualizar entorno virtual y migraciones si es necesario
+          cd /var/www/congreso/backend
+          # venv/Scripts/python.exe (Windows) -> venv/bin/python (Linux server)
+          # Asumimos que el server Linux tiene su propio venv creado
+          # ./venv/bin/pip install -r requirements.txt
+          # ./venv/bin/python manage.py migrate
+          
+          systemctl restart nginx
+          # systemctl restart congreso-api.service

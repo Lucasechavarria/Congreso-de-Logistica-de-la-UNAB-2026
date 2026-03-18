@@ -1,9 +1,10 @@
 from rest_framework import viewsets, mixins, status, views, serializers
+from typing import Any
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.db import transaction
-from .models import Disertante, Inscripcion, Programa, Certificado, Asistente, Empresa, MiembroGrupo, PostulacionDisertante, Edicion
-from .serializers import DisertanteSerializer, InscripcionSerializer, AsistenteSerializer, ProgramaSerializer, EmpresaSerializer, MiembroGrupoSerializer, EmpresaLogoSerializer, PostulacionDisertanteSerializer
+from .models import Disertante, Inscripcion, Programa, Certificado, Asistente, Empresa, MiembroGrupo, PostulacionDisertante, Edicion, InscripcionPrensa
+from .serializers import DisertanteSerializer, InscripcionSerializer, AsistenteSerializer, ProgramaSerializer, EmpresaSerializer, MiembroGrupoSerializer, EmpresaLogoSerializer, PostulacionDisertanteSerializer, InscripcionPrensaSerializer
 from django.utils import timezone
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -82,17 +83,7 @@ class RegistroEmpresasView(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
             return Response({'status': 'success', 'message': msg, 'id': empresa.id}, status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
-            # Formatear errores de validación de manera legible
-            error_messages = {}
-            if isinstance(e.detail, dict):
-                for field, errors in e.detail.items():
-                    if isinstance(errors, list):
-                        error_messages[field] = [str(err) for err in errors]
-                    else:
-                        error_messages[field] = str(errors)
-            else:
-                error_messages = {'detail': str(e.detail)}
-            return Response({'status': 'error', 'message': error_messages}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': 'error', 'message': e.detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -121,7 +112,7 @@ class RegistroDisertanteView(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 
             return Response({'status': 'success', 'message': msg, 'id': postulacion.id}, status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
-            error_messages = {}
+            error_messages: dict[str, Any] = {}
             if isinstance(e.detail, dict):
                 for field, errors in e.detail.items():
                     if isinstance(errors, list):
@@ -227,7 +218,7 @@ class RegistroViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 headers = self.get_success_headers(serializer.data)
                 return Response({'status': 'success', 'message': msg, 'id': inscripcion.id}, status=status.HTTP_201_CREATED, headers=headers)
         except serializers.ValidationError as e:
-            error_messages = {}
+            error_messages: dict[str, Any] = {}
             if isinstance(e.detail, dict):
                 for field, errors in e.detail.items():
                     if isinstance(errors, list):
@@ -279,15 +270,63 @@ class VerificarDNIView(views.APIView):
         # Enviar el certificado por email
         email_success = send_certificate_email(certificado)
 
-        # Preparar la respuesta con los datos del asistente
-        asistente_data = AsistenteSerializer(asistente).data
-        
-        msg = 'Asistencia confirmada con éxito. Certificado enviado por email.' if email_success else 'Asistencia confirmada con éxito, pero no se pudo enviar el certificado por email (sistema de correos no configurado).'
-        
+        # --- Determinar tipo de pantalla para los 7 casos QR ---
+        perfil   = asistente.profile_type
+        nombre   = f"{asistente.first_name} {asistente.last_name}"
+        pantalla = 'GENERAL'
+        subtitulo = ''
+        nombre_vinculado = ''
+
+        if perfil == 'GROUP_REPRESENTATIVE':
+            pantalla = 'REPRESENTANTE_GRUPO'
+            try:
+                dg = asistente.detalle_grupo
+                nombre_vinculado = dg.group_name or ''
+            except Exception:
+                nombre_vinculado = ''
+            subtitulo = f'Representante de Grupo: {nombre_vinculado}' if nombre_vinculado else 'Representante de Grupo'
+
+        elif asistente.representante_grupo_id:
+            pantalla = 'MIEMBRO_GRUPO'
+            try:
+                rep = asistente.representante_grupo
+                dg = rep.detalle_grupo
+                nombre_vinculado = dg.group_name or ''
+            except Exception:
+                nombre_vinculado = ''
+            subtitulo = f'Miembro de {nombre_vinculado}' if nombre_vinculado else 'Miembro de Grupo'
+
+        elif asistente.empresa_vinculada_id:
+            pantalla = 'REPRESENTANTE_EMPRESA'
+            nombre_vinculado = asistente.empresa_vinculada.nombre_empresa if asistente.empresa_vinculada else ''
+            subtitulo = f'Representante de {nombre_vinculado}' if nombre_vinculado else 'Representante de Empresa'
+
+        elif asistente.disertante_vinculado_id:
+            pantalla = 'DISERTANTE'
+            subtitulo = 'Disertante del Congreso'
+
+        elif asistente.prensa_vinculada_id or perfil == 'PRESS':
+            pantalla = 'PRENSA'
+            subtitulo = 'Prensa Acreditada'
+
+        asistente_data = {
+            'nombre_completo': nombre,
+            'email': asistente.email,
+            'dni': asistente.dni,
+            'profile_type': perfil,
+        }
+
+        msg = 'Asistencia confirmada con exito.' if email_success else 'Asistencia confirmada con exito (email no configurado).'
+
         return Response({
             'status': 'success',
             'message': msg,
-            'asistente': asistente_data
+            'asistente': asistente_data,
+            'pantalla': {
+                'tipo': pantalla,
+                'subtitulo': subtitulo,
+                'nombre_vinculado': nombre_vinculado,
+            }
         }, status=status.HTTP_200_OK)
 
 class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
@@ -520,7 +559,7 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
 
             # Leer el archivo
             try:
-                import pandas as pd
+                # pandas ya está importado arriba como pd
                 if archivo.name.endswith('.csv'):
                     df = pd.read_csv(archivo)
                 else:
@@ -559,10 +598,10 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
 
             # Verificar columnas mínimas requeridas
             columnas_requeridas = ['NOMBRE', 'Apellido', 'CORREO ELECTRONICO']
-            columnas_faltantes = []
+            columnas_faltantes: list[str] = []
             for col in columnas_requeridas:
                 if col not in columnas_mapeadas:
-                    columnas_faltantes.append(col)
+                    columnas_faltantes.append(str(col))
 
             if columnas_faltantes:
                 return Response({
@@ -573,28 +612,27 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Procesar registros
-            resultados = {
-                'total_procesados': 0,
-                'exitosos': 0,
-                'errores': 0,
-                'emails_enviados': 0,
-                'emails_fallidos': 0,
-                'detalles': []
-            }
+            total_procesados = 0
+            exitosos = 0
+            errores = 0
+            emails_enviados = 0
+            emails_fallidos = 0
+            detalles_list = []
 
             with transaction.atomic():
                 for index, row in df.iterrows():
+                    fila_nro = index + 2 # type: ignore
                     try:
                         # Extraer datos de la fila
-                        first_name = str(row[columnas_mapeadas['NOMBRE']]).strip() if pd.notna(row[columnas_mapeadas['NOMBRE']]) else '' # type: ignore
-                        last_name = str(row[columnas_mapeadas['Apellido']]).strip() if pd.notna(row[columnas_mapeadas['Apellido']]) else '' # type: ignore
-                        email = str(row[columnas_mapeadas['CORREO ELECTRONICO']]).strip() if pd.notna(row[columnas_mapeadas['CORREO ELECTRONICO']]) else '' # type: ignore
+                        first_name = str(row[columnas_mapeadas['NOMBRE']]).strip() if pd.notna(row[columnas_mapeadas['NOMBRE']]) else ''
+                        last_name = str(row[columnas_mapeadas['Apellido']]).strip() if pd.notna(row[columnas_mapeadas['Apellido']]) else ''
+                        email = str(row[columnas_mapeadas['CORREO ELECTRONICO']]).strip() if pd.notna(row[columnas_mapeadas['CORREO ELECTRONICO']]) else ''
                         
                         # Validar datos mínimos
                         if not first_name or not last_name or not email:
-                            resultados['errores'] += 1
-                            resultados['detalles'].append({
-                                'fila': index + 2,  # type: ignore # +2 porque empezamos en 0 y hay header
+                            errores += 1
+                            detalles_list.append({
+                                'fila': fila_nro,
                                 'error': 'Faltan datos básicos (nombre, apellido, email)',
                                 'datos': {'nombre': first_name, 'apellido': last_name, 'email': email}
                             })
@@ -602,9 +640,9 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
 
                         # Validar formato de email
                         if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
-                            resultados['errores'] += 1
-                            resultados['detalles'].append({
-                                'fila': index + 2, # type: ignore
+                            errores += 1
+                            detalles_list.append({
+                                'fila': fila_nro,
                                 'error': 'Formato de email inválido',
                                 'datos': {'email': email}
                             })
@@ -617,7 +655,7 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
                         dni = None
                         asistente_by_dni = None
                         if 'DNI' in columnas_mapeadas and pd.notna(row[columnas_mapeadas['DNI']]): # type: ignore
-                            dni_raw = str(row[columnas_mapeadas['DNI']]).strip() # type: ignore
+                            dni_raw = str(row[columnas_mapeadas['DNI']]).strip()
                             # Limpiar DNI (remover puntos, guiones, etc.)
                             dni = re.sub(r'[^\d]', '', dni_raw)
                             if not dni or len(dni) == 0:
@@ -628,12 +666,12 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
                         # Procesar teléfono (puede ser vacío)
                         phone = ''
                         if 'NUMERO DE CELULAR (con código de área)' in columnas_mapeadas and pd.notna(row[columnas_mapeadas['NUMERO DE CELULAR (con código de área)']]): # type: ignore
-                            phone = str(row[columnas_mapeadas['NUMERO DE CELULAR (con código de área)']]).strip() # type: ignore
+                            phone = str(row[columnas_mapeadas['NUMERO DE CELULAR (con código de área)']]).strip()
 
                         # Procesar tipo de perfil
                         profile_type = Asistente.ProfileType.OTRO  # Por defecto OTRO
                         if 'TIPO DE PERFIL' in columnas_mapeadas and pd.notna(row[columnas_mapeadas['TIPO DE PERFIL']]): # type: ignore
-                            tipo_perfil_raw = str(row[columnas_mapeadas['TIPO DE PERFIL']]).strip().upper() # type: ignore
+                            tipo_perfil_raw = str(row[columnas_mapeadas['TIPO DE PERFIL']]).strip().upper()
                             
                             # Mapear tipos de perfil
                             mapeo_perfiles = {
@@ -655,7 +693,7 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
                         # Procesar rol específico (Columna1)
                         rol_especifico = None
                         if 'Columna1' in columnas_mapeadas and pd.notna(row[columnas_mapeadas['Columna1']]): # type: ignore
-                            rol_especifico = str(row[columnas_mapeadas['Columna1']]).strip() # type: ignore
+                            rol_especifico = str(row[columnas_mapeadas['Columna1']]).strip()
 
                         # Crear o actualizar asistente (upsert)
                         asistente = asistente_by_dni or asistente_by_email
@@ -684,9 +722,9 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
                         if edicion and not Inscripcion.objects.filter(asistente=asistente, edicion=edicion).exists():
                             Inscripcion.objects.create(asistente=asistente, edicion=edicion)
 
-                        resultados['exitosos'] += 1
-                        resultados['detalles'].append({
-                            'fila': index + 2, # type: ignore
+                        exitosos += 1
+                        detalles_list.append({
+                            'fila': fila_nro,
                             'success': 'Registro creado exitosamente',
                             'id': asistente.pk,
                             'datos': {
@@ -703,25 +741,34 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
                         if enviar_emails:
                             try:
                                 if send_bulk_confirmation_email(asistente, es_carga_masiva=True):
-                                    resultados['emails_enviados'] += 1
+                                    emails_enviados += 1
                                 else:
-                                    resultados['emails_fallidos'] += 1
+                                    emails_fallidos += 1
                             except Exception as e:
-                                resultados['emails_fallidos'] += 1
+                                emails_fallidos += 1
                                 print(f"[ERROR] Error enviando email a {email}: {e}")
 
                     except Exception as e:
-                        resultados['errores'] += 1
-                        resultados['detalles'].append({
-                            'fila': index + 2, # type: ignore
+                        errores += 1
+                        detalles_list.append({
+                            'fila': fila_nro,
                             'error': f'Error procesando fila: {str(e)}'
                         })
 
-                    resultados['total_procesados'] += 1 # type: ignore
+                    total_procesados += 1
+
+            resultados = {
+                'total_procesados': total_procesados,
+                'exitosos': exitosos,
+                'errores': errores,
+                'emails_enviados': emails_enviados,
+                'emails_fallidos': emails_fallidos,
+                'detalles': detalles_list
+            }
 
             return Response({
                 'status': 'success',
-                'message': f'Carga masiva completada. {resultados["exitosos"]} registros exitosos, {resultados["errores"]} errores.',
+                'message': f'Carga masiva completada. {exitosos} registros exitosos, {errores} errores.',
                 'resultados': resultados
             }, status=status.HTTP_200_OK)
 
@@ -816,24 +863,23 @@ class CargaMasivaAsistentesView(views.APIView):
             # Renombrar columnas
             df.rename(columns=column_mapping, inplace=True)
 
-            resultados = {
-                'total_procesados': 0,
-                'exitosos': 0,
-                'errores': 0,
-                'emails_enviados': 0,
-                'emails_fallidos': 0,
-                'detalles': []
-            }
+            total_procesados = 0
+            exitosos = 0
+            errores = 0
+            emails_enviados = 0
+            emails_fallidos = 0
+            detalles_list = []
 
             with transaction.atomic():
                 for index, row in df.iterrows():
+                    fila_nro = index + 2 # type: ignore
                     try:
                         # Validar email
-                        email = row.get('email', '').strip()
+                        email = str(row.get('email', '')).strip()
                         if not email or not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
-                            resultados['errores'] += 1
-                            resultados['detalles'].append({
-                                'fila': index + 2, # type: ignore
+                            errores += 1
+                            detalles_list.append({
+                                'fila': fila_nro,
                                 'email': email,
                                 'error': 'Email inválido o vacío'
                             })
@@ -862,7 +908,8 @@ class CargaMasivaAsistentesView(views.APIView):
                             
                         asistente_by_dni = None
                         if dni:
-                            asistente_by_dni = Asistente.objects.filter(dni=dni).first()
+                            dni_str = str(dni).strip()
+                            asistente_by_dni = Asistente.objects.filter(dni=dni_str).first()
                             
                         asistente = asistente_by_dni or asistente_by_email
                         
@@ -876,7 +923,7 @@ class CargaMasivaAsistentesView(views.APIView):
                             asistente.last_name = last_name
                             asistente.profile_type = profile_type
                             if dni:
-                                asistente.dni = dni
+                                asistente.dni = str(dni).strip()
                             if rol_especifico:
                                 asistente.rol_especifico = rol_especifico
                             asistente.save()
@@ -886,7 +933,7 @@ class CargaMasivaAsistentesView(views.APIView):
                                 last_name=last_name,
                                 email=email,
                                 profile_type=profile_type,
-                                dni=dni,
+                                dni=str(dni).strip() if dni else None,
                                 rol_especifico=rol_especifico
                             )
                             
@@ -902,9 +949,9 @@ class CargaMasivaAsistentesView(views.APIView):
                         if edicion and not Inscripcion.objects.filter(asistente=asistente, edicion=edicion).exists():
                             Inscripcion.objects.create(asistente=asistente, edicion=edicion)
 
-                        resultados['exitosos'] += 1
-                        resultados['detalles'].append({
-                            'fila': index + 2, # type: ignore
+                        exitosos += 1
+                        detalles_list.append({
+                            'fila': fila_nro,
                             'email': email,
                             'nombre': f"{asistente.first_name} {asistente.last_name}",
                             'profile_type': asistente.get_profile_type_display(), # type: ignore
@@ -915,25 +962,34 @@ class CargaMasivaAsistentesView(views.APIView):
                         if enviar_emails:
                             try:
                                 if send_bulk_confirmation_email(asistente, es_carga_masiva=True, fecha_evento='2025-11-15'):
-                                    resultados['emails_enviados'] += 1
+                                    emails_enviados += 1
                                 else:
-                                    resultados['emails_fallidos'] += 1
+                                    emails_fallidos += 1
                             except Exception as e:
-                                resultados['emails_fallidos'] += 1
+                                emails_fallidos += 1
                                 print(f"[ERROR] Error enviando email a {email}: {e}")
 
                     except Exception as e:
-                        resultados['errores'] += 1
-                        resultados['detalles'].append({
-                            'fila': index + 2, # type: ignore
+                        errores += 1
+                        detalles_list.append({
+                            'fila': fila_nro,
                             'error': f'Error procesando fila: {str(e)}'
                         })
 
-                    resultados['total_procesados'] += 1 # type: ignore
+                    total_procesados += 1
+
+            resultados = {
+                'total_procesados': total_procesados,
+                'exitosos': exitosos,
+                'errores': errores,
+                'emails_enviados': emails_enviados,
+                'emails_fallidos': emails_fallidos,
+                'detalles': detalles_list
+            }
 
             return Response({
                 'status': 'success',
-                'message': f'Carga masiva completada. {resultados["exitosos"]} registros exitosos, {resultados["errores"]} errores.',
+                'message': f'Carga masiva completada. {exitosos} registros exitosos, {errores} errores.',
                 'resultados': resultados
             }, status=status.HTTP_200_OK)
 
@@ -1110,3 +1166,24 @@ class StatsDashboardView(views.APIView):
                 'message': f'Error al obtener estadísticas: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class InscripcionPrensaView(views.APIView):
+    """
+    POST /api/inscripcion-prensa/
+    Registro voluntario de prensa e influencers sin convocatoria formal.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = InscripcionPrensaSerializer(data=request.data)
+        if serializer.is_valid():
+            inscripcion = serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Tu inscripción fue recibida correctamente. Nos pondremos en contacto próximamente.',
+                'id': inscripcion.id,
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            'status': 'error',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)

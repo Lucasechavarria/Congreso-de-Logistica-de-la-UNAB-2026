@@ -5,7 +5,7 @@ from .views import (
     RegistroViewSet, AsistenteCRMView, RegistroRapidoView, EmpresaViewSet, 
     CargaMasivaAsistentesView, EnvioMasivoEmailsView, ActualizarDNIView, 
     GetCSRFTokenView, RegistroDisertanteView, EmpresaCRMView, DisertanteCRMView,
-    StatsDashboardView
+    StatsDashboardView, InscripcionPrensaView
 )
 from .qr_views import GenerateStaticQRView
 
@@ -35,4 +35,5 @@ urlpatterns = [
     path('envio-masivo-emails/', EnvioMasivoEmailsView.as_view(), name='envio-masivo-emails'),
     path('actualizar-dni/', ActualizarDNIView.as_view(), name='actualizar-dni'),
     path('postulaciones-disertantes/', RegistroDisertanteView.as_view({'post': 'create'}), name='postulaciones-disertantes'),
+    path('inscripcion-prensa/', InscripcionPrensaView.as_view(), name='inscripcion-prensa'),
 ]

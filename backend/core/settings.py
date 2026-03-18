@@ -101,7 +101,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 # --- FORZAR BASE DE DATOS LOCAL (SQLITE) PARA PRUEBAS ---
 # Usa la base de datos correcta según el entorno (development o production).
-if os.getenv('DJANGO_ENV') == 'development':
+if os.getenv('DJANGO_ENV') == 'development' and not os.getenv('DB_HOST'):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -111,12 +111,12 @@ if os.getenv('DJANGO_ENV') == 'development':
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.getenv('DB_NAME', 'congreso'),
-            'USER': os.getenv('DB_USER', 'congreso_user'),
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'postgres'),
+            'USER': os.getenv('DB_USER', 'postgres'),
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '3306'),
+            'PORT': os.getenv('DB_PORT', '5432'),
         }
     }
 
@@ -231,6 +231,40 @@ CORS_ALLOW_HEADERS = [
 # Media files (PDFs, imágenes, etc)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# =================== CONFIGURACIÓN DE SUPABASE STORAGE ===================
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
+SUPABASE_PUBLIC_BUCKET = 'congreso-public'
+SUPABASE_PRIVATE_BUCKET = 'congreso-private'
+
+if SUPABASE_SERVICE_KEY and SUPABASE_SERVICE_KEY != 'REEMPLAZAR_CON_SERVICE_ROLE_KEY':
+    STORAGES = {
+        "default": {
+            "BACKEND": "api.custom_storage.SupabaseStorage",
+            "OPTIONS": {
+                "bucket_name": SUPABASE_PUBLIC_BUCKET,
+                "supabase_url": SUPABASE_URL,
+                "supabase_key": SUPABASE_SERVICE_KEY,
+                "location": "media",
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+        # Bucket privado para certificados
+        "private": {
+            "BACKEND": "api.custom_storage.SupabaseStorage",
+            "OPTIONS": {
+                "bucket_name": SUPABASE_PRIVATE_BUCKET,
+                "supabase_url": SUPABASE_URL,
+                "supabase_key": SUPABASE_SERVICE_KEY,
+                "location": "certificates",
+            },
+        },
+    }
+    # Por defecto usamos el bucket público para media general
+    DEFAULT_FILE_STORAGE = "supabase_storage.storage.SupabaseStorage"
 
 # =================== SEGURIDAD CSRF Y COOKIES ===================
 # Configuración de orígenes confiables para CSRF (aplica tanto en desarrollo como producción)

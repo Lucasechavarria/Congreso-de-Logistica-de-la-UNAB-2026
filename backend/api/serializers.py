@@ -1,8 +1,33 @@
 from rest_framework import serializers
-from .models import Disertante, Empresa, Programa, Asistente, MiembroGrupo, Inscripcion, PostulacionDisertante
+from .models import Disertante, Empresa, Programa, Asistente, MiembroGrupo, Inscripcion, PostulacionDisertante, InscripcionPrensa
 from django.db import transaction
 from .email import send_group_confirmation_emails, send_individual_confirmation_email
 import re
+
+
+class InscripcionPrensaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InscripcionPrensa
+        fields = '__all__'
+        read_only_fields = ['edicion', 'fecha_inscripcion']
+
+    def validate(self, data):
+        url_red = data.get('url_perfil_red')
+        url_medio = data.get('url_sitio_medio')
+        if not url_red and not url_medio:
+            raise serializers.ValidationError(
+                'Debe proporcionar al menos un link (perfil de red social o sitio web del medio).'
+            )
+        return data
+
+    def create(self, validated_data):
+        from .models import Edicion
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa:
+            raise serializers.ValidationError({'edicion': 'No hay una edición activa configurada en el sistema.'})
+        validated_data['edicion'] = edicion_activa
+        return InscripcionPrensa.objects.create(**validated_data)
+
 
 class PostulacionDisertanteSerializer(serializers.ModelSerializer):
     def validate_linkedin(self, value):
@@ -401,10 +426,11 @@ class AsistenteSerializer(serializers.ModelSerializer):
             dni_limpio = re.sub(r'\D', '', value)
             # Si tiene 9 dígitos y termina en 0, eliminar el último 0
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
-                dni_limpio = dni_limpio[:-1]
-            # Validar que tenga exactamente 8 dígitos
-            if len(dni_limpio) != 8 or not dni_limpio.isdigit():
-                raise serializers.ValidationError('El DNI debe tener exactamente 8 dígitos numéricos.')
+                # Usar slice explícito para evitar confusiones del linter
+                dni_limpio = dni_limpio[0:8]
+            # Validar que tenga entre 7 y 8 dígitos
+            if not (7 <= len(dni_limpio) <= 8) or not dni_limpio.isdigit():
+                raise serializers.ValidationError('El DNI debe tener entre 7 y 8 dígitos numéricos.')
             return dni_limpio
         return value
 

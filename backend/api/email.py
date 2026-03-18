@@ -501,3 +501,55 @@ def send_certificate_email(certificado_instance):
     except Exception as e:
         print(f"Error enviando certificado a {asistente.email}: {e}")
         return False
+
+def send_broadcast_batch_email(recipient_list, subject, body_html):
+    """
+    Envía un email masivo en lotes para evitar saturar el servidor SMTP.
+    """
+    import os
+    import time
+    from email.mime.image import MIMEImage
+    
+    logo_env = os.getenv('LOGO_CONGRESO_PATH', 'media/logo.png')
+    logo_path = os.path.join(settings.BASE_DIR, logo_env)
+    
+    # Preparar el contenido HTML usando la plantilla base
+    context = {'body': body_html}
+    full_html = render_to_string('api/email/broadcast_base.html', context)
+    text_content = strip_tags(body_html)
+    
+    enviados = 0
+    errores = 0
+    BATCH_SIZE = 25 # Lotes pequeños para seguridad
+    
+    for i in range(0, len(recipient_list), BATCH_SIZE):
+        batch = recipient_list[i:i + BATCH_SIZE]
+        for email_address in batch:
+            try:
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=text_content,
+                    from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+                    to=[email_address]
+                )
+                msg.attach_alternative(full_html, "text/html")
+                
+                # Adjuntar logo embebido
+                if os.path.exists(logo_path):
+                    with open(logo_path, 'rb') as f:
+                        logo_img = MIMEImage(f.read(), _subtype="png")
+                        logo_img.add_header('Content-ID', '<logo_congreso>')
+                        logo_img.add_header('Content-Disposition', 'inline', filename='logo-congreso.png')
+                        msg.attach(logo_img)
+                
+                msg.send()
+                enviados += 1
+            except Exception as e:
+                print(f"[ERROR] No se pudo enviar broadcast a {email_address}: {e}")
+                errores += 1
+        
+        # Pequeña pausa entre lotes si hay más por enviar
+        if i + BATCH_SIZE < len(recipient_list):
+            time.sleep(2)
+            
+    return enviados, errores

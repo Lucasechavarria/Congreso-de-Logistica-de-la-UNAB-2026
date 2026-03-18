@@ -1,18 +1,32 @@
-name: Deploy Frontend
+name: Deploy to UNAB Server
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    runs-on: self-hosted
+
     steps:
-      - name: Ejecutar despliegue vía SSH
-        uses: appleboy/ssh-action@master
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
         with:
-          host: ${{ secrets.HOST }} # Asegúrate de que este Secret tenga la IP correcta
-          username: root
-          password: ${{ secrets.PASSWORD }}
-          port: 22
-          script: /var/www/congreso/frontend/deploy.sh
+          # Se usa la versión del lockfile (10) para evitar errores de compatibilidad
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build SPA
+        run: pnpm run build:client
+
+      - name: Deploy to Folder
+        run: |
+          # Como el runner ahora es el usuario 'deployer', 
+          # asegúrate de que tenga permisos en /var/www/congreso
+          cp -R dist/spa/* /var/www/congreso/

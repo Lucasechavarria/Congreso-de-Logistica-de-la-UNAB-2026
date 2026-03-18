@@ -49,9 +49,11 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         password: ${{ secrets.SSH_PASSWORD }}
-        source: "backend/**"
-        target: "/var/www/congreso/backend" # Se sube a una subcarpeta backend
+        # Excluir archivos sensibles y específicos del sistema para evitar borrar datos o subir basura
+        source: "backend/**,!backend/venv/**,!backend/db.sqlite3,!backend/media/**,!backend/qr_codes/**,!backend/certificates/**,!backend/*.log"
+        target: "/var/www/congreso/backend"
         strip_components: 1
+        overwrite: true
 
     # --- RESTART: Comandos post-deploy ---
     - name: Restart Services
@@ -61,14 +63,17 @@ jobs:
         username: ${{ secrets.SSH_USER }}
         password: ${{ secrets.SSH_PASSWORD }}
         script: |
-          chown -R www-data:www-data /var/www/congreso
+          # Asegurar permisos correctos con sudo
+          sudo chown -R www-data:www-data /var/www/congreso
           
-          # Actualizar entorno virtual y migraciones si es necesario
           cd /var/www/congreso/backend
-          # venv/Scripts/python.exe (Windows) -> venv/bin/python (Linux server)
-          # Asumimos que el server Linux tiene su propio venv creado
-          # ./venv/bin/pip install -r requirements.txt
-          # ./venv/bin/python manage.py migrate
           
-          systemctl restart nginx
-          # systemctl restart congreso-api.service
+          # Si el entorno virtual existe, actualizar dependencias y migrar
+          # Nota: Se asume que el servidor tiene un venv llamado 'venv'
+          if [ -d "venv" ]; then
+            sudo -u www-data ./venv/bin/pip install -r requirements.txt
+            sudo -u www-data ./venv/bin/python manage.py migrate --noinput
+          fi
+          
+          sudo systemctl restart nginx
+          # sudo systemctl restart congreso-api.service

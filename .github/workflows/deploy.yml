@@ -1,79 +1,18 @@
-name: Deploy Congreso Logistica UNAB
+name: Deploy Frontend
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Install pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 9 # O la versión que prefieras usar
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        cache: 'pnpm'
-
-    - name: Install dependencies
-      run: pnpm install
-
-    - name: Build Frontend
-      run: pnpm run build:client
-
-    # --- DEPLOY: Subir al servidor ---
-    # Nota: Separamos en dos pasos para manejar correctamente las rutas
-    
-    - name: Deploy Frontend (SPA)
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        password: ${{ secrets.SSH_PASSWORD }}
-        source: "dist/spa/*"
-        target: "/var/www/congreso" # Se sube el contenido de dist/spa directamente a la raíz web
-        strip_components: 2
-
-    - name: Deploy Backend (Django)
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        password: ${{ secrets.SSH_PASSWORD }}
-        # Excluir archivos sensibles y específicos del sistema para evitar borrar datos o subir basura
-        source: "backend/**,!backend/venv/**,!backend/db.sqlite3,!backend/media/**,!backend/qr_codes/**,!backend/certificates/**,!backend/*.log"
-        target: "/var/www/congreso/backend"
-        strip_components: 1
-        overwrite: true
-
-    # --- RESTART: Comandos post-deploy ---
-    - name: Restart Services
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        password: ${{ secrets.SSH_PASSWORD }}
-        script: |
-          # Asegurar permisos correctos con sudo
-          sudo chown -R www-data:www-data /var/www/congreso
-          
-          cd /var/www/congreso/backend
-          
-          # Si el entorno virtual existe, actualizar dependencias y migrar
-          # Nota: Se asume que el servidor tiene un venv llamado 'venv'
-          if [ -d "venv" ]; then
-            sudo -u www-data ./venv/bin/pip install -r requirements.txt
-            sudo -u www-data ./venv/bin/python manage.py migrate --noinput
-          fi
-          
-          sudo systemctl restart nginx
-          # sudo systemctl restart congreso-api.service
+      - name: Ejecutar despliegue vía SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }} # Asegúrate de que este Secret tenga la IP correcta
+          username: root
+          password: ${{ secrets.PASSWORD }}
+          port: 22
+          script: /var/www/congreso/frontend/deploy.sh

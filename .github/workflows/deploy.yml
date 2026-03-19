@@ -16,7 +16,6 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
-          # Se usa la versión del lockfile (10) para evitar errores de compatibilidad
           version: 10
 
       - name: Install dependencies
@@ -25,8 +24,23 @@ jobs:
       - name: Build SPA
         run: pnpm run build:client
 
-      - name: Deploy to Folder
+      - name: Deploy Frontend
         run: |
-          # Como el runner ahora es el usuario 'deployer', 
-          # asegúrate de que tenga permisos en /var/www/congreso
-          cp -R dist/spa/* /var/www/congreso/
+          # Asegurar que la ruta destino de Nginx exista
+          mkdir -p /var/www/congreso/client/dist
+          # Limpiar antes de copiar
+          rm -rf /var/www/congreso/client/dist/*
+          # Copiar el build del frontend
+          cp -R dist/spa/* /var/www/congreso/client/dist/
+
+      - name: Sync Backend
+        run: |
+          # Sincronizar código del backend (excluyendo lo local del server)
+          # El usuario deployer ya debe tener permisos en /var/www/congreso
+          rsync -av --exclude='.env' --exclude='venv' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
+          
+      - name: Restart Backend Service
+        run: |
+          # Reiniciar Gunicorn para aplicar posibles cambios en settings.py o views
+          # (Requiere permiso sudo NOPASSWD para el comando systemctl restart congreso)
+          sudo systemctl restart congreso

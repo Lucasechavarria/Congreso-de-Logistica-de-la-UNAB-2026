@@ -1,4 +1,4 @@
-name: Deploy to UNAB Server
+name: Deploy to UNAB Server (Hybrid)
 
 on:
   push:
@@ -6,9 +6,9 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
-    runs-on: self-hosted
-
+  build:
+    name: Build Frontend & Prepare Backend
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,35 +18,56 @@ jobs:
         with:
           version: 10
 
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check memory (Diagnostic)
-        run: free -h || echo "No free command"
-
       - name: Build SPA
         run: pnpm run build:client
-        env:
-          NODE_OPTIONS: "--max-old-space-size=1024"
-          UV_THREADPOOL_SIZE: "1"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: |
+            dist/spa/
+            backend/
+            package.json
+            pnpm-lock.yaml
+
+  deploy:
+    name: Deploy to Server
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package
+
+      - name: Prepare Directories
+        run: |
+          mkdir -p /var/www/congreso/client/dist
+          mkdir -p /var/www/congreso/backend
 
       - name: Deploy Frontend
         run: |
-          # Asegurar que la ruta destino de Nginx exista
-          mkdir -p /var/www/congreso/client/dist
           # Limpiar antes de copiar
           rm -rf /var/www/congreso/client/dist/*
-          # Copiar el build del frontend
+          # Copiar el build del frontend (desde la descarga del artefacto)
           cp -R dist/spa/* /var/www/congreso/client/dist/
 
       - name: Sync Backend
         run: |
           # Sincronizar código del backend (excluyendo lo local del server)
-          # El usuario deployer ya debe tener permisos en /var/www/congreso
           rsync -av --exclude='.env' --exclude='venv' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
           
       - name: Restart Backend Service
         run: |
-          # Reiniciar Gunicorn para aplicar posibles cambios en settings.py o views
-          # (Requiere permiso sudo NOPASSWD para el comando systemctl restart congreso)
+          # Reiniciar Gunicorn para aplicar cambios
           sudo systemctl restart congreso

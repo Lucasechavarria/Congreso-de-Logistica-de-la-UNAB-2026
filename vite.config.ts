@@ -18,6 +18,10 @@ export default defineConfig({
   },
   build: {
     outDir: "dist/spa",
+    minify: "esbuild",
+    rollupOptions: {
+      maxParallelFileReads: 2, // Limitar lectura paralela para ahorrar RAM
+    },
   },
   plugins: [react()],
   resolve: {

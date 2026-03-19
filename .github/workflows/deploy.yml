@@ -27,7 +27,8 @@ jobs:
       - name: Build SPA
         run: pnpm run build:client
         env:
-          NODE_OPTIONS: "--max-old-space-size=1536"
+          NODE_OPTIONS: "--max-old-space-size=1024"
+          UV_THREADPOOL_SIZE: "1"
 
       - name: Deploy Frontend
         run: |

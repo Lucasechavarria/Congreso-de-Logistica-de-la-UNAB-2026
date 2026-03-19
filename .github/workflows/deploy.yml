@@ -19,10 +19,15 @@ jobs:
           version: 10
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check memory (Diagnostic)
+        run: free -h || echo "No free command"
 
       - name: Build SPA
         run: pnpm run build:client
+        env:
+          NODE_OPTIONS: "--max-old-space-size=1536"
 
       - name: Deploy Frontend
         run: |

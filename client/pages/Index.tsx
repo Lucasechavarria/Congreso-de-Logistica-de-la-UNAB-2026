@@ -191,7 +191,8 @@ export default function Index() {
                 viewport={{ once: true }}
               ></motion.div>
               <h2 className="text-xl md:text-2xl font-semibold mb-4 text-congress-white">
-                NUEVAS OPORTUNIDADES, GRANDES DESAFÍOS
+                {/* NUEVAS OPORTUNIDADES, GRANDES DESAFÍOS */}
+                PRUEBA DE DEPLOY
               </h2>
 
               <p className="text-congress-cyan-light font-bold text-2xl mb-6">

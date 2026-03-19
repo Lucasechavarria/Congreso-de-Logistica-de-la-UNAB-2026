@@ -23,10 +23,18 @@ def migrate_2025_data(csv_path):
     )
 
     try:
-        df = pd.read_csv(csv_path)
-    except Exception as e:
-        print(f"Error al leer el archivo CSV: {e}")
-        return
+        # Definimos las columnas manualmente porque el export batch de MariaDB no trae cabeceras
+        columns = ['email', 'first_name', 'last_name', 'phone', 'dni', 'profile_type', 
+                   'asistencia_confirmada', 'fecha_confirmacion', 'rol_especifico']
+        
+        # Intentamos latin-1 primero por las tildes del export de MariaDB
+        df = pd.read_csv(csv_path, encoding='latin-1', names=columns, header=None)
+    except Exception:
+        try:
+            df = pd.read_csv(csv_path, encoding='utf-8', names=columns, header=None)
+        except Exception as e:
+            print(f"Error al leer el archivo CSV: {e}")
+            return
 
     count = 0
     errors = 0

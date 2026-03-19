@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from typing import Dict, Any
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,7 +44,7 @@ ALLOWED_HOSTS = [
 
 # Application definition
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv # type: ignore
 # Cargar variables de entorno desde .env en la raíz del backend
 dotenv_path = os.path.join(BASE_DIR, '.env')
 if os.path.exists(dotenv_path):
@@ -232,39 +233,45 @@ CORS_ALLOW_HEADERS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# =================== CONFIGURACIÓN DE SUPABASE STORAGE ===================
+# =================== CONFIGURACIÓN DE STORAGE ===================
+# Definir configuración por defecto (Local) para evitar InvalidStorageError
+STORAGES: Dict[str, Any] = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+    "private": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "LOCATION": os.path.join(BASE_DIR, 'private_media'),
+    },
+}
+
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
 SUPABASE_PUBLIC_BUCKET = 'congreso-public'
 SUPABASE_PRIVATE_BUCKET = 'congreso-private'
 
 if SUPABASE_SERVICE_KEY and SUPABASE_SERVICE_KEY != 'REEMPLAZAR_CON_SERVICE_ROLE_KEY':
-    STORAGES = {
-        "default": {
-            "BACKEND": "api.custom_storage.SupabaseStorage",
-            "OPTIONS": {
-                "bucket_name": SUPABASE_PUBLIC_BUCKET,
-                "supabase_url": SUPABASE_URL,
-                "supabase_key": SUPABASE_SERVICE_KEY,
-                "location": "media",
-            },
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        },
-        # Bucket privado para certificados
-        "private": {
-            "BACKEND": "api.custom_storage.SupabaseStorage",
-            "OPTIONS": {
-                "bucket_name": SUPABASE_PRIVATE_BUCKET,
-                "supabase_url": SUPABASE_URL,
-                "supabase_key": SUPABASE_SERVICE_KEY,
-                "location": "certificates",
-            },
+    STORAGES["default"] = {
+        "BACKEND": "api.custom_storage.SupabaseStorage",
+        "OPTIONS": {
+            "bucket_name": SUPABASE_PUBLIC_BUCKET,
+            "supabase_url": SUPABASE_URL,
+            "supabase_key": SUPABASE_SERVICE_KEY,
+            "location": "media",
         },
     }
-    # Por defecto usamos el bucket público para media general
-    DEFAULT_FILE_STORAGE = "supabase_storage.storage.SupabaseStorage"
+    STORAGES["private"] = {
+        "BACKEND": "api.custom_storage.SupabaseStorage",
+        "OPTIONS": {
+            "bucket_name": SUPABASE_PRIVATE_BUCKET,
+            "supabase_url": SUPABASE_URL,
+            "supabase_key": SUPABASE_SERVICE_KEY,
+            "location": "certificates",
+        },
+    }
 
 # =================== SEGURIDAD CSRF Y COOKIES ===================
 # Configuración de orígenes confiables para CSRF (aplica tanto en desarrollo como producción)

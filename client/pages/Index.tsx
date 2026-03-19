@@ -192,7 +192,7 @@ export default function Index() {
               ></motion.div>
               <h2 className="text-xl md:text-2xl font-semibold mb-4 text-congress-white">
                 {/* NUEVAS OPORTUNIDADES, GRANDES DESAFÍOS */}
-                PRUEBA DE DEPLOY
+                Mai Ya Funciona!!!
               </h2>
 
               <p className="text-congress-cyan-light font-bold text-2xl mb-6">
@@ -249,7 +249,9 @@ export default function Index() {
                 variants={fadeInUp}
                 className="card-info group bg-white/10 backdrop-blur-sm rounded-lg p-8 flex flex-col items-center justify-center min-h-[210px] transition-all duration-300 hover:bg-white/20 hover:shadow-xl card-glow-hover"
               >
-                <FiCalendar className="w-8 h-8 mb-3 text-congress-blue-dark icon-hover-spin" />
+                <div className="w-8 h-8 mb-3 text-congress-blue-dark icon-hover-spin">
+                  <FiCalendar size="100%" />
+                </div>
                 <h3 className="font-semibold mb-2">Fecha</h3>
                 <p className="text-lg text-center">7 de Noviembre 2026</p>
               </motion.div>
@@ -259,7 +261,9 @@ export default function Index() {
                 className="card-info group bg-white/10 backdrop-blur-sm rounded-lg p-8 flex flex-col items-center justify-center min-h-[210px] transition-all duration-300 hover:bg-white/20 hover:shadow-xl cursor-pointer card-glow-hover"
                 onClick={scrollToMap}
               >
-                <FiMapPin className="w-8 h-8 mb-3 text-congress-blue-dark icon-hover-spin" />
+                <div className="w-8 h-8 mb-3 text-congress-blue-dark icon-hover-spin">
+                  <FiMapPin size="100%" />
+                </div>
                 <h3 className="font-semibold mb-2">Ubicación</h3>
                 <p className="text-lg text-center">
                   Campus UNaB
@@ -274,7 +278,9 @@ export default function Index() {
                   className="block"
                 >
                   <div className="card-info group bg-white/10 backdrop-blur-sm rounded-lg p-8 flex flex-col items-center justify-center min-h-[210px] transition-all duration-300 hover:bg-white/20 hover:shadow-xl card-glow-hover">
-                    <FiMail className="w-8 h-8 mb-3 text-congress-blue-dark icon-hover-spin" />
+                    <div className="w-8 h-8 mb-3 text-congress-blue-dark icon-hover-spin">
+                      <FiMail size="100%" />
+                    </div>
                     <h3 className="font-semibold mb-2">Contacto</h3>
                     <p className="text-lg break-words text-center leading-tight">
                       congresologisticaytransporte
@@ -358,10 +364,14 @@ export default function Index() {
 
                   {/* Floating elements */}
                   <div className="absolute top-0 right-10 w-16 h-16 bg-gradient-to-br from-[#9c62de] to-[#210d51] rounded-xl flex items-center justify-center shadow-lg animate-[float-orb_4s_ease-in-out_infinite]">
-                    <FiUsers className="text-white text-xl" />
+                  <div className="text-white text-xl">
+                    <FiUsers size="100%" />
+                  </div>
                   </div>
                   <div className="absolute bottom-10 left-0 w-20 h-20 bg-gradient-to-br from-congress-cyan-light to-congress-blue rounded-full flex items-center justify-center shadow-lg animate-[float-orb_6s_ease-in-out_infinite_1s]">
-                    <FiAward className="text-white text-2xl" />
+                  <div className="text-white text-2xl">
+                    <FiAward size="100%" />
+                  </div>
                   </div>
                 </div>
               </motion.div>
@@ -428,7 +438,9 @@ export default function Index() {
                       <div
                         className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/10 shadow-sm transition-all duration-300 border border-white/5 group-hover:bg-congress-cyan/20`}
                       >
-                        <modality.icon className="h-8 w-8 text-congress-cyan transition-colors icon-hover-spin" />
+                        <div className="h-8 w-8 text-congress-cyan transition-colors icon-hover-spin">
+                          <modality.icon size="100%" />
+                        </div>
                       </div>
                       <CardTitle className="text-2xl font-bold text-white transition-colors group-hover:text-congress-cyan-light">
                         {modality.title}

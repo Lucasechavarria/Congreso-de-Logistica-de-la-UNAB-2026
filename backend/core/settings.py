@@ -250,7 +250,8 @@ SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
 SUPABASE_PUBLIC_BUCKET = 'congreso-public'
 SUPABASE_PRIVATE_BUCKET = 'congreso-private'
 
-if SUPABASE_SERVICE_KEY and SUPABASE_SERVICE_KEY != 'REEMPLAZAR_CON_SERVICE_ROLE_KEY':
+# Solo usar Supabase si se solicita explícitamente y están las claves
+if os.getenv('USE_SUPABASE_STORAGE') == 'True' and SUPABASE_SERVICE_KEY:
     STORAGES["default"] = {
         "BACKEND": "api.custom_storage.SupabaseStorage",
         "OPTIONS": {

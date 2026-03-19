@@ -19,9 +19,9 @@ export default defineConfig({
   build: {
     outDir: "dist/spa",
     minify: "esbuild",
-    rollupOptions: {
-      maxParallelFileReads: 2, // Limitar lectura paralela para ahorrar RAM
-    },
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 1000,
+    sourcemap: false, // Evita generar mapas de fuente, ahorra mucha RAM
   },
   plugins: [react()],
   resolve: {

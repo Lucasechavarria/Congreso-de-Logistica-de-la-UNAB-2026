@@ -296,7 +296,7 @@ class InscripcionAdmin(admin.ModelAdmin):
 
 class AsistenteAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'email', 'dni', 'asistencia_confirmada', 'fecha_confirmacion')
-    list_filter = (DNIFilter, 'asistencia_confirmada', 'fecha_confirmacion')
+    list_filter = (DNIFilter, 'asistencia_confirmada', 'inscripciones__edicion', 'fecha_confirmacion')
     search_fields = ('first_name', 'last_name', 'email', 'dni')
     actions = ['confirmar_asistencia', 'enviar_certificados', 'enviar_solicitud_actualizacion_dni', 'enviar_certificados_lote_40', 'exportar_no_estudiantes_xls', 'exportar_asistentes_xls']
     def exportar_asistentes_xls(self, request, queryset):
@@ -558,12 +558,41 @@ class CertificadoAdmin(admin.ModelAdmin):
     list_display = ('asistente', 'tipo_certificado', 'fecha_generacion')
     list_filter = ('tipo_certificado', 'fecha_generacion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email')
+    actions = ['enviar_por_email_accion']
+
+    def enviar_por_email_accion(self, request, queryset):
+        sent_count = 0
+        errores = 0
+        for certificado in queryset:
+            try:
+                send_certificate_email(certificado)
+                sent_count += 1
+            except Exception:
+                errores += 1
+        
+        msg = f"{sent_count} certificados enviados."
+        if errores:
+            msg += f" {errores} errores detectados."
+            self.message_user(request, msg, level='warning')
+        else:
+            self.message_user(request, msg)
+    enviar_por_email_accion.short_description = "Re-enviar certificados seleccionados por Email" # type: ignore
 
 class ProgramaAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'categoria', 'aula', 'dia', 'hora_inicio', 'hora_fin')
     list_filter = ('dia', 'categoria', 'aula')
     search_fields = ('titulo',)
     list_editable = ('categoria',)
+    
+    actions = ['set_logistica', 'set_tecnologia']
+
+    def set_logistica(self, request, queryset):
+        queryset.update(categoria='LOGISTICA')
+    set_logistica.short_description = "Cambiar categoría a Logística" # type: ignore
+
+    def set_tecnologia(self, request, queryset):
+        queryset.update(categoria='TECNOLOGIA')
+    set_tecnologia.short_description = "Cambiar categoría a Tecnología" # type: ignore
 
 @admin.register(Disertante)
 class DisertanteAdmin(admin.ModelAdmin):
@@ -713,4 +742,20 @@ admin.site.register(Asistente, AsistenteAdmin)
 admin.site.register(Inscripcion, InscripcionAdmin)
 admin.site.register(Certificado, CertificadoAdmin)
 admin.site.register(Programa, ProgramaAdmin)
-admin.site.register(Edicion)
+class EdicionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'anio', 'activa')
+    list_editable = ('activa',)
+    list_filter = ('activa',)
+    actions = ['marcar_como_activa']
+
+    def marcar_como_activa(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(request, "Seleccione solo una edición para activar.", level='warning')
+            return
+        edicion = queryset.first()
+        edicion.activa = True
+        edicion.save() # El método save ya se encarga de desactivar las otras
+        self.message_user(request, f"La edición {edicion} ahora es la activa.")
+    marcar_como_activa.short_description = "Marcar edición seleccionada como ACTIVA" # type: ignore
+
+admin.site.register(Edicion, EdicionAdmin)

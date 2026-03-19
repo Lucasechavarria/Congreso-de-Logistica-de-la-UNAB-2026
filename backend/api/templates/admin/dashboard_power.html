@@ -170,20 +170,19 @@
         text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
     }
 
-    /* Chart Area */
     .c-grid {
         display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 25px;
+        grid-template-columns: 1fr;
+        gap: 30px;
     }
 
     .c-card {
         background: var(--card);
         backdrop-filter: blur(10px);
-        padding: 20px;
+        padding: 25px;
         border-radius: 16px;
         border: 1px solid var(--b);
-        height: 380px;
+        height: 450px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
 
@@ -304,8 +303,19 @@
     </div>
 
     <div class="c-grid">
-        <div class="c-card"><canvas id="c1"></canvas></div>
-        <div class="c-card" style="display:flex; justify-content:center; align-items:center;"><canvas id="c2"></canvas>
+        <div class="c-card">
+            <h3 style="color: var(--p); margin-bottom: 15px; font-size: 14px; text-transform: uppercase;">Tendencia Temporal (Evolutivo)</h3>
+            <canvas id="c1"></canvas>
+        </div>
+        <div class="c-card" style="display:flex; flex-direction: column; justify-content:center; align-items:center;">
+             <h3 style="color: var(--p); margin-bottom: 15px; font-size: 14px; text-transform: uppercase; width: 100%;">Distribución de Perfiles / Estados</h3>
+             <div style="flex:1; width:100%; position:relative;">
+                <canvas id="c2"></canvas>
+             </div>
+        </div>
+        <div class="c-card">
+            <h3 style="color: var(--p); margin-bottom: 15px; font-size: 14px; text-transform: uppercase;">Comparativa entre Ediciones</h3>
+            <canvas id="c3"></canvas>
         </div>
     </div>
 </div>
@@ -364,8 +374,31 @@
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: ct_dist === 'radar' ? 'top' : 'right'
+                    position: 'right'
                 }
+            }
+        }
+    });
+
+    // Configuración Comparativa (Abajo)
+    const d3 = JSON.parse('{{ comparative_stats_json|safe|escapejs }}');
+    new Chart(document.getElementById('c3'), {
+        type: 'bar',
+        data: {
+            labels: d3.map(x => x.name),
+            datasets: [
+                { label: 'Inscritos', data: d3.map(x => x.total_inscritos), backgroundColor: '#0ea5e9' },
+                { label: 'Disertantes', data: d3.map(x => x.total_disertantes), backgroundColor: '#10b981' },
+                { label: 'Empresas', data: d3.map(x => x.total_empresas), backgroundColor: '#facc15' }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            },
+            plugins: {
+                legend: { position: 'top' }
             }
         }
     });

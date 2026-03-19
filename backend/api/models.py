@@ -370,6 +370,10 @@ class Edicion(models.Model):
     def __str__(self):
         return f"{self.nombre} ({self.anio})"
 
+    class Meta:
+        verbose_name = "Edición"
+        verbose_name_plural = "Ediciones"
+
 class DetalleEstudiante(models.Model):
     asistente = models.OneToOneField('Asistente', on_delete=models.CASCADE, related_name='detalle_estudiante')
     is_unab_student = models.BooleanField(default=False, verbose_name="¿Perteneces a la UNaB?")
@@ -446,11 +450,13 @@ class Inscripcion(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True)
     fecha_inscripcion = models.DateTimeField(default=timezone.now)
 
-    class Meta:
-        unique_together = ('asistente', 'edicion')
-
     def __str__(self):
         return f"Inscripción de {self.asistente} - {self.edicion}"
+
+    class Meta:
+        unique_together = ('asistente', 'edicion')
+        verbose_name = "Inscripción"
+        verbose_name_plural = "Inscripciones"
 
 class Dashboard(models.Model):
     class Meta:

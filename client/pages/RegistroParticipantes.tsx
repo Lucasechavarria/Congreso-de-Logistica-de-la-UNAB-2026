@@ -170,7 +170,7 @@ const RegistroParticipantes: React.FC = () => {
         handleFileUpload(acceptedFiles[0]);
       }
     }
-  });
+  } as any);
 
   const handleFileUpload = (file: File) => {
     setExcelFile(file);
@@ -293,14 +293,27 @@ const RegistroParticipantes: React.FC = () => {
         }
 
         const currentValues = watch();
-        reset({
+        const updateData: any = {
           ...currentValues,
           firstName: data.first_name || currentValues.firstName,
           lastName: data.last_name || currentValues.lastName,
           email: data.email || currentValues.email,
           phone: data.phone || currentValues.phone,
-          profileType: newProfile
-        } as FormData);
+          profileType: newProfile,
+          // Nuevos campos para auto-completado
+          institution: data.institution || (currentValues as any).institution,
+          isUnabStudent: data.is_unab_student !== undefined ? data.is_unab_student : (currentValues as any).isUnabStudent,
+          career: data.career || (currentValues as any).career,
+          yearOfStudy: data.year_of_study || (currentValues as any).yearOfStudy,
+          careerTaught: data.career_taught || (currentValues as any).careerTaught,
+          workArea: data.work_area || (currentValues as any).workArea,
+          occupation: data.occupation || (currentValues as any).occupation,
+          groupName: data.group_name || (currentValues as any).groupName,
+          groupMunicipality: data.group_municipality || (currentValues as any).groupMunicipality,
+          groupSize: data.group_size || (currentValues as any).groupSize,
+          institutionOrWorkplace: data.institution_or_workplace || data.institution || (currentValues as any).institutionOrWorkplace,
+        };
+        (reset as any)(updateData);
 
       } else {
         setAsistenteEncontrado(false);

@@ -267,6 +267,37 @@ class AsistenteSerializer(serializers.ModelSerializer):
             'miembros_grupo', 'miembros_grupo_nuevos', 'miembros_representados', 'rol_especifico'
         ]
         read_only_fields = ['id', 'miembros_representados']
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        
+        # Pull data from detail models if they exist
+        profile_type = instance.profile_type
+        
+        if profile_type == Asistente.ProfileType.STUDENT and hasattr(instance, 'detalle_estudiante'):
+            detalle = instance.detalle_estudiante
+            ret['is_unab_student'] = detalle.is_unab_student
+            ret['institution'] = detalle.institution
+            ret['career'] = detalle.career
+            ret['year_of_study'] = detalle.year_of_study
+            
+        elif profile_type == Asistente.ProfileType.TEACHER and hasattr(instance, 'detalle_docente'):
+            detalle = instance.detalle_docente
+            ret['institution'] = detalle.institution
+            ret['career_taught'] = detalle.career_taught
+            
+        elif profile_type == Asistente.ProfileType.PROFESSIONAL and hasattr(instance, 'detalle_profesional'):
+            detalle = instance.detalle_profesional
+            ret['work_area'] = detalle.work_area
+            ret['occupation'] = detalle.occupation
+            
+        elif profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE and hasattr(instance, 'detalle_grupo'):
+            detalle = instance.detalle_grupo
+            ret['group_name'] = detalle.group_name
+            ret['group_municipality'] = detalle.group_municipality
+            ret['group_size'] = detalle.group_size
+            
+        return ret
     
     def get_miembros_representados(self, obj):
         """Devuelve la información de los miembros representados"""
@@ -427,7 +458,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
             # Si tiene 9 dígitos y termina en 0, eliminar el último 0
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
                 # Usar slice explícito para evitar confusiones del linter
-                dni_limpio = dni_limpio[0:8]
+                dni_limpio = dni_limpio[:8]
             # Validar que tenga entre 7 y 8 dígitos
             if not (7 <= len(dni_limpio) <= 8) or not dni_limpio.isdigit():
                 raise serializers.ValidationError('El DNI debe tener entre 7 y 8 dígitos numéricos.')

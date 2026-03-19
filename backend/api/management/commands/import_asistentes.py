@@ -12,7 +12,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--file',
             type=str,
-            default='backend/migrate_data.sql',
+            default='migrate_data.sql',
             help='Ruta al archivo SQL de migración',
         )
 

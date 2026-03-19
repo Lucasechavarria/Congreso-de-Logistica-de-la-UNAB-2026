@@ -70,4 +70,4 @@ jobs:
       - name: Restart Backend Service
         run: |
           # Reiniciar Gunicorn para aplicar cambios
-          sudo systemctl restart congreso
+          sudo systemctl restart gunicorn

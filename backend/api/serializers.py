@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Edicion, Disertante, Programa, Empresa, Asistente, 
-    Inscripcion, Certificado, PostulacionDisertante, InscripcionPrensa
+    Inscripcion, Certificado, PostulacionDisertante, InscripcionPrensa, MiembroGrupo
 )
 from django.db import transaction
 from .email import send_group_confirmation_emails, send_individual_confirmation_email
@@ -242,7 +242,7 @@ class AsistenteGrupoSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=100)
     last_name = serializers.CharField(max_length=100)
     email = serializers.EmailField()
-    dni = serializers.CharField(max_length=10)
+    dni = serializers.CharField(max_length=8)
 
 class AsistenteSerializer(serializers.ModelSerializer):
     miembros_grupo = MiembroGrupoSerializer(many=True, required=False)  # Mantenemos compatibilidad
@@ -252,7 +252,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
     
     # Overrides to disable UniqueValidator, as we do Upsert manually
     email = serializers.EmailField()
-    dni = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True)
+    dni = serializers.CharField(max_length=8, required=False, allow_blank=True, allow_null=True)
 
     # Legacy fields now handled in related models, write_only to allow GET without AttributeError
     is_unab_student = serializers.BooleanField(required=False, allow_null=True, write_only=True)
@@ -468,9 +468,9 @@ class AsistenteSerializer(serializers.ModelSerializer):
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
                 # Usar slice explícito para evitar confusiones del linter
                 dni_limpio = dni_limpio[:8]
-            # Validar que tenga entre 7 y 8 dígitos
-            if not (7 <= len(dni_limpio) <= 8) or not dni_limpio.isdigit():
-                raise serializers.ValidationError('El DNI debe tener entre 7 y 8 dígitos numéricos.')
+            # Validar que tenga exactamente 8 dígitos
+            if len(dni_limpio) != 8 or not dni_limpio.isdigit():
+                raise serializers.ValidationError('El DNI debe tener exactamente 8 dígitos numéricos.')
             return dni_limpio
         return value
 

@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa
+from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
@@ -289,15 +289,27 @@ class DNIFilter(admin.SimpleListFilter):
         return queryset
 
 
+class MiembroGrupoInline(admin.TabularInline):
+    model = MiembroGrupo
+    extra = 0
+    readonly_fields = ('fecha_registro',)
+
 class InscripcionAdmin(admin.ModelAdmin):
     list_display = ('asistente', 'empresa', 'fecha_inscripcion', 'edicion')
     list_filter = ('edicion', 'fecha_inscripcion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'empresa__razon_social')
 
 class AsistenteAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'dni', 'asistencia_confirmada', 'fecha_confirmacion')
-    list_filter = (DNIFilter, 'asistencia_confirmada', 'inscripciones__edicion', 'fecha_confirmacion')
+    list_display = ('first_name', 'last_name', 'email', 'dni', 'get_ediciones', 'asistencia_confirmada', 'fecha_registro')
+    list_filter = (DNIFilter, 'asistencia_confirmada', 'inscripciones__edicion', 'fecha_confirmacion', 'fecha_registro')
     search_fields = ('first_name', 'last_name', 'email', 'dni')
+    readonly_fields = ('fecha_registro', 'fecha_confirmacion', 'dni_update_token', 'dni_email_sent_date')
+    inlines = [MiembroGrupoInline]
+    
+    def get_ediciones(self, obj):
+        ediciones = Edicion.objects.filter(inscripciones__asistente=obj).values_list('anio', flat=True)
+        return ", ".join(map(str, ediciones)) if ediciones else "-"
+    get_ediciones.short_description = 'Ediciones'
     actions = ['confirmar_asistencia', 'enviar_certificados', 'enviar_solicitud_actualizacion_dni', 'enviar_certificados_lote_40', 'exportar_no_estudiantes_xls', 'exportar_asistentes_xls']
     def exportar_asistentes_xls(self, request, queryset):
         """
@@ -605,7 +617,8 @@ class DisertanteAdmin(admin.ModelAdmin):
             'fields': ('bio',),
         }),
     )
-    list_display = ('nombre', 'tema_presentacion', 'linkedin')
+    list_display = ('nombre', 'tema_presentacion', 'edicion', 'linkedin')
+    list_filter = ('edicion', 'estado')
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
     list_display = ('nombre_empresa', 'estado', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro')
@@ -758,4 +771,11 @@ class EdicionAdmin(admin.ModelAdmin):
         self.message_user(request, f"La edición {edicion} ahora es la activa.")
     marcar_como_activa.short_description = "Marcar edición seleccionada como ACTIVA" # type: ignore
 
-admin.site.register(Edicion, EdicionAdmin)
+admin.site.register(Edicion, EdicionAdmin)
+
+@admin.register(MiembroGrupo)
+class MiembroGrupoAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'dni', 'representante', 'fecha_registro')
+    list_filter = ('fecha_registro',)
+    search_fields = ('full_name', 'dni', 'representante__first_name', 'representante__last_name')
+    readonly_fields = ('fecha_registro',)

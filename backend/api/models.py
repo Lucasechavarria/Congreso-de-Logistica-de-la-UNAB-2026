@@ -32,9 +32,9 @@ class PostulacionDisertante(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='postulaciones_disertantes')
     # Personal & Profesional
     nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
-    dni = models.CharField(max_length=20, verbose_name="DNI / Documento")
+    dni = models.CharField(max_length=8, verbose_name="DNI / Documento")
     email = models.EmailField(verbose_name="Email de contacto")
-    telefono = models.CharField(max_length=50, verbose_name="Teléfono")
+    telefono = models.CharField(max_length=20, verbose_name="Teléfono")
     ciudad_provincia = models.CharField(max_length=255, verbose_name="Ciudad y Provincia")
     profesion_cargo = models.CharField(max_length=255, verbose_name="Profesión / Cargo actual")
     empresa_institucion = models.CharField(max_length=255, verbose_name="Empresa / Institución a la que pertenece")
@@ -186,8 +186,8 @@ class Asistente(models.Model):
     first_name = models.CharField(max_length=100, verbose_name="Nombre")
     last_name = models.CharField(max_length=100, verbose_name="Apellido")
     email = models.EmailField(unique=True, verbose_name="Correo electrónico")
-    phone = models.CharField(max_length=50, blank=True, null=True, verbose_name="Número de celular")
-    dni = models.CharField(max_length=20, unique=True, null=True, blank=True, verbose_name="DNI")
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de celular")
+    dni = models.CharField(max_length=8, unique=True, null=True, blank=True, verbose_name="DNI")
     dni_update_token = models.CharField(max_length=64, unique=True, null=True, blank=True, verbose_name="Token de actualización de DNI")
     dni_email_sent = models.BooleanField(default=False, verbose_name="Email de solicitud DNI enviado")
     dni_email_sent_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha envío email DNI")
@@ -244,10 +244,10 @@ class Asistente(models.Model):
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
                 # Eliminar el último carácter si es cero en un DNI de 9 dígitos
                 dni_limpio = dni_limpio[0:8]
-            # Validar que tenga entre 7 y 8 dígitos
-            if not (7 <= len(dni_limpio) <= 8) or not dni_limpio.isdigit():
+            # Validar que tenga exactamente 8 dígitos
+            if len(dni_limpio) != 8 or not dni_limpio.isdigit():
                 raise ValidationError({
-                    'dni': 'El DNI debe tener entre 7 y 8 dígitos numéricos.'
+                    'dni': 'El DNI debe tener exactamente 8 dígitos numéricos.'
                 })
             # Actualizar el DNI limpio
             self.dni = dni_limpio
@@ -287,6 +287,7 @@ class MiembroGrupo(models.Model):
     representante = models.ForeignKey(Asistente, on_delete=models.CASCADE, related_name='miembros_grupo')
     full_name = models.CharField(max_length=200, verbose_name="Nombre completo")
     dni = models.CharField(max_length=10, verbose_name="DNI")
+    fecha_registro = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de registro")
 
     def __str__(self):
         return f"{self.full_name} (Grupo de {self.representante})"
@@ -406,9 +407,9 @@ class InscripcionPrensa(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='inscripciones_prensa')
     # Identidad
     nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
-    dni = models.CharField(max_length=20, verbose_name="DNI")
+    dni = models.CharField(max_length=8, verbose_name="DNI")
     email = models.EmailField(verbose_name="Email de contacto")
-    telefono = models.CharField(max_length=50, verbose_name="Teléfono")
+    telefono = models.CharField(max_length=20, verbose_name="Teléfono")
     ciudad_provincia = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ciudad / Provincia")
     # Perfil mediático
     TIPO_CHOICES = [

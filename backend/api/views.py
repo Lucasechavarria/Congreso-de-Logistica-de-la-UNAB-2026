@@ -16,7 +16,7 @@ from django.db.models.functions import TruncDate
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
 from django.middleware.csrf import get_token
-from .email import send_certificate_email, send_confirmation_email, send_bulk_confirmation_email
+from .email import send_certificate_email, send_confirmation_email, send_bulk_confirmation_email, send_broadcast_batch_email
 import pandas as pd
 import re
 
@@ -39,6 +39,14 @@ class GetCSRFTokenView(views.APIView):
             'detail': 'CSRF cookie set',
             'csrfToken': csrf_token  # También lo devolvemos en la respuesta por si acaso
         }, status=status.HTTP_200_OK)
+
+class EdicionViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet para listar las ediciones disponibles del congreso.
+    """
+    queryset = Edicion.objects.all().order_by('-anio')
+    serializer_class = EdicionSerializer
+    permission_classes = [AllowAny]
 
 class DisertanteViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -1249,3 +1257,62 @@ class InscripcionPrensaView(views.APIView):
             'status': 'error',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BroadcastAPIView(views.APIView):
+    """
+    POST /api/broadcast/
+    Envío de comunicaciones masivas vía API (Solo Admin).
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        rol = request.data.get('rol')
+        asunto = request.data.get('asunto')
+        mensaje_html = request.data.get('mensaje')
+
+        if not asunto or not mensaje_html:
+            return Response({
+                'status': 'error',
+                'message': 'Asunto y mensaje son obligatorios.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        emails = set()
+        
+        # Lógica de filtrado idéntica a la del Admin
+        if rol == 'TODOS' or rol == 'ASISTENTES_TODOS':
+            emails.update(Asistente.objects.values_list('email', flat=True))
+        
+        if rol == 'ASISTENTES_CONFIRMADOS':
+            emails.update(Asistente.objects.filter(asistencia_confirmada=True).values_list('email', flat=True))
+        
+        if rol == 'TODOS' or rol == 'DISERTANTES':
+            emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))
+            
+        if rol == 'TODOS' or rol == 'EMPRESAS':
+            emails.update(Empresa.objects.filter(estado='APROBADO').values_list('email_contacto', flat=True))
+            
+        if rol == 'TODOS' or rol == 'PRENSA':
+            emails.update(InscripcionPrensa.objects.values_list('email', flat=True))
+
+        # Limpiar emails nulos o vacíos
+        emails_list = [e for e in emails if e]
+
+        if not emails_list:
+            return Response({
+                'status': 'error',
+                'message': 'No se encontraron destinatarios para el filtro seleccionado.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Envío en segundo plano para no bloquear la respuesta
+        import threading
+        def start_broadcast():
+            send_broadcast_batch_email(emails_list, asunto, mensaje_html)
+            
+        thread = threading.Thread(target=start_broadcast)
+        thread.start()
+
+        return Response({
+            'status': 'success',
+            'message': f'Proceso de envío iniciado para {len(emails_list)} destinatarios.'
+        }, status=status.HTTP_202_ACCEPTED)

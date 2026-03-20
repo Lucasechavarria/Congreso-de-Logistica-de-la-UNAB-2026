@@ -23,18 +23,18 @@ let empresasCache: EmpresaAPI[] | null = null;
 let lastFetchTime: number = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos de caché
 
-export const useEmpresas = () => {
-  const [empresas, setEmpresas] = useState<EmpresaAPI[]>(empresasCache || []);
-  const [loading, setLoading] = useState<boolean>(!empresasCache);
+export const useEmpresas = (edicionId?: number | null) => {
+  const [empresas, setEmpresas] = useState<EmpresaAPI[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchEmpresas = async () => {
-      // 1. Usar caché si existe y es válido
+      // 1. Usar caché si existe, es válido y NO estamos pidiendo una edición específica
       const now = Date.now();
-      if (empresasCache && (now - lastFetchTime < CACHE_DURATION)) {
+      if (!edicionId && empresasCache && (now - lastFetchTime < CACHE_DURATION)) {
         if (isMounted) {
           setEmpresas(empresasCache);
           setLoading(false);
@@ -42,7 +42,7 @@ export const useEmpresas = () => {
         return;
       }
 
-      if (isMounted && !empresasCache) {
+      if (isMounted) {
         setLoading(true);
       }
       if (isMounted) setError(null);
@@ -52,7 +52,11 @@ export const useEmpresas = () => {
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos
 
       try {
-        const response = await fetch(`${API_BASE_URL}/empresas/`, {
+        const url = edicionId 
+          ? `${API_BASE_URL}/empresas/?edicion_id=${edicionId}`
+          : `${API_BASE_URL}/empresas/`;
+          
+        const response = await fetch(url, {
           signal: controller.signal
         });
 
@@ -71,9 +75,11 @@ export const useEmpresas = () => {
 
         const data = await response.json();
 
-        // Actualizar caché
-        empresasCache = data;
-        lastFetchTime = Date.now();
+        // Actualizar caché solo si es la petición general (sin edicionId)
+        if (!edicionId) {
+          empresasCache = data;
+          lastFetchTime = Date.now();
+        }
 
         if (isMounted) {
           setEmpresas(data);
@@ -108,7 +114,7 @@ export const useEmpresas = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [edicionId]);
 
   // Convertir empresas de la API al formato LogoItem esperado por los componentes
   const DOMAIN_PROD = "https://www.congresologistica.unab.edu.ar";

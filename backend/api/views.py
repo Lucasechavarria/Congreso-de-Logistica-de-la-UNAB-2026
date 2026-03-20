@@ -1,10 +1,15 @@
-from rest_framework import viewsets, mixins, status, views, serializers
+from rest_framework import viewsets, mixins, status, views, serializers, permissions
 from typing import Any
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.db import transaction
 from .models import Disertante, Inscripcion, Programa, Certificado, Asistente, Empresa, MiembroGrupo, PostulacionDisertante, Edicion, InscripcionPrensa
-from .serializers import DisertanteSerializer, InscripcionSerializer, AsistenteSerializer, ProgramaSerializer, EmpresaSerializer, MiembroGrupoSerializer, EmpresaLogoSerializer, PostulacionDisertanteSerializer, InscripcionPrensaSerializer
+from .serializers import (
+    EdicionSerializer, DisertanteSerializer, EmpresaSerializer, 
+    ProgramaSerializer, AsistenteSerializer, InscripcionSerializer,
+    PostulacionDisertanteSerializer, InscripcionPrensaSerializer,
+    EmpresaLogoSerializer, MiembroGrupoSerializer
+)
 from django.utils import timezone
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -44,15 +49,30 @@ class DisertanteViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Disertante.objects.filter(edicion__activa=True, estado='APROBADO')
+        edicion_id = self.request.query_params.get('edicion_id')
+        queryset = Disertante.objects.filter(estado='APROBADO')
+        if edicion_id:
+            queryset = queryset.filter(edicion_id=edicion_id)
+        else:
+            queryset = queryset.filter(edicion__activa=True)
+        return queryset
 
 class ProgramaViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Un ViewSet para ver el programa del congreso, ordenado por día y hora.
+    Soporta filtrado por edición.
     """
-    queryset = Programa.objects.all().order_by('dia', 'hora_inicio')
     serializer_class = ProgramaSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        edicion_id = self.request.query_params.get('edicion_id')
+        queryset = Programa.objects.all().order_by('dia', 'hora_inicio')
+        if edicion_id:
+            queryset = queryset.filter(edicion_id=edicion_id)
+        else:
+            queryset = queryset.filter(edicion__activa=True)
+        return queryset
 
 class RegistroEmpresasView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """
@@ -243,7 +263,19 @@ class VerificarDNIView(views.APIView):
             return Response({'status': 'error', 'message': 'No se proporcionó DNI.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            # Obtener la edición activa
+            edicion_activa = Edicion.objects.filter(activa=True).first()
+            if not edicion_activa:
+                return Response({'status': 'error', 'message': 'No hay una edición activa configurada.'}, status=400)
+
+            # Buscar al asistente y verificar que tenga una inscripción para la edición activa
             asistente = Asistente.objects.get(dni=dni)
+            if not Inscripcion.objects.filter(asistente=asistente, edicion=edicion_activa).exists():
+                return Response({
+                    'status': 'error', 
+                    'message': f'El asistente está registrado en el sistema pero no tiene inscripción para la edición activa ({edicion_activa.nombre}).'
+                }, status=403)
+                
             print(f"DEBUG: Asistente {asistente.dni} asistencia_confirmada: {asistente.asistencia_confirmada}")
         except Asistente.DoesNotExist:
             return Response({'status': 'error', 'message': 'DNI no encontrado en el listado de registrados.'}, status=status.HTTP_404_NOT_FOUND)
@@ -379,11 +411,18 @@ class EmpresaViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Empresa.objects.filter(
-            edicion__activa=True, 
+        edicion_id = self.request.query_params.get('edicion_id')
+        queryset = Empresa.objects.filter(
             estado='APROBADO', 
             logo__isnull=False
-        ).exclude(logo='').order_by('nombre_empresa')
+        ).exclude(logo='')
+        
+        if edicion_id:
+            queryset = queryset.filter(edicion_id=edicion_id)
+        else:
+            queryset = queryset.filter(edicion__activa=True)
+            
+        return queryset.order_by('nombre_empresa')
 
 
 class EnvioMasivoEmailsView(views.APIView):
@@ -1096,9 +1135,24 @@ class StatsDashboardView(views.APIView):
 
     def get(self, request):
         try:
-            # 1. Inscripciones por día (últimos 30 días)
+            # Obtener edición desde query params o usar la activa
+            edicion_id = request.query_params.get('edicion_id')
+            if edicion_id:
+                try:
+                    edicion = Edicion.objects.get(id=edicion_id)
+                except (Edicion.DoesNotExist, ValueError):
+                    edicion = Edicion.objects.filter(activa=True).first()
+            else:
+                edicion = Edicion.objects.filter(activa=True).first()
+
+            # 1. Inscripciones por día (últimos 30 días o filtrado por edición)
+            # Si no hay edición (raro), no filtramos por ella.
+            inscripciones_base = Inscripcion.objects.all()
+            if edicion:
+                inscripciones_base = inscripciones_base.filter(edicion=edicion)
+
             hace_30_dias = timezone.now() - timezone.timedelta(days=30)
-            inscripciones_por_dia = Inscripcion.objects.filter(
+            inscripciones_por_dia = inscripciones_base.filter(
                 fecha_inscripcion__gte=hace_30_dias
             ).annotate(
                 date=TruncDate('fecha_inscripcion')
@@ -1111,25 +1165,27 @@ class StatsDashboardView(views.APIView):
                 for item in inscripciones_por_dia
             ]
 
-            # 2. Comparativa por Edición
+            # 2. Comparativa por Edición (Siempre mostramos todas para comparar)
             ediciones_stats = Inscripcion.objects.values(
-                'edicion__nombre'
+                'edicion__nombre', 'edicion__anio'
             ).annotate(
                 total=Count('id')
-            ).order_by('edicion__nombre')
+            ).order_by('edicion__anio')
 
             comparative_stats = [
-                {'name': item['edicion__nombre'], 'total': item['total']}
+                {'name': f"{item['edicion__nombre']} ({item['edicion__anio']})", 'total': item['total']}
                 for item in ediciones_stats
             ]
 
-            # 3. Distribución por Tipo de Perfil (Solo edición activa)
-            perfil_stats = Asistente.objects.filter(
-                inscripciones__edicion__activa=True
-            ).values(
+            # 3. Distribución por Tipo de Perfil (Filtrado por edición seleccionada)
+            perfil_stats = Asistente.objects.all()
+            if edicion:
+                perfil_stats = perfil_stats.filter(inscripciones__edicion=edicion)
+            
+            perfil_stats = perfil_stats.values(
                 'profile_type'
             ).annotate(
-                value=Count('id')
+                value=Count('id', distinct=True)
             )
 
             # Mapeo de tipos de perfil a nombres legibles
@@ -1139,12 +1195,12 @@ class StatsDashboardView(views.APIView):
                 for item in perfil_stats
             ]
 
-            # 4. KPIs Generales
-            total_inscritos = Inscripcion.objects.filter(edicion__activa=True).count()
+            # 4. KPIs Generales (Filtrado por edición seleccionada)
+            total_inscritos = Inscripcion.objects.filter(edicion=edicion).count() if edicion else 0
             total_confirmados = Asistente.objects.filter(
-                inscripciones__edicion__activa=True,
+                inscripciones__edicion=edicion,
                 asistencia_confirmada=True
-            ).count()
+            ).distinct().count() if edicion else 0
 
             return Response({
                 'status': 'success',
@@ -1155,16 +1211,22 @@ class StatsDashboardView(views.APIView):
                     'kpis': {
                         'total_inscritos': total_inscritos,
                         'total_confirmados': total_confirmados,
-                        'asistencia_ratio': round((total_confirmados / total_inscritos * 100), 2) if total_inscritos > 0 else 0
-                    }
+                        'asistencia_ratio': float(f"{(total_confirmados / total_inscritos * 100):.2f}") if total_inscritos > 0 else 0.0
+                    },
+                    'edicion_actual': {
+                        'id': edicion.id,
+                        'nombre': edicion.nombre,
+                        'anio': edicion.anio
+                    } if edicion else None,
+                    'todas_ediciones': list(Edicion.objects.values('id', 'nombre', 'anio').order_by('-anio'))
                 }
-            }, status=status.HTTP_200_OK)
+            })
 
         except Exception as e:
             return Response({
                 'status': 'error',
                 'message': f'Error al obtener estadísticas: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            }, status=500)
 
 
 class InscripcionPrensaView(views.APIView):

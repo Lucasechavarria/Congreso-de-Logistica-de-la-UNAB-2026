@@ -5,7 +5,7 @@ from .views import (
     RegistroViewSet, AsistenteCRMView, RegistroRapidoView, EmpresaViewSet, 
     CargaMasivaAsistentesView, EnvioMasivoEmailsView, ActualizarDNIView, 
     GetCSRFTokenView, RegistroDisertanteView, EmpresaCRMView, DisertanteCRMView,
-    StatsDashboardView, InscripcionPrensaView
+    StatsDashboardView, InscripcionPrensaView, EdicionViewSet
 )
 from .qr_views import GenerateStaticQRView
 
@@ -14,6 +14,7 @@ router = DefaultRouter()
 router.register(r'disertantes', DisertanteViewSet, basename='disertante')
 router.register(r'programa', ProgramaViewSet, basename='programa')
 router.register(r'empresas', EmpresaViewSet, basename='empresa')
+router.register(r'ediciones', EdicionViewSet, basename='edicion')
 
 # Las URLs de la API son determinadas automáticamente por el router
 urlpatterns = [

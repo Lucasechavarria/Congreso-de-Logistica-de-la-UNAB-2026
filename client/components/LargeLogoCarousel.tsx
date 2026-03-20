@@ -2,8 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { LogoItem, chunk, ALL_LOGOS } from "./data/logos";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEmpresas } from "@/hooks/use-empresas";
-const LargeLogoCarousel: React.FC = () => {
-  const { logosForCarousel, loading, error } = useEmpresas();
+interface LargeLogoCarouselProps {
+  edicionId?: number | null;
+}
+
+const LargeLogoCarousel: React.FC<LargeLogoCarouselProps> = ({ edicionId }) => {
+  const { logosForCarousel, loading, error } = useEmpresas(edicionId);
   const [currentPage, setCurrentPage] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isMobile, setIsMobile] = useState(false);

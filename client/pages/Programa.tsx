@@ -29,6 +29,8 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from "framer-motion";
 import FloatingParticles from "@/components/FloatingParticles";
+import { EditionSelector } from "@/components/EditionSelector";
+import { useEdiciones } from "@/hooks/use-ediciones";
 
 // Información completa del disertante
 type DisertanteInfo = {
@@ -196,17 +198,29 @@ export default function Programa() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedEditionId, setSelectedEditionId] = useState<number | null>(null);
+  const { ediciones } = useEdiciones();
+  
+  // Encontrar la edición seleccionada o la activa
+  const currentEdition = ediciones.find(e => e.id === selectedEditionId) || 
+                         ediciones.find(e => e.activa) || 
+                         ediciones[0];
 
   // Variable para controlar si se muestra el programa completo o el banner "Convocatoria"
-  // ACUALMENTE FORZADO EN FALSE PARA MOSTRAR LA CONVOCATORIA (VITE_PROGRAMA_DISPONIBLE=true en .env pero forzado a false aquí por directiva)
-  const programaDisponible = false; // import.meta.env.VITE_PROGRAMA_DISPONIBLE === 'true' || false;
+  // Solo mostramos convocatoria si es la edición activa (2026) y el programa no está listo
+  const isActiveEdition = currentEdition?.activa;
+  const programaDisponible = !isActiveEdition || false; 
 
   // Fetch de la API de Django
   useEffect(() => {
     const fetchPrograma = async () => {
       try {
+        setLoading(true);
         const apiUrl = API_HOST;
-        const response = await fetch(`${apiUrl}/api/programa/`);
+        const url = selectedEditionId 
+          ? `${apiUrl}/api/programa/?edicion_id=${selectedEditionId}`
+          : `${apiUrl}/api/programa/`;
+        const response = await fetch(url);
         if (!response.ok)
           throw new Error("No se pudo cargar la agenda desde el backend.");
         const data = await response.json();
@@ -243,7 +257,7 @@ export default function Programa() {
       }
     };
     fetchPrograma();
-  }, []);
+  }, [selectedEditionId]);
 
   // Para calcular el número de filas que ocupa una actividad
   // Cada fila representa 15 minutos
@@ -315,7 +329,7 @@ export default function Programa() {
   // Disertantes únicos para el filtro
   const disertantesUnicos = Array.from(new Set(
     actividadesToShow.flatMap(act => act.disertantes.map(d => d.nombre))
-  )).filter(d => d && d.length > 0);
+  )).filter((d: string) => d && d.length > 0);
   const [filtroDisertante, setFiltroDisertante] = useState<string>("TODOS");
 
   // Estado para el modal
@@ -407,7 +421,13 @@ export default function Programa() {
           className="text-center mb-12"
         >
           <div className="inline-block px-4 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#b07eee] font-bold text-sm tracking-widest uppercase mb-4 shadow-[0_0_15px_rgba(176,126,238,0.3)]">
-            Edición 2026
+            Edición {currentEdition?.anio || "2026"}
+          </div>
+          <div className="mb-8">
+            <EditionSelector 
+              selectedEditionId={selectedEditionId}
+              onEditionChange={(id) => setSelectedEditionId(id)}
+            />
           </div>
           <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
             CONVOCATORIA <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9c62de] to-[#b07eee]">ABIERTA</span>
@@ -536,8 +556,14 @@ export default function Programa() {
                   Agenda_
                 </h1>
                 <p className="text-xl md:text-2xl text-white/90 max-w-4xl mx-auto font-light drop-shadow-md">
-                  Charlas y actividades por aula • de 10:00 a 18:00 hs
+                  de 10:00 a 18:00 hs • Edición {currentEdition?.anio}
                 </p>
+                <div className="mt-8 flex justify-center">
+                  <EditionSelector 
+                    selectedEditionId={selectedEditionId}
+                    onEditionChange={(id) => setSelectedEditionId(id)}
+                  />
+                </div>
                 {loading && (
                   <div className="text-white/80 mt-6 text-lg animate-pulse">Cargando agenda...</div>
                 )}

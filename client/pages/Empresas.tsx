@@ -19,6 +19,8 @@ import { Link } from "react-router-dom";
 import LargeLogoCarousel from "@/components/LargeLogoCarousel";
 import FloatingParticles from "@/components/FloatingParticles";
 import { motion } from "framer-motion";
+import { EditionSelector } from "@/components/EditionSelector";
+import { useState } from "react";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -115,7 +117,9 @@ function InfoCard({ card }: { card: (typeof INFO_CARDS)[0] }) {
       <div
         className={`w-14 h-14 bg-gradient-to-br ${card.gradient} rounded-full flex items-center justify-center mb-4 shadow-md group-hover:shadow-xl transition-shadow duration-300`}
       >
-        <card.icon className="h-8 w-8 text-white" />
+        <div className="h-8 w-8 text-white">
+          <card.icon size="100%" />
+        </div>
       </div>
       <CardTitle className="mb-2 text-lg font-bold text-white">
         {card.title}
@@ -151,7 +155,9 @@ function BenefitCard({ benefit }: { benefit: (typeof BENEFITS)[0] }) {
         <div
           className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br shadow-lg transition-all duration-300 group-hover:shadow-xl ${benefit.iconGradient}`}
         >
-          <benefit.icon className="h-10 w-10 text-white" />
+          <div className="h-10 w-10 text-white">
+            <benefit.icon size="100%" />
+          </div>
         </div>
         <CardTitle className="text-2xl font-bold text-white transition-colors">
           {benefit.title}
@@ -162,7 +168,9 @@ function BenefitCard({ benefit }: { benefit: (typeof BENEFITS)[0] }) {
           {benefit.description}
           {benefit.showContact && (
             <span className="mt-4 block text-base font-semibold text-white">
-              <FiMail className="inline-block mr-2 align-text-bottom h-5 w-5" />
+              <span className="inline-block mr-2 align-text-bottom h-5 w-5">
+                <FiMail size="100%" />
+              </span>
               {CONTACT_EMAIL.replace("@", "\n@")}
             </span>
           )}
@@ -173,6 +181,8 @@ function BenefitCard({ benefit }: { benefit: (typeof BENEFITS)[0] }) {
 }
 
 export default function Empresas() {
+  const [selectedEditionId, setSelectedEditionId] = useState<number | null>(null);
+
   return (
     <>
       {/* Call to Action - Immersive Neo-Logistics */}
@@ -226,7 +236,9 @@ export default function Empresas() {
             <motion.div variants={fadeInUp} className="mt-14 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-center gap-6 text-slate-400">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                  <FiMail className="h-5 w-5 text-congress-cyan-light" />
+                  <div className="h-5 w-5 text-congress-cyan-light">
+                    <FiMail size="100%" />
+                  </div>
                 </div>
                 <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white transition-colors">
                   {CONTACT_EMAIL}
@@ -235,7 +247,9 @@ export default function Empresas() {
               <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/20"></div>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                  <FiHome className="h-5 w-5 text-congress-cyan-light" />
+                  <div className="h-5 w-5 text-congress-cyan-light">
+                    <FiHome size="100%" />
+                  </div>
                 </div>
                 <a
                   href="https://www.google.com/maps/search/?api=1&query=Campus+UNaB+Blas+Parera+132+Burzaco"
@@ -253,10 +267,16 @@ export default function Empresas() {
       {/* Large Logo Carousel Section */}
       <section className="bg-gray-100 py-16 md:py-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-8">
             Nuestras Empresas Participantes
           </h2>
-          <LargeLogoCarousel />
+          <div className="flex justify-center mb-10">
+            <EditionSelector 
+              selectedEditionId={selectedEditionId}
+              onEditionChange={(id) => setSelectedEditionId(id)}
+            />
+          </div>
+          <LargeLogoCarousel edicionId={selectedEditionId} />
         </div>
       </section>
       {/* Benefits Section */}

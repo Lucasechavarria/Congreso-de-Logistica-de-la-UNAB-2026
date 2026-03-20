@@ -1,8 +1,17 @@
 from rest_framework import serializers
-from .models import Disertante, Empresa, Programa, Asistente, MiembroGrupo, Inscripcion, PostulacionDisertante, InscripcionPrensa
+from .models import (
+    Edicion, Disertante, Programa, Empresa, Asistente, 
+    Inscripcion, Certificado, PostulacionDisertante, InscripcionPrensa
+)
 from django.db import transaction
 from .email import send_group_confirmation_emails, send_individual_confirmation_email
 import re
+
+
+class EdicionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Edicion
+        fields = ['id', 'anio', 'nombre', 'activa']
 
 
 class InscripcionPrensaSerializer(serializers.ModelSerializer):

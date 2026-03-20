@@ -32,9 +32,9 @@ class PostulacionDisertante(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='postulaciones_disertantes')
     # Personal & Profesional
     nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
-    dni = models.CharField(max_length=8, verbose_name="DNI / Documento")
+    dni = models.CharField(max_length=20, verbose_name="DNI / Documento")
     email = models.EmailField(verbose_name="Email de contacto")
-    telefono = models.CharField(max_length=20, verbose_name="Teléfono")
+    telefono = models.CharField(max_length=50, verbose_name="Teléfono")
     ciudad_provincia = models.CharField(max_length=255, verbose_name="Ciudad y Provincia")
     profesion_cargo = models.CharField(max_length=255, verbose_name="Profesión / Cargo actual")
     empresa_institucion = models.CharField(max_length=255, verbose_name="Empresa / Institución a la que pertenece")
@@ -101,6 +101,7 @@ class Programa(models.Model):
         ("TRANSPORTE", "Transporte"),
     ]
     
+    edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='programas')
     titulo = models.CharField(max_length=255, verbose_name="Título del Evento")
     disertantes = models.ManyToManyField(Disertante, blank=True, verbose_name="Disertantes", related_name="programas")
     hora_inicio = models.TimeField(verbose_name="Hora de Inicio")
@@ -185,8 +186,8 @@ class Asistente(models.Model):
     first_name = models.CharField(max_length=100, verbose_name="Nombre")
     last_name = models.CharField(max_length=100, verbose_name="Apellido")
     email = models.EmailField(unique=True, verbose_name="Correo electrónico")
-    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de celular")
-    dni = models.CharField(max_length=8, unique=True, null=True, blank=True, verbose_name="DNI")
+    phone = models.CharField(max_length=50, blank=True, null=True, verbose_name="Número de celular")
+    dni = models.CharField(max_length=20, unique=True, null=True, blank=True, verbose_name="DNI")
     dni_update_token = models.CharField(max_length=64, unique=True, null=True, blank=True, verbose_name="Token de actualización de DNI")
     dni_email_sent = models.BooleanField(default=False, verbose_name="Email de solicitud DNI enviado")
     dni_email_sent_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha envío email DNI")
@@ -405,9 +406,9 @@ class InscripcionPrensa(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='inscripciones_prensa')
     # Identidad
     nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
-    dni = models.CharField(max_length=8, verbose_name="DNI")
+    dni = models.CharField(max_length=20, verbose_name="DNI")
     email = models.EmailField(verbose_name="Email de contacto")
-    telefono = models.CharField(max_length=20, verbose_name="Teléfono")
+    telefono = models.CharField(max_length=50, verbose_name="Teléfono")
     ciudad_provincia = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ciudad / Provincia")
     # Perfil mediático
     TIPO_CHOICES = [

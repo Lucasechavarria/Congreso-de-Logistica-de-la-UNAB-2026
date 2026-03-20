@@ -4,6 +4,8 @@ import { useEmpresas } from "@/hooks/use-empresas";
 import { chunk, ALL_LOGOS } from "@/components/data/logos";
 import SkeletonLoader from "./SkeletonLoader";
 import { motion, Variants } from "framer-motion";
+import { EditionSelector } from "./EditionSelector";
+import { useState } from "react";
 
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -11,7 +13,8 @@ const fadeInUp: Variants = {
 };
 
 export default function LogoCarouselsSection() {
-  const { logosForCarousel, loading, error } = useEmpresas();
+  const [selectedEditionId, setSelectedEditionId] = useState<number | null>(null);
+  const { logosForCarousel, loading, error } = useEmpresas(selectedEditionId);
 
   if (loading) {
     return (
@@ -22,7 +25,9 @@ export default function LogoCarouselsSection() {
           </h2>
           <div className="flex justify-center flex-wrap gap-4 py-8 max-w-5xl mx-auto overflow-hidden">
             {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonLoader key={i} type="logo" className="h-20 w-36 mx-2" />
+              <div key={i}>
+                <SkeletonLoader type="logo" className="h-20 w-36 mx-2" />
+              </div>
             ))}
           </div>
         </div>
@@ -67,6 +72,12 @@ export default function LogoCarouselsSection() {
         <h2 className="text-3xl md:text-5xl font-extrabold text-[#3b1066] mb-4 text-center tracking-tight">
           Empresas e Instituciones Participantes
         </h2>
+        <div className="flex justify-center mb-10">
+          <EditionSelector 
+            selectedEditionId={selectedEditionId}
+            onEditionChange={(id) => setSelectedEditionId(id)}
+          />
+        </div>
         {isFallback && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}

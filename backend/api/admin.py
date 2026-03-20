@@ -290,8 +290,8 @@ class DNIFilter(admin.SimpleListFilter):
 
 
 class InscripcionAdmin(admin.ModelAdmin):
-    list_display = ('asistente', 'empresa', 'fecha_inscripcion')
-    list_filter = ('fecha_inscripcion',)
+    list_display = ('asistente', 'empresa', 'fecha_inscripcion', 'edicion')
+    list_filter = ('edicion', 'fecha_inscripcion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'empresa__razon_social')
 
 class AsistenteAdmin(admin.ModelAdmin):
@@ -579,8 +579,8 @@ class CertificadoAdmin(admin.ModelAdmin):
     enviar_por_email_accion.short_description = "Re-enviar certificados seleccionados por Email" # type: ignore
 
 class ProgramaAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'categoria', 'aula', 'dia', 'hora_inicio', 'hora_fin')
-    list_filter = ('dia', 'categoria', 'aula')
+    list_display = ('titulo', 'categoria', 'aula', 'dia', 'hora_inicio', 'hora_fin', 'edicion')
+    list_filter = ('edicion', 'dia', 'categoria', 'aula')
     search_fields = ('titulo',)
     list_editable = ('categoria',)
     

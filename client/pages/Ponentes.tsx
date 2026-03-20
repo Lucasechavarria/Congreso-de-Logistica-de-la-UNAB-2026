@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { API_HOST } from "@/lib/api";
 import FloatingParticles from "@/components/FloatingParticles";
+import { EditionSelector } from "@/components/EditionSelector";
 
 // Definimos el tipo de dato para un disertante, basado en el modelo de Django
 type Disertante = {
@@ -18,6 +19,7 @@ type Disertante = {
 
 export default function Ponentes() {
   const [disertantes, setDisertantes] = useState<Disertante[]>([]);
+  const [selectedEditionId, setSelectedEditionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const apiUrl = API_HOST;
@@ -25,7 +27,12 @@ export default function Ponentes() {
   useEffect(() => {
     const fetchDisertantes = async () => {
       try {
-        const response = await fetch(`${apiUrl}/api/disertantes/`);
+        setLoading(true);
+        const url = selectedEditionId 
+          ? `${apiUrl}/api/disertantes/?edicion_id=${selectedEditionId}`
+          : `${apiUrl}/api/disertantes/`;
+          
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error("Error al cargar los datos de los ponentes.");
         }
@@ -44,7 +51,7 @@ export default function Ponentes() {
       }
     };
     fetchDisertantes();
-  }, [apiUrl]);
+  }, [apiUrl, selectedEditionId]);
 
   function getFotoUrl(disertante: Disertante): string {
     let url = "";
@@ -97,6 +104,12 @@ export default function Ponentes() {
           <p className="text-xl text-gray-700 max-w-2xl mx-auto font-medium leading-relaxed">
             Expertos líderes que compartirán las últimas tendencias y desafíos en logística y transporte.
           </p>
+          <div className="mt-8">
+            <EditionSelector 
+              selectedEditionId={selectedEditionId}
+              onEditionChange={(id) => setSelectedEditionId(id)}
+            />
+          </div>
         </motion.div>
 
         {/* Call to Action Section (Glassmorphism + Cinematic) */}

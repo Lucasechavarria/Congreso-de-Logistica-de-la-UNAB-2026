@@ -75,6 +75,6 @@ jobs:
       - name: Restart Backend Service
         run: |
           # Reiniciar Gunicorn para aplicar cambios
-          systemctl restart gunicorn
+          sudo systemctl restart gunicorn
 
 # Triggering fresh hybrid deploy

@@ -65,11 +65,16 @@ jobs:
       - name: Sync Backend
         run: |
           # Sincronizar código del backend (excluyendo lo local del server)
-          rsync -av --exclude='.env' --exclude='venv' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
-          
+          rsync -av --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
+
+      - name: Install Python Dependencies
+        run: |
+          # Instalar/actualizar dependencias en el entorno virtual del servidor
+          /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt
+
       - name: Restart Backend Service
         run: |
           # Reiniciar Gunicorn para aplicar cambios
-          sudo systemctl restart gunicorn
+          systemctl restart gunicorn
 
 # Triggering fresh hybrid deploy

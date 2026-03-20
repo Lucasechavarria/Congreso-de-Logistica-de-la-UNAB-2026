@@ -8,6 +8,22 @@ from django.conf import settings
 import io
 from xhtml2pdf import pisa
 
+# Email oficial del congreso (remitente y copia interna)
+CONGRESO_EMAIL = "congresologisticaytransporte@unab.edu.ar"
+# Logo negro del congreso (para embeber en templates de email)
+LOGO_PATH_DEFAULT = os.path.join('public', 'images', 'CONGRESO-LOGISTICA-2 NEGRO.png')
+
+def get_logo_path():
+    """Retorna la ruta absoluta al logo del congreso (negro), priorizando la variable de entorno."""
+    logo_env = os.getenv('LOGO_CONGRESO_PATH', LOGO_PATH_DEFAULT)
+    logo_path = os.path.join(settings.BASE_DIR, '..', logo_env)
+    if os.path.exists(logo_path):
+        return logo_path
+    # Fallback: intentar ruta directa desde BASE_DIR
+    fallback = os.path.join(settings.BASE_DIR, logo_env)
+    return fallback
+
+
 def get_tyc_path(pdf_type='asistente'):
     filename = 'Bases_Asistentes_2026.pdf'
     if pdf_type == 'empresa':
@@ -46,18 +62,15 @@ def send_empresa_confirmation_email(empresa_instance):
     html_content = render_to_string('api/email/confirmacion_empresa.html', context)
     text_content = strip_tags(html_content)
 
-    import os
-    from email.mime.image import MIMEImage
-    logo_env = os.getenv('LOGO_CONGRESO_PATH', 'media/logo.png')
-    logo_path = os.path.join(settings.BASE_DIR, logo_env)
+    logo_path = get_logo_path()
 
     try:
         email = EmailMultiAlternatives(
             subject='Confirmación de Registro Empresarial - Congreso de Logística UNAB',
             body=text_content,
-            from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+            from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[empresa_instance.email_contacto],
-            bcc=["echavarrialucas1986@gmail.com"]
+            bcc=[CONGRESO_EMAIL]
         )
         email.attach_alternative(html_content, "text/html")
         
@@ -96,18 +109,14 @@ def send_confirmation_email(inscripcion_instance):
     html_content = render_to_string('api/email/confirmacion.html', context)
     text_content = strip_tags(html_content) # Versión de texto plano
 
-    import os
-    from email.mime.image import MIMEImage
-
-    logo_env = os.getenv('LOGO_CONGRESO_PATH', 'media/logo.png')
-    logo_path = os.path.join(settings.BASE_DIR, logo_env)
+    logo_path = get_logo_path()
 
     try:
         # Crear el email con HTML y texto plano
         email = EmailMultiAlternatives(
             subject='Confirmación de Inscripción al Congreso de Logística UNAB',
             body=text_content,
-            from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+            from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
         )
         email.attach_alternative(html_content, "text/html")
@@ -168,15 +177,12 @@ def send_individual_confirmation_email(asistente):
         html_content = render_to_string('api/email/confirmacion.html', context)
         text_content = strip_tags(html_content)
         
-        import os
-        from email.mime.image import MIMEImage
-        logo_env = os.getenv('LOGO_CONGRESO_PATH', 'media/logo.png')
-        logo_path = os.path.join(settings.BASE_DIR, logo_env)
+        logo_path = get_logo_path()
         
         email = EmailMultiAlternatives(
             subject='Confirmación de Inscripción al Congreso de Logística UNAB',
             body=text_content,
-            from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+            from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
         )
         email.attach_alternative(html_content, "text/html")
@@ -215,15 +221,14 @@ def send_postulacion_disertante_email(postulacion):
         html_content = render_to_string('api/email/confirmacion_disertante.html', context)
         text_content = strip_tags(html_content)
         
-        logo_env = os.getenv('LOGO_CONGRESO_PATH', 'media/logo.png')
-        logo_path = os.path.join(settings.BASE_DIR, logo_env)
+        logo_path = get_logo_path()
         
         email = EmailMultiAlternatives(
             subject='Postulación Recibida - Call for Papers Congreso UNAB 2026',
             body=text_content,
-            from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+            from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[postulacion.email],
-            bcc=["echavarrialucas1986@gmail.com"]
+            bcc=[CONGRESO_EMAIL]
         )
         email.attach_alternative(html_content, "text/html")
         
@@ -316,16 +321,13 @@ def send_bulk_confirmation_email(asistente, es_carga_masiva=False, es_recordator
         html_content = render_to_string(template_name, context)
         text_content = strip_tags(html_content)
         
-        import os
-        from email.mime.image import MIMEImage
-        logo_env = os.getenv('LOGO_CONGRESO_PATH', 'media/logo.png')
-        logo_path = os.path.join(settings.BASE_DIR, logo_env)
+        logo_path = get_logo_path()
         
         subject_suffix = " - Completar datos faltantes" if datos_faltantes else ""
         email = EmailMultiAlternatives(
             subject=f'Confirmación de Inscripción al Congreso de Logística UNAB{subject_suffix}',
             body=text_content,
-            from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+            from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
         )
         email.attach_alternative(html_content, "text/html")
@@ -373,15 +375,12 @@ def send_group_confirmation_emails(representante):
         html_content = render_to_string('api/email/confirmacion.html', context_representante)
         text_content = strip_tags(html_content)
         
-        import os
-        from email.mime.image import MIMEImage
-        logo_env = os.getenv('LOGO_CONGRESO_PATH', 'media/logo.png')
-        logo_path = os.path.join(settings.BASE_DIR, logo_env)
+        logo_path = get_logo_path()
         
         email_representante = EmailMultiAlternatives(
             subject='Confirmación de Inscripción Grupal - Congreso de Logística UNAB',
             body=text_content,
-            from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+            from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[representante.email],
         )
         email_representante.attach_alternative(html_content, "text/html")
@@ -427,7 +426,7 @@ def send_group_confirmation_emails(representante):
             email_miembro = EmailMultiAlternatives(
                 subject='Confirmación de Inscripción al Congreso de Logística UNAB',
                 body=text_content,
-                from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+                from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
                 to=[miembro.email],
             )
             email_miembro.attach_alternative(html_content, "text/html")
@@ -486,7 +485,7 @@ def send_certificate_email(certificado_instance):
         email = EmailMultiAlternatives(
             subject='Certificado de Asistencia al Congreso de Logística UNAB',
             body='Adjuntamos tu certificado de asistencia al Congreso de Logística UNAB.',
-            from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+            from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
         )
         email.attach(
@@ -510,8 +509,7 @@ def send_broadcast_batch_email(recipient_list, subject, body_html):
     import time
     from email.mime.image import MIMEImage
     
-    logo_env = os.getenv('LOGO_CONGRESO_PATH', 'media/logo.png')
-    logo_path = os.path.join(settings.BASE_DIR, logo_env)
+    logo_path = get_logo_path()
     
     # Preparar el contenido HTML usando la plantilla base
     context = {'body': body_html}
@@ -529,7 +527,7 @@ def send_broadcast_batch_email(recipient_list, subject, body_html):
                 msg = EmailMultiAlternatives(
                     subject=subject,
                     body=text_content,
-                    from_email=f"Congreso UNAB <{settings.EMAIL_HOST_USER}>",
+                    from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
                     to=[email_address]
                 )
                 msg.attach_alternative(full_html, "text/html")

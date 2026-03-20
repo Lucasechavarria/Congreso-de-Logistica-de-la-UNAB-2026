@@ -40,25 +40,25 @@ const GALLERY_IMAGES = [
 const NEWS_ARTICLES = [
   {
     title: "Webpicking: Resumen del Congreso 2025",
-    date: "14 de Noviembre, 2025",
+    date: "22 de Diciembre, 2025",
     resume: "En el programa 'Hablemos de Logística', Hernán Disanto (ARLOG/UNaB) analiza los excelentes resultados de la primera edición y cómo se gestó este hito para la región.",
     link: "https://webpicking.com/hablemos-de-logistica-901-resumen-del-congreso-de-logistica-y-transporte-2025-organizado-por-la-universidad-nacional-guillermo-brown-unab/"
   },
   {
     title: "Diario La Tercera: Más de 1500 participantes",
-    date: "10 de Noviembre, 2025",
+    date: "18 de Noviembre, 2025",
     resume: "Una cobertura exhaustiva del congreso que reunió a más de 40 disertantes y 50 empresas, destacando la masiva concurrencia y las demostraciones en vivo en el campus.",
     link: "https://diariolatercera.com.ar/contenido/6370/mas-de-1500-personas-participaron-del-primer-congreso-de-logistica-y-transporte-"
   },
   {
     title: "Diario de Malvinas: Consolidación Regional",
-    date: "11 de Noviembre, 2025",
+    date: "15 de Noviembre, 2025",
     resume: "Reseña del éxito institucional del congreso, destacando la sinergia entre la universidad, el sector público y las empresas líderes del transporte multimodal.",
     link: "https://eldiariodemalvinas.com.ar/municipios-bonaerenses/primer-congreso-de-logistica-y-transporte-de-la-unab/"
   },
   {
     title: "ARLOG: Capacitación y Compromiso",
-    date: "12 de Noviembre, 2025",
+    date: "20 de Noviembre, 2025",
     resume: "La Asociación Argentina de Logística Empresarial destaca su participación activa en el evento, impulsando la formación y profesionalización del sector.",
     link: "https://arlog.org/arlog-participo-del-1-congreso-de-logistica-y-transporte-de-la-universidad-nacional-guillermo-brown/"
   }
@@ -68,7 +68,7 @@ export default function SobreElCongreso() {
   return (
     <section className="py-20 bg-slate-50 relative overflow-hidden min-h-screen">
       <FloatingParticles count={20} color="rgba(37, 99, 235, 0.1)" />
-      
+
       {/* Encabezado */}
       <div className="container mx-auto px-4 relative z-10 mb-20">
         <motion.div
@@ -131,7 +131,7 @@ export default function SobreElCongreso() {
               </div>
             </motion.div>
           ))}
-          
+
           {/* Espacio para Video - Modo Cine con Modal */}
           <Dialog>
             <DialogTrigger asChild>
@@ -139,10 +139,10 @@ export default function SobreElCongreso() {
                 variants={fadeInUp}
                 className="overflow-hidden rounded-2xl shadow-lg border border-slate-200 group cursor-pointer bg-slate-900 flex items-center justify-center min-h-[250px] relative"
               >
-                <img 
-                  src="/images/edicion-2025/2025-gallery-4.webp" 
-                  alt="Resumen del Congreso 2025" 
-                  className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay group-hover:scale-105 transition-transform duration-700" 
+                <img
+                  src="/images/edicion-2025/2025-gallery-4.webp"
+                  alt="Resumen del Congreso 2025"
+                  className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="relative z-10 w-20 h-20 bg-congress-cyan rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.5)] group-hover:scale-110 transition-transform duration-300">
                   <div className="text-white text-3xl ml-1">
@@ -150,8 +150,8 @@ export default function SobreElCongreso() {
                   </div>
                 </div>
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                   <p className="text-white font-bold text-xl">Ver Resumen Edición 2025</p>
-                   <p className="text-congress-cyan-light text-sm">Haga clic para reproducir</p>
+                  <p className="text-white font-bold text-xl">Ver Resumen Edición 2025</p>
+                  <p className="text-congress-cyan-light text-sm">Haga clic para reproducir</p>
                 </div>
               </motion.div>
             </DialogTrigger>
@@ -198,21 +198,34 @@ export default function SobreElCongreso() {
           variants={staggerContainer}
         >
           {NEWS_ARTICLES.map((news, index) => (
-            <motion.div
+            <motion.a
               key={index}
+              href={news.link}
+              target="_blank"
+              rel="noopener noreferrer"
               variants={fadeInUp}
-              className="bg-white rounded-2xl p-8 shadow-xl border border-slate-100 hover:border-congress-cyan/30 hover:shadow-2xl transition-all duration-300 flex flex-col h-full transform hover:-translate-y-2 card-glow-hover"
+              className="group block bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden cursor-pointer transition-all duration-400 flex flex-col h-full transform hover:-translate-y-3 hover:border-congress-cyan/50 hover:shadow-[0_20px_40px_rgba(34,211,238,0.15)] card-glow-hover"
+              style={{ textDecoration: 'none' }}
             >
-              <div className="text-congress-cyan font-semibold text-sm mb-3">{news.date}</div>
-              <h4 className="text-xl font-bold text-congress-blue mb-4 leading-snug">{news.title}</h4>
-              <p className="text-slate-600 leading-relaxed flex-grow">
-                {news.resume}
-              </p>
-              <a href={news.link} className="inline-flex items-center text-congress-blue font-bold mt-6 hover:text-congress-cyan transition-colors">
-                Leer más
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-              </a>
-            </motion.div>
+              {/* Barra de color superior animada */}
+              <div className="h-1 w-full bg-gradient-to-r from-congress-blue to-congress-cyan transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
+              <div className="p-8 flex flex-col flex-grow">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-block w-2 h-2 rounded-full bg-congress-cyan group-hover:animate-ping" />
+                  <span className="text-congress-cyan font-semibold text-sm">{news.date}</span>
+                </div>
+                <h4 className="text-xl font-bold text-congress-blue mb-4 leading-snug group-hover:text-congress-cyan transition-colors duration-300">{news.title}</h4>
+                <p className="text-slate-600 leading-relaxed flex-grow group-hover:text-slate-700 transition-colors duration-300">
+                  {news.resume}
+                </p>
+                <div className="inline-flex items-center text-congress-blue font-bold mt-6 group-hover:text-congress-cyan transition-colors duration-300">
+                  Leer más
+                  <svg className="w-4 h-4 ml-2 transform group-hover:translate-x-2 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                  </svg>
+                </div>
+              </div>
+            </motion.a>
           ))}
         </motion.div>
       </div>

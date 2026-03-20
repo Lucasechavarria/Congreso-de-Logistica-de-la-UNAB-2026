@@ -47,17 +47,20 @@ export default function PreviousCongressSection() {
                             transition={{ delay: index * 0.1 }}
                             viewport={{ once: true }}
                         >
-                            <Card className="overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-500 group rounded-2xl">
-                                <div className="relative h-64 overflow-hidden">
+                            <Card className="overflow-hidden border-none shadow-xl hover:shadow-[0_25px_50px_rgba(139,92,246,0.25)] transition-all duration-500 group rounded-2xl cursor-pointer transform hover:-translate-y-2">
+                                <div className="relative h-72 overflow-hidden">
                                     <img
                                         src={img.url}
                                         alt={img.title}
-                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-115"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                                        <h3 className="text-white font-bold text-xl">{img.title}</h3>
-                                        <p className="text-white/80 text-sm mt-2">{img.description}</p>
+                                    {/* Overlay siempre visible en la base */}
+                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent p-5 transition-all duration-300">
+                                        <h3 className="text-white font-bold text-lg leading-tight">{img.title}</h3>
+                                        <p className="text-white/0 group-hover:text-white/80 text-sm mt-1 transition-all duration-400 max-h-0 group-hover:max-h-10 overflow-hidden">{img.description}</p>
                                     </div>
+                                    {/* Borde luminoso en hover */}
+                                    <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#8b5cf6]/50 rounded-2xl transition-colors duration-300 pointer-events-none" />
                                 </div>
                             </Card>
                         </motion.div>

@@ -1,6 +1,14 @@
 import { motion } from "framer-motion";
 import FloatingParticles from "@/components/FloatingParticles";
 import { FiCamera, FiVideo, FiFileText } from "react-icons/fi";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -16,31 +24,43 @@ const staggerContainer = {
 };
 
 const GALLERY_IMAGES = [
-  { url: "/images/historia-1.png", alt: "Apertura del Congreso" },
-  { url: "/images/historia-2.png", alt: "Networking y Stands" },
-  { url: "/images/historia-3.png", alt: "Disertantes en acción" },
-  { url: "/images/congreso.jpg", alt: "Público en el auditorio" },
-  { url: "/images/congress-audience.jpg", alt: "Asistentes interactuando" }
+  { url: "/images/edicion-2025/2025-gallery-1.webp", alt: "Apertura de la Primera Edición 2025" },
+  { url: "/images/edicion-2025/2025-gallery-2.webp", alt: "Autoridades y referentes del sector" },
+  { url: "/images/edicion-2025/2025-gallery-3.webp", alt: "Networking entre empresas" },
+  { url: "/images/edicion-2025/2025-gallery-4.webp", alt: "Paneles de expertos en logística" },
+  { url: "/images/edicion-2025/2025-gallery-5.webp", alt: "Asistentes y comunidad universitaria" },
+  { url: "/images/edicion-2025/2025-gallery-6.webp", alt: "Exposición de stands" },
+  { url: "/images/edicion-2025/2025-gallery-7.webp", alt: "Debates y rondas de negocios" },
+  { url: "/images/edicion-2025/2025-gallery-8.webp", alt: "Innovación tecnológica en el campus" },
+  { url: "/images/edicion-2025/2025-gallery-9.webp", alt: "Cierre de la jornada 2025" },
+  { url: "/images/edicion-2025/2025-gallery-10.webp", alt: "Intercambio de experiencias" },
+  { url: "/images/edicion-2025/2025-gallery-11.webp", alt: "Participación institucional" }
 ];
 
 const NEWS_ARTICLES = [
   {
-    title: "Éxito rotundo en la Primera Edición",
+    title: "Webpicking: Resumen del Congreso 2025",
+    date: "14 de Noviembre, 2025",
+    resume: "En el programa 'Hablemos de Logística', Hernán Disanto (ARLOG/UNaB) analiza los excelentes resultados de la primera edición y cómo se gestó este hito para la región.",
+    link: "https://webpicking.com/hablemos-de-logistica-901-resumen-del-congreso-de-logistica-y-transporte-2025-organizado-por-la-universidad-nacional-guillermo-brown-unab/"
+  },
+  {
+    title: "Diario La Tercera: Más de 1500 participantes",
     date: "10 de Noviembre, 2025",
-    resume: "Más de 2000 personas y 80 empresas se reunieron en el Campus UNaB para debatir sobre el futuro del sector logístico en Argentina. Un hito histórico para la región.",
-    link: "#"
+    resume: "Una cobertura exhaustiva del congreso que reunió a más de 40 disertantes y 50 empresas, destacando la masiva concurrencia y las demostraciones en vivo en el campus.",
+    link: "https://diariolatercera.com.ar/contenido/6370/mas-de-1500-personas-participaron-del-primer-congreso-de-logistica-y-transporte-"
   },
   {
-    title: "Innovación y Sostenibilidad como ejes",
+    title: "Diario de Malvinas: Consolidación Regional",
+    date: "11 de Noviembre, 2025",
+    resume: "Reseña del éxito institucional del congreso, destacando la sinergia entre la universidad, el sector público y las empresas líderes del transporte multimodal.",
+    link: "https://eldiariodemalvinas.com.ar/municipios-bonaerenses/primer-congreso-de-logistica-y-transporte-de-la-unab/"
+  },
+  {
+    title: "ARLOG: Capacitación y Compromiso",
     date: "12 de Noviembre, 2025",
-    resume: "Los paneles de expertos destacaron la necesidad de adoptar prácticas sustentables y tecnologías disruptivas en el transporte multimodal.",
-    link: "#"
-  },
-  {
-    title: "Nuevas alianzas estratégicas",
-    date: "15 de Noviembre, 2025",
-    resume: "Durante las rondas de networking, se consolidaron acuerdos clave entre empresas tecnológicas y operadoras logísticas nacionales.",
-    link: "#"
+    resume: "La Asociación Argentina de Logística Empresarial destaca su participación activa en el evento, impulsando la formación y profesionalización del sector.",
+    link: "https://arlog.org/arlog-participo-del-1-congreso-de-logistica-y-transporte-de-la-universidad-nacional-guillermo-brown/"
   }
 ];
 
@@ -80,7 +100,9 @@ export default function SobreElCongreso() {
           viewport={{ once: true }}
           variants={fadeInUp}
         >
-          <FiCamera className="text-3xl text-congress-cyan" />
+          <div className="text-3xl text-congress-cyan">
+            <FiCamera />
+          </div>
           <h3 className="text-3xl font-bold text-congress-blue">Galería Multimedia</h3>
         </motion.div>
 
@@ -110,19 +132,46 @@ export default function SobreElCongreso() {
             </motion.div>
           ))}
           
-          {/* Espacio para Video (Placeholder) */}
-          <motion.div
-            variants={fadeInUp}
-            className="overflow-hidden rounded-2xl shadow-lg border border-slate-200 group cursor-pointer bg-slate-900 flex items-center justify-center min-h-[250px] relative"
-          >
-            <img src="/images/congress-audience.jpg" alt="Video cover" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay group-hover:scale-105 transition-transform duration-700" />
-            <div className="relative z-10 w-16 h-16 bg-congress-cyan rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.5)] group-hover:scale-110 transition-transform duration-300">
-              <FiVideo className="text-white text-2xl ml-1" />
-            </div>
-            <div className="absolute bottom-6 left-6 right-6">
-               <p className="text-white font-semibold text-lg">Resumen del Evento (Video)</p>
-            </div>
-          </motion.div>
+          {/* Espacio para Video - Modo Cine con Modal */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <motion.div
+                variants={fadeInUp}
+                className="overflow-hidden rounded-2xl shadow-lg border border-slate-200 group cursor-pointer bg-slate-900 flex items-center justify-center min-h-[250px] relative"
+              >
+                <img 
+                  src="/images/edicion-2025/2025-gallery-4.webp" 
+                  alt="Resumen del Congreso 2025" 
+                  className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay group-hover:scale-105 transition-transform duration-700" 
+                />
+                <div className="relative z-10 w-20 h-20 bg-congress-cyan rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.5)] group-hover:scale-110 transition-transform duration-300">
+                  <div className="text-white text-3xl ml-1">
+                    <FiVideo />
+                  </div>
+                </div>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                   <p className="text-white font-bold text-xl">Ver Resumen Edición 2025</p>
+                   <p className="text-congress-cyan-light text-sm">Haga clic para reproducir</p>
+                </div>
+              </motion.div>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[900px] p-2 bg-black border-slate-800">
+              <DialogHeader className="opacity-0 h-0 overflow-hidden">
+                <DialogTitle>Resumen del Congreso de Logística 2025</DialogTitle>
+              </DialogHeader>
+              <div className="w-full">
+                <AspectRatio ratio={16 / 9}>
+                  <iframe
+                    src="https://www.youtube.com/embed/3syPHKEDKBc?autoplay=1"
+                    title="Resumen Congreso de Logística 2025"
+                    className="h-full w-full rounded-md border-none"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </AspectRatio>
+              </div>
+            </DialogContent>
+          </Dialog>
         </motion.div>
       </div>
 
@@ -135,7 +184,9 @@ export default function SobreElCongreso() {
           viewport={{ once: true }}
           variants={fadeInUp}
         >
-          <FiFileText className="text-3xl text-congress-cyan" />
+          <div className="text-3xl text-congress-cyan">
+            <FiFileText />
+          </div>
           <h3 className="text-3xl font-bold text-congress-blue">Notas y Noticias</h3>
         </motion.div>
 

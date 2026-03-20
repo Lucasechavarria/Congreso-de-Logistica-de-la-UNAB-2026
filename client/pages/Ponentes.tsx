@@ -28,6 +28,7 @@ export default function Ponentes() {
     const fetchDisertantes = async () => {
       try {
         setLoading(true);
+        setError(null);
         const url = selectedEditionId 
           ? `${apiUrl}/api/disertantes/?edicion_id=${selectedEditionId}`
           : `${apiUrl}/api/disertantes/`;
@@ -41,7 +42,7 @@ export default function Ponentes() {
           const dataOrdenada = [...data].sort((a, b) => a.nombre.localeCompare(b.nombre));
           setDisertantes(dataOrdenada);
         } else {
-          setError("No hay disertantes disponibles en la base de datos.");
+          setDisertantes([]);
         }
       } catch (err) {
         console.error("Error al cargar disertantes:", err);

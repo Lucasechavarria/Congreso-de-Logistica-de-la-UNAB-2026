@@ -15,6 +15,10 @@ from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Pr
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
+from django.http import HttpResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', fecha_desde=None, fecha_hasta=None):
@@ -161,86 +165,100 @@ def admin_dashboard(request):
     """
     Vista personalizada para el dashboard en el panel admin.
     """
-    edicion_id = request.GET.get('edicion')
-    periodo = request.GET.get('periodo', 'diario')
-    entidad = request.GET.get('entidad', 'inscripciones')
-    chart_type = request.GET.get('chart_type', 'line')
-    chart_type_dist = request.GET.get('chart_type_dist', 'doughnut')
-    fecha_desde = request.GET.get('fecha_desde', '')
-    fecha_hasta = request.GET.get('fecha_hasta', '')
-    
-    stats = get_stats_data(
-        edicion_id=edicion_id, 
-        periodo=periodo, 
-        entidad=entidad, 
-        fecha_desde=fecha_desde if fecha_desde else None, 
-        fecha_hasta=fecha_hasta if fecha_hasta else None
-    )
-    
-    context = {
-        **admin.site.each_context(request),
-        'title': 'Power Dashboard Analysts',
-        **stats,
-        'chart_type_seleccionado': chart_type,
-        'chart_type_dist_seleccionado': chart_type_dist,
-        'fecha_desde': fecha_desde,
-        'fecha_hasta': fecha_hasta,
-        'selected_id_list': [getattr(stats['edicion_seleccionada'], 'id', None)] if stats.get('edicion_seleccionada') else [],
-        'selected_periodo_list': [periodo],
-        'selected_entidad_list': [entidad],
-        'selected_chart_type_list': [chart_type],
-        'selected_chart_dist_list': [chart_type_dist],
-        'daily_stats_json': json.dumps(stats['daily_stats']),
-        'distribution_stats_json': json.dumps(stats['distribution_stats']),
-        'comparative_stats_json': json.dumps(stats['comparative_stats']),
-    }
-    return render(request, 'admin/dashboard_power.html', context)
+    try:
+        edicion_id = request.GET.get('edicion')
+        periodo = request.GET.get('periodo', 'diario')
+        entidad = request.GET.get('entidad', 'inscripciones')
+        chart_type = request.GET.get('chart_type', 'line')
+        chart_type_dist = request.GET.get('chart_type_dist', 'doughnut')
+        fecha_desde = request.GET.get('fecha_desde', '')
+        fecha_hasta = request.GET.get('fecha_hasta', '')
+        
+        stats = get_stats_data(
+            edicion_id=edicion_id, 
+            periodo=periodo, 
+            entidad=entidad, 
+            fecha_desde=fecha_desde if fecha_desde else None, 
+            fecha_hasta=fecha_hasta if fecha_hasta else None
+        )
+        
+        context = {
+            **admin.site.each_context(request),
+            'title': 'Power Dashboard Analysts',
+            **stats,
+            'chart_type_seleccionado': chart_type,
+            'chart_type_dist_seleccionado': chart_type_dist,
+            'fecha_desde': fecha_desde,
+            'fecha_hasta': fecha_hasta,
+            'selected_id_list': [getattr(stats['edicion_seleccionada'], 'id', None)] if stats.get('edicion_seleccionada') else [],
+            'selected_periodo_list': [periodo],
+            'selected_entidad_list': [entidad],
+            'selected_chart_type_list': [chart_type],
+            'selected_chart_dist_list': [chart_type_dist],
+            'daily_stats_json': json.dumps(stats['daily_stats']),
+            'distribution_stats_json': json.dumps(stats['distribution_stats']),
+            'comparative_stats_json': json.dumps(stats['comparative_stats']),
+        }
+        return render(request, 'admin/dashboard_power.html', context)
+    except Exception as e:
+        logger.error(f"Error in admin_dashboard: {str(e)}", exc_info=True)
+        if settings.DEBUG:
+            import traceback
+            return HttpResponse(f"Error en Dashboard: {str(e)}<pre>{traceback.format_exc()}</pre>", status=500)
+        return HttpResponse(f"Error interno al cargar el dashboard: {str(e)}. Consulte los logs del servidor.", status=500)
 
 
 def broadcast_view(request):
     """
     Vista para el envío de comunicaciones masivas.
     """
-    if request.method == 'POST':
-        rol = request.POST.get('rol')
-        asunto = request.POST.get('asunto')
-        mensaje_html = request.POST.get('mensaje')
+    try:
+        if request.method == 'POST':
+            rol = request.POST.get('rol')
+            asunto = request.POST.get('asunto')
+            mensaje_html = request.POST.get('mensaje')
 
-        emails = set()
-        
-        if rol == 'TODOS' or rol == 'ASISTENTES_TODOS':
-            emails.update(Asistente.objects.values_list('email', flat=True))
-        
-        if rol == 'ASISTENTES_CONFIRMADOS':
-            emails.update(Asistente.objects.filter(asistencia_confirmada=True).values_list('email', flat=True))
-        
-        if rol == 'TODOS' or rol == 'DISERTANTES':
-            emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))
+            emails = set()
             
-        if rol == 'TODOS' or rol == 'EMPRESAS':
-            emails.update(Empresa.objects.filter(estado='APROBADO').values_list('email_contacto', flat=True))
+            if rol == 'TODOS' or rol == 'ASISTENTES_TODOS':
+                emails.update(Asistente.objects.values_list('email', flat=True))
             
-        if rol == 'TODOS' or rol == 'PRENSA':
-            emails.update(InscripcionPrensa.objects.values_list('email', flat=True))
+            if rol == 'ASISTENTES_CONFIRMADOS':
+                emails.update(Asistente.objects.filter(asistencia_confirmada=True).values_list('email', flat=True))
+            
+            if rol == 'TODOS' or rol == 'DISERTANTES':
+                emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))
+                
+            if rol == 'TODOS' or rol == 'EMPRESAS':
+                emails.update(Empresa.objects.filter(estado='APROBADO').values_list('email_contacto', flat=True))
+                
+            if rol == 'TODOS' or rol == 'PRENSA':
+                emails.update(InscripcionPrensa.objects.values_list('email', flat=True))
 
-        # Limpiar emails nulos o vacíos
-        emails = [e for e in emails if e]
+            # Limpiar emails nulos o vacíos
+            emails = [e for e in emails if e]
 
-        if not emails:
-            messages.error(request, "No se encontraron destinatarios para el filtro seleccionado.")
-        else:
-            enviados, errores = send_broadcast_batch_email(emails, asunto, mensaje_html)
-            msg = f"Proceso finalizado. Enviados: {enviados}. Errores: {errores}."
-            if errores == 0:
-                messages.success(request, msg)
+            if not emails:
+                messages.error(request, "No se encontraron destinatarios para el filtro seleccionado.")
             else:
-                messages.warning(request, msg)
+                enviados, errores = send_broadcast_batch_email(emails, asunto, mensaje_html)
+                msg = f"Proceso finalizado. Enviados: {enviados}. Errores: {errores}."
+                if errores == 0:
+                    messages.success(request, msg)
+                else:
+                    messages.warning(request, msg)
 
-    context = {
-        **admin.site.each_context(request),
-        'title': 'Comunicaciones Masivas',
-    }
-    return render(request, 'admin/email_masivo.html', context)
+        context = {
+            **admin.site.each_context(request),
+            'title': 'Comunicaciones Masivas',
+        }
+        return render(request, 'admin/email_masivo.html', context)
+    except Exception as e:
+        logger.error(f"Error in broadcast_view: {str(e)}", exc_info=True)
+        if settings.DEBUG:
+            import traceback
+            return HttpResponse(f"Error en Broadcast: {str(e)}<pre>{traceback.format_exc()}</pre>", status=500)
+        return HttpResponse(f"Error interno al cargar la vista de comunicaciones: {str(e)}. Consulte los logs del servidor.", status=500)
 
 
 # Inyectar el dashboard en el Admin de Django

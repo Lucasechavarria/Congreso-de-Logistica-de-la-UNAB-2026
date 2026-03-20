@@ -3,19 +3,19 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const IMAGES = [
     {
-        url: "/images/historia-1.png",
+        url: "/images/edicion-2025/2025-gallery-1.webp",
         title: "Gran Apertura",
         description: "Auditorio colmado en la primera edición del congreso."
     },
     {
-        url: "/images/historia-2.png",
+        url: "/images/edicion-2025/2025-gallery-2.webp",
         title: "Networking Empresarial",
         description: "Espacios de conexión entre profesionales y empresas líderes."
     },
     {
-        url: "/images/historia-3.png",
+        url: "/images/edicion-2025/2025-gallery-3.webp",
         title: "Innovación en Escena",
-        description: "Presentaciones de vanguardia en logística y transporte."
+        description: "Tecnologías y tendencias presentadas por expertos del sector."
     }
 ];
 

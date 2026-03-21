@@ -1,21 +1,23 @@
 import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { FiArrowRight } from "react-icons/fi";
 
 const IMAGES = [
     {
         url: "/images/edicion-2025/2025-gallery-1.webp",
-        title: "Gran Apertura",
-        description: "Auditorio colmado en la primera edición del congreso."
+        title: "Campus UNAB en Acción",
+        description: "Vehículos y empresas del sector logístico en la explanada del histórico campus."
     },
     {
         url: "/images/edicion-2025/2025-gallery-2.webp",
-        title: "Networking Empresarial",
-        description: "Espacios de conexión entre profesionales y empresas líderes."
+        title: "Tecnología Aérea — DronesVIP",
+        description: "Demostración en vivo de drones de precisión agrícola e inspección industrial."
     },
     {
         url: "/images/edicion-2025/2025-gallery-3.webp",
-        title: "Innovación en Escena",
-        description: "Tecnologías y tendencias presentadas por expertos del sector."
+        title: "Exposición de Flota — OCA",
+        description: "Los principales actores del transporte presentaron sus flotas y tecnologías."
     }
 ];
 
@@ -47,22 +49,25 @@ export default function PreviousCongressSection() {
                             transition={{ delay: index * 0.1 }}
                             viewport={{ once: true }}
                         >
-                            <Card className="overflow-hidden border-none shadow-xl hover:shadow-[0_25px_50px_rgba(139,92,246,0.25)] transition-all duration-500 group rounded-2xl cursor-pointer transform hover:-translate-y-2">
-                                <div className="relative h-72 overflow-hidden">
-                                    <img
-                                        src={img.url}
-                                        alt={img.title}
-                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-115"
-                                    />
-                                    {/* Overlay siempre visible en la base */}
-                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent p-5 transition-all duration-300">
-                                        <h3 className="text-white font-bold text-lg leading-tight">{img.title}</h3>
-                                        <p className="text-white/0 group-hover:text-white/80 text-sm mt-1 transition-all duration-400 max-h-0 group-hover:max-h-10 overflow-hidden">{img.description}</p>
+                            <Link to="/sobre-el-congreso">
+                                <Card className="overflow-hidden border-none shadow-xl hover:shadow-[0_25px_50px_rgba(139,92,246,0.25)] transition-all duration-500 group rounded-2xl cursor-pointer transform hover:-translate-y-2">
+                                    <div className="relative h-72 overflow-hidden">
+                                        <img
+                                            src={img.url}
+                                            alt={img.title}
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                        />
+                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-5">
+                                            <h3 className="text-white font-bold text-lg leading-tight">{img.title}</h3>
+                                            <p className="text-white/0 group-hover:text-white/80 text-sm mt-1 transition-all duration-300 max-h-0 group-hover:max-h-12 overflow-hidden">{img.description}</p>
+                                        </div>
+                                        <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#8b5cf6]/60 rounded-2xl transition-colors duration-300 pointer-events-none" />
+                                        <div className="absolute top-4 right-4 w-9 h-9 bg-white/0 group-hover:bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 border border-white/30">
+                                            <FiArrowRight size={16} color="white" />
+                                        </div>
                                     </div>
-                                    {/* Borde luminoso en hover */}
-                                    <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#8b5cf6]/50 rounded-2xl transition-colors duration-300 pointer-events-none" />
-                                </div>
-                            </Card>
+                                </Card>
+                            </Link>
                         </motion.div>
                     ))}
                 </div>
@@ -71,7 +76,21 @@ export default function PreviousCongressSection() {
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="mt-16 bg-[#f5f0ff] p-8 md:p-12 rounded-3xl border border-[#8b5cf6]/10 relative overflow-hidden"
+                    className="mt-10 text-center"
+                >
+                    <Link to="/sobre-el-congreso">
+                        <button className="inline-flex items-center gap-3 px-8 py-4 bg-[#2d1854] hover:bg-[#8b5cf6] text-white font-bold rounded-full shadow-lg hover:shadow-[0_0_30px_rgba(139,92,246,0.4)] transition-all duration-300 transform hover:-translate-y-1 text-base">
+                            Ver galería completa y noticias
+                            <FiArrowRight size={18} color="white" />
+                        </button>
+                    </Link>
+                </motion.div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="mt-12 bg-[#f5f0ff] p-8 md:p-12 rounded-3xl border border-[#8b5cf6]/10 relative overflow-hidden"
                 >
                     <div className="absolute -right-20 -top-20 w-64 h-64 bg-[#8b5cf6]/5 rounded-full blur-3xl"></div>
                     <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">

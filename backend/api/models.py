@@ -302,6 +302,11 @@ class Certificado(models.Model):
     tipo_certificado = models.CharField(max_length=10, choices=TipoCertificado.choices, verbose_name="Tipo de Certificado")
     pdf_generado = models.FileField(upload_to='certificados/', storage=storages["private"], blank=True, null=True, verbose_name="PDF Generado")
     fecha_generacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Generación")
+    
+    # --- Gestión de Envío ---
+    email_enviado = models.BooleanField(default=False, verbose_name="Email Enviado")
+    fecha_envio = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Envío")
+    intentos = models.IntegerField(default=0, verbose_name="Intentos de Envío")
 
     def __str__(self):
         return f"Certificado de {self.get_tipo_certificado_display()} para {self.asistente.first_name} {self.asistente.last_name}" # type: ignore

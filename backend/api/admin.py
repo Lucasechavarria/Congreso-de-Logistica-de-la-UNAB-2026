@@ -15,8 +15,9 @@ from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Pr
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +142,16 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
         asistencia_confirmada=True
     ).distinct().count() if edicion_actual else 0
 
+    # 6. Nuevos KPIs de Velocidad
+    hace_24h = timezone.now() - timezone.timedelta(hours=24)
+    hace_7dias = timezone.now() - timezone.timedelta(days=7)
+    
+    registros_24h = (
+        Inscripcion.objects.filter(edicion=edicion_actual, fecha_inscripcion__gte=hace_24h).count()
+        if entidad == 'inscripciones' else
+        Empresa.objects.filter(edicion=edicion_actual, fecha_registro__gte=hace_24h).count()
+    ) if edicion_actual else 0
+
     return {
         'edicion_seleccionada': edicion_actual,
         'periodo_seleccionado': periodo,
@@ -154,6 +165,7 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
             'total_disertantes': total_disertantes,
             'total_empresas': total_empresas,
             'asistentes_recurrentes': recurrentes_count,
+            'registros_24h': registros_24h,
             'promedio_diario': float(f"{main_stats[-1]['cumulative'] / max(1, len(main_stats)):.2f}") if main_stats else 0.0,
             'asistencia_ratio': float(f"{(total_confirmados / total_inscritos * 100):.2f}") if total_inscritos > 0 else 0.0
         },
@@ -259,6 +271,110 @@ def broadcast_view(request):
             import traceback
             return HttpResponse(f"Error en Broadcast: {str(e)}<pre>{traceback.format_exc()}</pre>", status=500)
         return HttpResponse(f"Error interno al cargar la vista de comunicaciones: {str(e)}. Consulte los logs del servidor.", status=500)
+    
+
+def backup_database_view(request):
+    """
+    Vista para descargar un backup (dump) completo de la base de datos PostgreSQL.
+    Solo accesible para superusers.
+    """
+    if not request.user.is_superuser:
+        return HttpResponse("No autorizado.", status=403)
+        
+    import subprocess
+    from datetime import datetime
+    
+    try:
+        # Obtener configuración de base de datos de Django
+        from django.db import connection
+        db_settings = connection.settings_dict
+        
+        db_name = db_settings['NAME']
+        db_user = db_settings['USER']
+        db_password = db_settings['PASSWORD']
+        db_host = db_settings['HOST']
+        db_port = db_settings['PORT']
+        
+        # Preparar el archivo temporal
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"backup_congreso_{timestamp}.sql"
+        
+        # Ejecutar pg_dump
+        # Nota: En producción suele requerir PGPASSWORD en el entorno
+        env = os.environ.copy()
+        env['PGPASSWORD'] = db_password
+        
+        cmd = [
+            'pg_dump',
+            '-h', db_host,
+            '-p', str(db_port),
+            '-U', db_user,
+            '-F', 'p',  # Formato plain text para .sql
+            '-b',       # Incluir blobs
+            '-v',       # Verbose
+            db_name
+        ]
+        
+        process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            error_msg = stderr.decode() if isinstance(stderr, bytes) else str(stderr)
+            logger.error(f"Error en pg_dump: {error_msg}")
+            return HttpResponse(f"Error generando backup: {error_msg}", status=500)
+            
+        # Devolver el archivo como respuesta
+        response = HttpResponse(stdout, content_type='application/sql')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error en backup_database_view: {str(e)}", exc_info=True)
+        return HttpResponse(f"Error interno: {str(e)}", status=500)
+
+@admin.site.admin_view
+def certificate_queue_view(request):
+    """
+    Muestra la interfaz de progreso para el envío de certificados.
+    """
+    pendientes = Certificado.objects.filter(email_enviado=False).count()
+    return render(request, 'admin/certificate_queue.html', {'pendientes': pendientes})
+
+@admin.site.admin_view
+def process_certificate_batch_api(request):
+    """
+    JSON API para procesar un lote de certificados.
+    """
+    BATCH_SIZE = 5
+    certificados = Certificado.objects.filter(email_enviado=False)[:BATCH_SIZE]
+    
+    logs = []
+    processed = 0
+    errors = 0
+    
+    for cert in certificados:
+        try:
+            # send_certificate_email ya se encarga de actualizar el estado en el modelo
+            success = send_certificate_email(cert)
+            if success:
+                logs.append(f"Enviado con éxito a {cert.asistente.email}")
+                processed += 1
+            else:
+                logs.append(f"Error enviando a {cert.asistente.email}")
+                errors += 1
+        except Exception as e:
+            logs.append(f"Error crítico con {cert.asistente.email}: {str(e)}")
+            errors += 1
+            
+    remaining = Certificado.objects.filter(email_enviado=False).count()
+    
+    return JsonResponse({
+        'status': 'ok',
+        'processed': processed,
+        'errors': errors,
+        'remaining': remaining,
+        'logs': logs
+    })
 
 
 # Inyectar el dashboard en el Admin de Django
@@ -269,6 +385,9 @@ def get_urls():
     custom_urls = [
         path('dashboard/', admin.site.admin_view(admin_dashboard), name='admin-dashboard'),
         path('broadcast/', admin.site.admin_view(broadcast_view), name='admin-broadcast'),
+        path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
+        path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
+        path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
     ]
     return custom_urls + urls
 
@@ -276,7 +395,9 @@ admin.site.get_urls = get_urls
 # Cambiar el título del índice para incluir un link directo con estilo HTML
 admin.site.index_title = format_html(
     'Admin Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Dashboard</a> | '
-    '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a>'
+    '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a> | '
+    '<a href="/admin/backup-db/" style="color: #f87171; text-decoration: underline;">Backup DB</a> | '
+    '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a>'
 )
 admin.site.site_header = "Congreso Logística UNAB 2026 Admin"
 admin.site.site_title = "Panel Administrativo"
@@ -324,6 +445,21 @@ class AsistenteAdmin(admin.ModelAdmin):
     readonly_fields = ('fecha_registro', 'fecha_confirmacion', 'dni_update_token', 'dni_email_sent_date')
     inlines = [MiembroGrupoInline]
     
+    def get_queryset(self, request):
+        """
+        Por defecto, muestra solo los registrados en la edición activa.
+        Permite ver todos si se aplican filtros específicos.
+        """
+        qs = super().get_queryset(request)
+        
+        # Si no hay filtros de edición aplicados, filtrar por la activa por defecto
+        if not request.GET.get('inscripciones__edicion__id__exact'):
+            edicion_activa = Edicion.objects.filter(activa=True).first()
+            if edicion_activa:
+                qs = qs.filter(inscripciones__edicion=edicion_activa).distinct()
+        
+        return qs
+
     def get_ediciones(self, obj):
         ediciones = Edicion.objects.filter(inscripciones__asistente=obj).values_list('anio', flat=True)
         return ", ".join(map(str, ediciones)) if ediciones else "-"
@@ -558,37 +694,43 @@ class AsistenteAdmin(admin.ModelAdmin):
                 asistente.fecha_confirmacion = timezone.now()
                 asistente.save()
                 
-                # Crear certificado de asistencia
-                certificado, created = Certificado.objects.get_or_create(
+                # Crear certificado de asistencia (Quedará en cola: email_enviado=False)
+                Certificado.objects.get_or_create(
                     asistente=asistente,
                     tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
                 )
-                
-                # Enviar certificado por email
-                send_certificate_email(certificado)
                 updated_count += 1
         
-        self.message_user(request, f"{updated_count} asistencias confirmadas y certificados enviados.")
-    confirmar_asistencia.short_description = "Confirmar asistencia y enviar certificado"  # type: ignore
+        self.message_user(request, f"{updated_count} asistencias confirmadas. Los certificados han sido añadidos a la cola de envío.")
+    confirmar_asistencia.short_description = "Confirmar asistencia (Añadir a cola de certificados)"  # type: ignore
 
     def enviar_certificados(self, request, queryset):
-        sent_count = 0
+        # Esta acción ahora solo asegura que existan los objetos Certificado en cola
+        queued_count = 0
         for asistente in queryset.filter(asistencia_confirmada=True):
-            certificado, created = Certificado.objects.get_or_create(
+            obj, created = Certificado.objects.get_or_create(
                 asistente=asistente,
                 tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
             )
-            send_certificate_email(certificado)
-            sent_count += 1
+            if created or not obj.email_enviado:
+                queued_count += 1
         
-        self.message_user(request, f"{sent_count} certificados enviados.")
-    enviar_certificados.short_description = "Enviar certificados a asistentes confirmados"  # type: ignore
+        self.message_user(request, f"{queued_count} certificados listos en la cola para ser procesados.")
+    enviar_certificados.short_description = "Añadir certificados de seleccionados a la cola"  # type: ignore
 
 class CertificadoAdmin(admin.ModelAdmin):
-    list_display = ('asistente', 'tipo_certificado', 'fecha_generacion')
-    list_filter = ('tipo_certificado', 'fecha_generacion')
+    list_display = ('asistente', 'tipo_certificado', 'email_enviado', 'fecha_envio', 'intentos', 'fecha_generacion')
+    list_filter = ('tipo_certificado', 'email_enviado', 'fecha_generacion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email')
-    actions = ['enviar_por_email_accion']
+    readonly_fields = ('fecha_generacion', 'fecha_envio', 'intentos')
+    actions = ['enviar_por_email_accion_masiva']
+
+    def enviar_por_email_accion_masiva(self, request, queryset):
+        # Redirigir a la nueva interfaz de procesamiento por lotes si es necesario, 
+        # o simplemente marcar para re-intento.
+        queryset.update(email_enviado=False, intentos=0)
+        self.message_user(request, f"{queryset.count()} certificados reiniciados para re-envío en la cola.")
+    enviar_por_email_accion_masiva.short_description = "Reiniciar envío para seleccionados (Volver a cola)"
 
     def enviar_por_email_accion(self, request, queryset):
         sent_count = 0

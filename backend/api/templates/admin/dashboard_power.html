@@ -288,8 +288,11 @@
     </div>
 
     <div class="k-row">
-        <div class="k-card"><span>Inscritos</span>
+        <div class="k-card"><span>Inscritos (Total)</span>
             <div>{{kpis.total_inscritos}}</div>
+        </div>
+        <div class="k-card" style="border-top-color: var(--neon-cyan);"><span>Últimas 24h</span>
+            <div style="color: var(--neon-cyan);">+{{kpis.registros_24h}}</div>
         </div>
         <div class="k-card"><span>Ponentes</span>
             <div>{{kpis.total_disertantes}}</div>
@@ -297,7 +300,7 @@
         <div class="k-card"><span>Empresas</span>
             <div>{{kpis.total_empresas}}</div>
         </div>
-        <div class="k-card" style="border-top-color: var(--neon-magenta);"><span>Vuelven (Fidelidad)</span>
+        <div class="k-card" style="border-top-color: var(--neon-magenta);"><span>Fidelidad (Vuelven)</span>
             <div>{{kpis.asistentes_recurrentes}}</div>
         </div>
     </div>

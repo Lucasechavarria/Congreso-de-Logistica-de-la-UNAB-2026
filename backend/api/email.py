@@ -5,6 +5,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
+from django.utils import timezone
 import io
 from xhtml2pdf import pisa
 
@@ -501,9 +502,19 @@ def send_certificate_email(certificado_instance):
         )
         # Enviar el email
         email.send(fail_silently=False)
+        
+        # --- Marcar como enviado ---
+        certificado_instance.email_enviado = True
+        certificado_instance.fecha_envio = timezone.now()
+        certificado_instance.intentos += 1
+        certificado_instance.save(update_fields=['email_enviado', 'fecha_envio', 'intentos'])
+        
         print(f"Certificado enviado exitosamente a {asistente.email}")
+        return True
         
     except Exception as e:
+        certificado_instance.intentos += 1
+        certificado_instance.save(update_fields=['intentos'])
         print(f"Error enviando certificado a {asistente.email}: {e}")
         return False
 

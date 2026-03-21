@@ -4,19 +4,39 @@
 {% block extrastyle %}
 {{ block.super }}
 <style>
-    .broadcast-container {
-        max-width: 800px;
+    .broadcast-layout {
+        display: flex;
+        gap: 20px;
+        max-width: 1200px;
         margin: 20px auto;
-        padding: 20px;
+    }
+    .broadcast-container {
+        flex: 3;
+        padding: 24px;
         background: #1e1e2e;
         border-radius: 12px;
         color: #e0e0e0;
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        border: 1px solid #313244;
+    }
+    .broadcast-sidebar {
+        flex: 1;
+        padding: 20px;
+        background: #181825;
+        border-radius: 12px;
+        color: #cdd6f4;
+        border: 1px solid #313244;
+        font-size: 13px;
     }
     .broadcast-header {
         border-bottom: 2px solid #313244;
         margin-bottom: 25px;
         padding-bottom: 10px;
+    }
+    .broadcast-header h1 {
+        color: #cba6f7;
+        margin: 0;
+        font-size: 24px;
     }
     .form-group {
         margin-bottom: 20px;
@@ -26,6 +46,9 @@
         margin-bottom: 8px;
         font-weight: bold;
         color: #a78bfa;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 1px;
     }
     .form-group select, .form-group input, .form-group textarea {
         width: 100%;
@@ -35,84 +58,169 @@
         color: white;
         border-radius: 6px;
         font-size: 14px;
+        transition: border-color 0.2s;
+    }
+    .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
+        border-color: #a78bfa;
+        outline: none;
     }
     .form-group textarea {
-        min-height: 200px;
-        font-family: 'Courier New', Courier, monospace;
+        min-height: 300px;
+        font-family: 'Fira Code', 'Courier New', Courier, monospace;
+        line-height: 1.5;
+        resize: vertical;
     }
     .submit-btn {
-        background: #a78bfa;
+        background: linear-gradient(45deg, #a78bfa, #818cf8);
         color: #1e1e2e;
         border: none;
         padding: 15px 30px;
-        border-radius: 6px;
-        font-weight: bold;
+        border-radius: 8px;
+        font-weight: 800;
         cursor: pointer;
         width: 100%;
         font-size: 16px;
-        transition: transform 0.2s, background 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
     }
     .submit-btn:hover {
-        background: #c4b5fd;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(167, 139, 250, 0.5);
     }
     .help-text {
         font-size: 12px;
         color: #9399b2;
+        margin-top: 8px;
+        font-style: italic;
+    }
+    .snippet-card {
+        background: #313244;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        border-left: 3px solid #f9e2af;
+    }
+    .snippet-card code {
+        display: block;
+        background: #181825;
+        padding: 5px;
+        border-radius: 4px;
         margin-top: 5px;
+        color: #b4befe;
+        cursor: pointer;
+    }
+    .snippet-card code:hover {
+        background: #45475a;
     }
     .alert {
         padding: 15px;
-        border-radius: 6px;
+        border-radius: 8px;
         margin-bottom: 20px;
+        font-weight: 500;
     }
-    .alert-success { background: #31a354; color: white; }
-    .alert-error { background: #f38ba8; color: #1e1e2e; }
+    .alert-success { background: #a6e3a1; color: #11111b; }
+    .alert-error { background: #f38ba8; color: #11111b; }
+    .alert-warning { background: #fab387; color: #11111b; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="broadcast-container">
-    <div class="broadcast-header">
-        <h1>Centro de Comunicaciones Masivas - Congreso 2026</h1>
+<div class="broadcast-layout">
+    <div class="broadcast-container">
+        <div class="broadcast-header">
+            <h1>Centro de Comunicaciones 🚀</h1>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="rol">🎯 Destinatarios</label>
+                <select name="rol" id="rol" required>
+                    <option value="TODOS">--- TODOS (Filtra duplicados automáticamente) ---</option>
+                    <option value="ASISTENTES_TODOS">👥 Asistentes: Todos</option>
+                    <option value="ASISTENTES_CONFIRMADOS">✅ Asistentes: Solo Confirmados</option>
+                    <option value="DISERTANTES">🎤 Disertantes: Solo Aprobados</option>
+                    <option value="EMPRESAS">🏢 Empresas: Solo Aprobadas</option>
+                    <option value="PRENSA">📸 Prensa e Influencers</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="asunto">✉️ Asunto del Email</label>
+                <input type="text" name="asunto" id="asunto" placeholder="Ej: Información importante sobre el Congreso 2026" required>
+            </div>
+
+            <div class="form-group">
+                <label for="mensaje">📝 Cuerpo del Mensaje (HTML)</label>
+                <textarea name="mensaje" id="mensaje" placeholder="Escribe tu mensaje aquí..." required></textarea>
+                <p class="help-text">💡 Tip: Usa las etiquetas de la derecha para dar formato.</p>
+            </div>
+
+            <button type="submit" class="submit-btn" onclick="return confirm('¿Estás seguro de enviar este comunicado masivo?')">ENVIAR COMUNICADO</button>
+        </form>
     </div>
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endif %}
-
-    <form method="post">
-        {% csrf_token %}
+    <div class="broadcast-sidebar">
+        <h3 style="color: #f9e2af; margin-top: 0;">📚 Guía de Estilos HTML</h3>
+        <p>Haz clic para copiar y pega en el editor:</p>
         
-        <div class="form-group">
-            <label for="rol">Destinatarios</label>
-            <select name="rol" id="rol" required>
-                <option value="TODOS">--- TODOS (Asistentes, Disertantes, Empresas, Prensa) ---</option>
-                <option value="ASISTENTES_TODOS">Asistentes: Todos los registrados</option>
-                <option value="ASISTENTES_CONFIRMADOS">Asistentes: Solo con Asistencia Confirmada</option>
-                <option value="DISERTANTES">Disertantes: Solo Aprobados</option>
-                <option value="EMPRESAS">Empresas: Solo Aprobadas</option>
-                <option value="PRENSA">Prensa e Influencers</option>
-            </select>
-            <p class="help-text">La opción 'TODOS' filtra correos duplicados automáticamente.</p>
+        <div class="snippet-card">
+            <span><strong>Negrita:</strong></span>
+            <code onclick="copyToClipboard(this.innerText)">&lt;b&gt;texto destacado&lt;/b&gt;</code>
+        </div>
+        
+        <div class="snippet-card">
+            <span><strong>Párrafo:</strong></span>
+            <code onclick="copyToClipboard(this.innerText)">&lt;p&gt;Tu mensaje aquí...&lt;/p&gt;</code>
+        </div>
+        
+        <div class="snippet-card">
+            <span><strong>Enlace (Link):</strong></span>
+            <code onclick="copyToClipboard(this.innerText)">&lt;a href="https://..."&gt;Texto del link&lt;/a&gt;</code>
+        </div>
+        
+        <div class="snippet-card">
+            <span><strong>Salto de línea:</strong></span>
+            <code onclick="copyToClipboard(this.innerText)">&lt;br&gt;</code>
         </div>
 
-        <div class="form-group">
-            <label for="asunto">Asunto del Email</label>
-            <input type="text" name="asunto" id="asunto" placeholder="Ej: Información importante sobre el Congreso 2026" required>
+        <div class="snippet-card">
+            <span><strong>Lista:</strong></span>
+            <code onclick="copyToClipboard(this.innerText)">&lt;ul&gt;
+  &lt;li&gt;Punto 1&lt;/li&gt;
+  &lt;li&gt;Punto 2&lt;/li&gt;
+&lt;/ul&gt;</code>
         </div>
 
-        <div class="form-group">
-            <label for="mensaje">Mensaje (SOPORTE HTML)</label>
-            <textarea name="mensaje" id="mensaje" placeholder="Puedes usar etiquetas HTML como <p>, <b>, <a>, etc." required></textarea>
-            <p class="help-text">El sistema usará automáticamente una plantilla premium con el logo del congreso.</p>
+        <div style="background: rgba(167, 139, 250, 0.1); padding: 10px; border-radius: 8px; border: 1px dashed #a78bfa;">
+            <p style="margin: 0; color: #a78bfa; font-size: 11px;">
+                <strong>NOTA:</strong> El sistema usará automáticamente la plantilla premium con el logo del congreso.
+            </p>
         </div>
-
-        <button type="submit" class="submit-btn">ENVIAR COMUNICADO MASIVO</button>
-    </form>
+    </div>
 </div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    // Mostrar un aviso simple
+    const originalText = event.target.innerText;
+    event.target.innerText = "¡Copiado!";
+    setTimeout(() => {
+        event.target.innerText = originalText;
+    }, 1000);
+}
+</script>
 {% endblock %}
+

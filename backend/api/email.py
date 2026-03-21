@@ -118,6 +118,7 @@ def send_confirmation_email(inscripcion_instance):
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
+            bcc=[CONGRESO_EMAIL]
         )
         email.attach_alternative(html_content, "text/html")
 
@@ -184,6 +185,7 @@ def send_individual_confirmation_email(asistente):
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
+            bcc=[CONGRESO_EMAIL]
         )
         email.attach_alternative(html_content, "text/html")
         
@@ -329,6 +331,7 @@ def send_bulk_confirmation_email(asistente, es_carga_masiva=False, es_recordator
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
+            bcc=[CONGRESO_EMAIL]
         )
         email.attach_alternative(html_content, "text/html")
         
@@ -382,6 +385,7 @@ def send_group_confirmation_emails(representante):
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[representante.email],
+            bcc=[CONGRESO_EMAIL]
         )
         email_representante.attach_alternative(html_content, "text/html")
         
@@ -428,6 +432,7 @@ def send_group_confirmation_emails(representante):
                 body=text_content,
                 from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
                 to=[miembro.email],
+                bcc=[CONGRESO_EMAIL]
             )
             email_miembro.attach_alternative(html_content, "text/html")
             
@@ -487,6 +492,7 @@ def send_certificate_email(certificado_instance):
             body='Adjuntamos tu certificado de asistencia al Congreso de Logística UNAB.',
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
+            bcc=[CONGRESO_EMAIL]
         )
         email.attach(
             f'Certificado_{asistente.nombre_completo.replace(" ", "_")}.pdf',

@@ -54,17 +54,19 @@ class RegistroTests(TestCase):
     # Existing tests for RegistroParticipantesView (inscripcion-grupal)
     def test_individual_registration_success(self):
         data = {
-            "first_name": "Juan",
-            "last_name": "Perez",
-            "dni": "12345678",
-            "email": "juan.perez@example.com",
-            "phone": "1122334455",
-            "profile_type": Asistente.ProfileType.STUDENT,
-            "is_unab_student": True,
-            "career": "Ingenieria",
-            "year_of_study": 3,
+            "asistente": {
+                "first_name": "Juan",
+                "last_name": "Perez",
+                "dni": "12345678",
+                "email": "juan.perez@example.com",
+                "phone": "1122334455",
+                "profile_type": Asistente.ProfileType.STUDENT,
+                "is_unab_student": True,
+                "career": "Ingenieria",
+                "year_of_study": 3,
+            }
         }
-        response = self.client.post(self.registro_participantes_url, data, format='json')
+        response = self.client.post(self.inscripcion_individual_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Asistente.objects.count(), 1)
         self.assertEqual(Asistente.objects.get().dni, "12345678")

@@ -26,7 +26,8 @@ import {
   Loader2,
   UploadCloud,
   FileSpreadsheet,
-  Trash2
+  Trash2,
+  Link
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDropzone } from "react-dropzone";

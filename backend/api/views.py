@@ -1008,7 +1008,7 @@ class CargaMasivaAsistentesView(views.APIView):
                         # Enviar email si está habilitado
                         if enviar_emails:
                             try:
-                                if send_bulk_confirmation_email(asistente, es_carga_masiva=True, fecha_evento='2025-11-15'):
+                                if send_bulk_confirmation_email(asistente, es_carga_masiva=True, fecha_evento='2026-11-07'):
                                     emails_enviados += 1
                                 else:
                                     emails_fallidos += 1

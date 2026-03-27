@@ -316,44 +316,52 @@ class Certificado(models.Model):
         Genera un PDF personalizado usando la imagen base y superponiendo el nombre del asistente.
         """
         import os
+        from django.conf import settings
+        from django.core.files.base import ContentFile
         from PIL import Image, ImageDraw, ImageFont
         from io import BytesIO
 
-        # --- SOLUCIÓN: Usar BASE_DIR de Django para construir rutas absolutas y seguras ---
-        from django.conf import settings
-        from django.core.files.base import ContentFile
-        base_path = os.path.join(settings.BASE_DIR, 'certificates', 'Certificados-congreso.png')
-
-        # Escribir el nombre en mayúsculas para reemplazar el texto de la plantilla
-        nombre_apellido = f"{self.asistente.first_name} {self.asistente.last_name}".upper()
-
-        # Abrir la imagen base
-        img = Image.open(base_path).convert("RGB") # Convertir a RGB para guardar en PDF
-        draw = ImageDraw.Draw(img)
+        # --- GENERACIÓN 2026: Usar fondo nuevo y limpio ---
+        if self.tipo_certificado == 'DISERTANTE':
+            bg_name = 'Certificados-congreso-disertantes-2026.png'
+        else:
+            bg_name = 'Certificados-congreso-2026.png'
+            
+        bg_path = os.path.join(settings.BASE_DIR, 'certificates', bg_name)
         
-        # --- SOLUCIÓN: No depender de fuentes del sistema. Incluir la fuente en el proyecto. ---
-        # Coloca el archivo .ttf en una carpeta dentro de tu app, por ejemplo: 'api/fonts/'
-        font_path = os.path.join(settings.BASE_DIR, 'api', 'fonts', 'DejaVu_Sans', 'DejaVuSans-Bold.ttf')
-        
-        # Ajustar tamaño de fuente y posición para que reemplace exactamente 'NOMBRE Y APELLIDO'
-        font_size = 110  # Puedes ajustar este valor si el texto no encaja perfecto
         try:
-            font = ImageFont.truetype(font_path, font_size)
+            img = Image.open(bg_path).convert("RGB")
+        except FileNotFoundError:
+            # Fallback al original si por alguna razón no existe el nuevo
+            bg_path_old = os.path.join(settings.BASE_DIR, 'certificates', 'Certificados-congreso.png')
+            img = Image.open(bg_path_old).convert("RGB")
+
+        draw = ImageDraw.Draw(img)
+
+        # Configurar fuente para el nombre (Dinámica v11)
+        font_size = 70
+        try:
+            font_path = os.path.join(settings.BASE_DIR, 'api', 'fonts', 'DejaVu_Sans', 'DejaVuSans-Bold.ttf')
+            nombre_apellido = self.asistente.nombre_completo.upper()
+            
+            # Bucle de escalado dinámico para nombres compuestos/largos
+            while font_size > 20:
+                font = ImageFont.truetype(font_path, font_size)
+                bbox = draw.textbbox((0, 0), nombre_apellido, font=font)
+                text_width = bbox[2] - bbox[0]
+                if text_width < 1700: # Margen de seguridad (Ancho imagen 2000)
+                    break
+                font_size -= 5
         except Exception:
             font = ImageFont.load_default()
-
-        # --- MEJORA: Usar textbbox para un centrado más preciso ---
-        try:
-            # Método moderno para medir texto
+            nombre_apellido = self.asistente.nombre_completo.upper()
             bbox = draw.textbbox((0, 0), nombre_apellido, font=font)
             text_width = bbox[2] - bbox[0]
-        except AttributeError:
-            # Fallback para versiones antiguas de Pillow
-            text_width, _ = draw.textsize(nombre_apellido, font=font)  # type: ignore
 
-        x = (img.width - text_width) / 2
-        y = 470  # Ajusta este valor vertical si es necesario
-        # Escribir el texto (color azul similar al diseño)
+        x = (img.width - text_width) // 2
+        y = 400  # Posición vertical v13 (Compacto - Más cerca del logo y cuerpo)
+        
+        # Escribir el nombre (color azul)
         draw.text((x, y), nombre_apellido, font=font, fill=(18, 90, 150, 255))
 
         # Convertir la imagen a PDF en memoria

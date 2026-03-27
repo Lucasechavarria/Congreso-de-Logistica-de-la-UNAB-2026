@@ -12,7 +12,7 @@ from xhtml2pdf import pisa
 # Email oficial del congreso (remitente y copia interna)
 CONGRESO_EMAIL = "congresologisticaytransporte@unab.edu.ar"
 # Logo negro del congreso (para embeber en templates de email)
-LOGO_PATH_DEFAULT = os.path.join('public', 'images', 'CONGRESO-LOGISTICA-2 NEGRO.png')
+LOGO_PATH_DEFAULT = os.path.join('public', 'images', 'CONGRESO-LOGISTICA-2.png')
 
 def get_logo_path():
     """Retorna la ruta absoluta al logo del congreso (negro), priorizando la variable de entorno."""

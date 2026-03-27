@@ -99,6 +99,8 @@ const visitorSchema = participantSchema.extend({
 
 const pressSchema = participantSchema.extend({
   profileType: z.literal("PRESS"),
+  prensaMedio: z.string().optional(),
+  prensaLinks: z.string().optional(),
 });
 
 const formSchema = z
@@ -449,6 +451,9 @@ const RegistroParticipantes: React.FC = () => {
         } else if (data.profileType === "professional") {
           if (data.workArea) asistenteData.work_area = data.workArea;
           if (data.occupation) asistenteData.occupation = data.occupation;
+        } else if (data.profileType === "PRESS") {
+          if ((data as any).prensaMedio) asistenteData.prensa_medio = (data as any).prensaMedio;
+          if ((data as any).prensaLinks) asistenteData.prensa_links = (data as any).prensaLinks;
         }
 
         const dataToSend = {
@@ -634,7 +639,7 @@ const RegistroParticipantes: React.FC = () => {
                   { value: "student", label: "Estudiante" },
                   { value: "teacher", label: "Docente" },
                   { value: "professional", label: "Profesional" },
-                  { value: "PRESS", label: "Prensa" },
+                  { value: "PRESS", label: "Prensa/Influencer" },
                   { value: "groupRepresentative", label: "Representante de Grupo" }
                 ]}
                 {...register("profileType")}
@@ -757,6 +762,27 @@ const RegistroParticipantes: React.FC = () => {
                     max="6"
                     {...register("yearOfStudy", { valueAsNumber: true })}
                     error={getErrorMessage("yearOfStudy")}
+                  />
+                </div>
+              </FormSection>
+            )}
+
+            {profileType === "PRESS" && (
+              <FormSection title="Información de Prensa/Influencer" description="Complete los datos sobre su medio o canal de difusión">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormInput
+                    label="Medio o Canal al que pertenece"
+                    icon={<Building2 className="h-4 w-4" />}
+                    placeholder="Ej: Diario La Nación, Canal de YouTube..."
+                    {...register("prensaMedio")}
+                    error={getErrorMessage("prensaMedio")}
+                  />
+                  <FormInput
+                    label="Links de Web, Redes o Canales"
+                    icon={<Link className="h-4 w-4" />}
+                    placeholder="Links separados por coma o espacio"
+                    {...register("prensaLinks")}
+                    error={getErrorMessage("prensaLinks")}
                   />
                 </div>
               </FormSection>

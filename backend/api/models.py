@@ -177,7 +177,7 @@ class Asistente(models.Model):
         STUDENT = 'STUDENT', 'Estudiante'
         TEACHER = 'TEACHER', 'Docente'
         PROFESSIONAL = 'PROFESSIONAL', 'Profesional'
-        PRESS = 'PRESS', 'Prensa'
+        PRESS = 'PRESS', 'Prensa/Influencer'
         GROUP_REPRESENTATIVE = 'GROUP_REPRESENTATIVE', 'Representante de Grupo'
         GRADUADO = 'GRADUADO', 'Graduado'
         OTRO = 'OTRO', 'Otro'
@@ -219,6 +219,10 @@ class Asistente(models.Model):
         'InscripcionPrensa', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='asistente_prensa', verbose_name="Inscripción prensa vinculada"
     )
+    
+    # --- Datos de Prensa/Influencer (para registro directo) ---
+    prensa_medio = models.CharField(max_length=255, blank=True, null=True, verbose_name="Medio al que pertenece")
+    prensa_links = models.TextField(blank=True, null=True, verbose_name="Links de web, redes o canales de difusión")
 
     # --- Información adicional ---
     ciudad_provincia = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ciudad / Provincia")

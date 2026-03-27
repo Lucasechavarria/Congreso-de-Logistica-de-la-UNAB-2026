@@ -42,15 +42,15 @@ class PostulacionDisertante(models.Model):
     
     # Propuesta de Charla
     titulo_charla = models.CharField(max_length=255, verbose_name="Título de la exposición")
-    ejes_tematicos = models.JSONField(default=list, blank=True, verbose_name="Eje temático al que se vincula (Array de strings)")
+    ejes_tematicos = models.TextField(default='', blank=True, verbose_name="Eje temático al que se vincula (JSON String)")
     eje_otro = models.TextField(blank=True, null=True, verbose_name="Otro eje temático")
     resumen_charla = models.TextField(verbose_name="Resumen de la charla (máx. 300 palabras)")
     objetivos_charla = models.TextField(verbose_name="Objetivos de la exposición")
-    publico_dirigido = models.JSONField(default=list, verbose_name="Público al que está dirigida (Array de strings)")
+    publico_dirigido = models.TextField(default='', verbose_name="Público al que está dirigida (JSON String)")
     
     # Modalidad y Participación
-    modalidad = models.JSONField(default=list, verbose_name="Formato preferido (Array de strings)")
-    participacion_tipo = models.JSONField(default=list, verbose_name="Tipo de participación (Array de strings)")
+    modalidad = models.TextField(default='', verbose_name="Formato preferido (JSON String)")
+    participacion_tipo = models.TextField(default='', verbose_name="Tipo de participación (JSON String)")
     
     # Aceptación
     # Detalles de la propuesta
@@ -413,7 +413,7 @@ class DetalleGrupo(models.Model):
     group_size = models.IntegerField(default=0, verbose_name="Cantidad de personas en el grupo")
     institution_or_workplace = models.CharField(max_length=255, null=True, blank=True, verbose_name="Institución o lugar de trabajo del representante")
     # Checkbox multiple: ESCOLAR | UNIVERSITARIO | INSTITUCIONAL | EMPRESARIAL | OTRO
-    tipo_grupo = models.JSONField(default=list, verbose_name="Tipo de grupo", help_text="Opciones: ESCOLAR, UNIVERSITARIO, INSTITUCIONAL, EMPRESARIAL, OTRO")
+    tipo_grupo = models.TextField(default='', verbose_name="Tipo de grupo", help_text="Opciones JSON: ESCOLAR, UNIVERSITARIO, INSTITUCIONAL, EMPRESARIAL, OTRO")
 
 class InscripcionPrensa(models.Model):
     """Registro voluntario de prensa e influencers. Sin convocatoria formal."""

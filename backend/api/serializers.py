@@ -39,6 +39,31 @@ class InscripcionPrensaSerializer(serializers.ModelSerializer):
 
 
 class PostulacionDisertanteSerializer(serializers.ModelSerializer):
+    ejes_tematicos = serializers.JSONField(required=False)
+    publico_dirigido = serializers.JSONField(required=False)
+    modalidad = serializers.JSONField(required=False)
+    participacion_tipo = serializers.JSONField(required=False)
+
+    def to_internal_value(self, data):
+        import json
+        ret = super().to_internal_value(data)
+        for field in ['ejes_tematicos', 'publico_dirigido', 'modalidad', 'participacion_tipo']:
+            if field in ret and not isinstance(ret[field], str):
+                ret[field] = json.dumps(ret[field])
+        return ret
+
+    def to_representation(self, instance):
+        import json
+        ret = super().to_representation(instance)
+        for field in ['ejes_tematicos', 'publico_dirigido', 'modalidad', 'participacion_tipo']:
+            val = getattr(instance, field)
+            if val and isinstance(val, str):
+                try:
+                    ret[field] = json.loads(val)
+                except:
+                    pass
+        return ret
+
     def validate_linkedin(self, value):
         """Permite que linkedin sea opcional aceptando cadenas vacías o None."""
         if not value or (isinstance(value, str) and not value.strip()):
@@ -265,6 +290,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
     group_municipality = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
     group_size = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    tipo_grupo = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = Asistente
@@ -272,13 +298,30 @@ class AsistenteSerializer(serializers.ModelSerializer):
             'id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'profile_type',
             'is_unab_student', 'institution', 'career', 'year_of_study',
             'career_taught', 'work_area', 'occupation',
-            'group_name', 'group_municipality', 'group_size',
+            'group_name', 'group_municipality', 'group_size', 'tipo_grupo',
             'miembros_grupo', 'miembros_grupo_nuevos', 'miembros_representados', 'rol_especifico'
         ]
         read_only_fields = ['id', 'miembros_representados']
 
+    def to_internal_value(self, data):
+        import json
+        ret = super().to_internal_value(data)
+        if 'tipo_grupo' in ret and not isinstance(ret['tipo_grupo'], str):
+            ret['tipo_grupo'] = json.dumps(ret['tipo_grupo'])
+        return ret
+
     def to_representation(self, instance):
+        import json
         ret = super().to_representation(instance)
+        
+        # Handle tipo_grupo if it belongs to DetalleGrupo
+        if hasattr(instance, 'detalle_grupo'):
+            val = instance.detalle_grupo.tipo_grupo
+            if val and isinstance(val, str):
+                try:
+                    ret['tipo_grupo'] = json.loads(val)
+                except:
+                    pass
         
         # Pull data from detail models if they exist
         profile_type = instance.profile_type

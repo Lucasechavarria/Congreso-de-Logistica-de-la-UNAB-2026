@@ -72,6 +72,11 @@ jobs:
           # Instalar/actualizar dependencias en el entorno virtual del servidor
           /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt
 
+      - name: Run Database Migrations
+        run: |
+          # Aplicar las migraciones automáticamente
+          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate
+
       - name: Restart Backend Service
         run: |
           # Reiniciar Gunicorn para aplicar cambios

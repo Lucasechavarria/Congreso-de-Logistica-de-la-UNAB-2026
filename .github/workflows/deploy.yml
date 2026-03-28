@@ -54,6 +54,9 @@ jobs:
         run: |
           mkdir -p /var/www/congreso/client/dist
           mkdir -p /var/www/congreso/backend
+          # Intentar recrear venv si no existe o si fue accidentalmente borrado
+          # Se usa python3 -m venv. Si ya existe, no hace nada perjudicial.
+          python3 -m venv /var/www/congreso/backend/env || true
 
       - name: Deploy Frontend
         run: |
@@ -64,24 +67,25 @@ jobs:
 
       - name: Sync Backend
         run: |
-          # Sincronizar código del backend (excluyendo lo local del server) e incluir --delete
-          rsync -av --delete --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
+          # Sincronizar código del backend (SIN --delete por ahora para evitar más pérdidas)
+          rsync -av --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
 
       - name: Install Python Dependencies
         run: |
-          # Instalar/actualizar dependencias en el entorno virtual del servidor
+          # Asegurar que pip esté actualizado y luego instalar requirements
+          # Continuar en caso de error para que ignore paquetes inexistentes tipo legacy-cgi
+          /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
           /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
       - name: Run Database Migrations
         run: |
-          # Aplicar las migraciones automáticamente (ignorar errores temporales)
-          # /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate || true
-          echo "Skipping migrations for emergency recovery"
+          # Aplicar las migraciones automáticamente (ignorar si fallan por bloqueo de Postgres)
+          # Esto garantiza que el flujo llegue al reinicio
+          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate || true
 
       - name: Restart Backend Service
         run: |
-          # Reiniciar Gunicorn para aplicar cambios (limpieza profunda de zombies)
-          sudo pkill -f gunicorn || true
+          # Reiniciar Gunicorn para aplicar cambios
           sudo systemctl restart gunicorn
 
-# Deep clean and stable deploy v3 - Skip Migrations
+# Reconstruction deploy v4 - Force venv creation

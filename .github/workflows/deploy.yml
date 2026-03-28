@@ -67,29 +67,24 @@ jobs:
       - name: Sync Backend
         run: |
           # Sincronizar código del backend (excluyendo lo local del server) e incluir --delete
-          # para limpiar potenciales archivos corruptos que causen el 502
           rsync -av --delete --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
 
       - name: Install Python Dependencies
         run: |
-          # Actualizar pip e instalar dependencias. Se usa || true para no bloquear el reinicio.
+          # Actualizar pip e instalar dependencias.
           /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
           /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
       - name: Run Database Migrations
         run: |
-          # Intentar migraciones, pero no bloquear si fallan por el bloqueo de Postgres
+          # Intentar migraciones bin/python
           /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate --noinput || true
 
-      - name: Restart Services (Emergency Recovery)
+      - name: Restart Services
         run: |
-          # Reiniciar servicios de forma agresiva
-          # Probamos diferentes nombres de servicio comunes
-          sudo pkill -f gunicorn || true
-          sudo systemctl restart gunicorn || true
-          sudo systemctl restart congreso || true
+          # Reiniciar servicios básicos (estos suelen tener permisos NOPASSWD)
+          sudo systemctl restart gunicorn
           sudo systemctl restart nginx
-          echo "Services restarted. Checking local process status:"
-          ps aux | grep gunicorn || true
+          echo "Services restarted."
 
-# Reconstruction and service hardening v5 - Emergency Recovery
+# Reconstruction and service hardening v6 - Compatibility fix

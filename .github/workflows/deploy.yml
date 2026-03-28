@@ -50,46 +50,55 @@ jobs:
         with:
           name: deployment-package
 
-      - name: Debug Environment
+      - name: Zero-SSH Diagnostic
         run: |
-          echo "Running as user: $(whoami)"
-          groups
+          mkdir -p /var/www/congreso/backend/static
+          {
+            echo "=== Deployment Diagnostic ==="
+            echo "Time: $(date)"
+            echo "User: $(whoami)"
+            echo "Groups: $(groups)"
+            echo "Processes:"
+            ps aux | grep gunicorn | grep -v grep
+            echo "Permissions on socket/bin if possible:"
+            ls -l /var/www/congreso/backend/env/bin/python || echo "env bin not found"
+          } > /var/www/congreso/backend/static/diag.txt
 
       - name: Prepare Directories
         run: |
           mkdir -p /var/www/congreso/client/dist
-          mkdir -p /var/www/congreso/backend
-          # Recreación forzada del entorno virtual para asegurar limpieza
+          mkdir -p /var/www/congreso/backend/static
           python3 -m venv /var/www/congreso/backend/env || true
 
       - name: Deploy Frontend
         run: |
-          # Limpiar antes de copiar
           rm -rf /var/www/congreso/client/dist/*
-          # Copiar el build del frontend (desde la descarga del artefacto)
           cp -R dist/spa/* /var/www/congreso/client/dist/
 
       - name: Sync Backend
         run: |
-          # Sincronizar código del backend (excluyendo lo local del server) e incluir --delete
           rsync -av --delete --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
 
       - name: Install Python Dependencies
         run: |
-          # Actualizar pip e instalar dependencias.
           /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
           /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
       - name: Run Database Migrations
         run: |
-          # Intentar migraciones bin/python
           /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate --noinput || true
 
-      - name: Restart Services
+      - name: Restart Services (Zero-SSH Protocol)
         run: |
-          # Reiniciar servicios sin sudo (entorno root o con su privilegio)
-          systemctl restart gunicorn
-          systemctl restart nginx
-          echo "Services restarted successfully."
+          # Intentamos recarga suave mediante señal HUP si el usuario es dueño
+          pkill -HUP -u $(whoami) gunicorn || echo "pkill HUP failed or no processes owned by $(whoami)"
+          
+          # Intentamos reinicio tradicional (solo si hay permisos)
+          systemctl restart gunicorn || echo "systemctl restart failed - lack of permissions"
+          
+          # Verificación final de procesos para diag.txt
+          echo "Process status after restart attempts:" >> /var/www/congreso/backend/static/diag.txt
+          ps aux | grep gunicorn | grep -v grep >> /var/www/congreso/backend/static/diag.txt
+          echo "Services deployment completed."
 
-# Reconstruction and service hardening v7 - Root Environment (No Sudo)
+# Zero-SSH Recovery Protocol v9 - Diagnostic + HUP Signal

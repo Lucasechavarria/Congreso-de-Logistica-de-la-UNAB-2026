@@ -50,55 +50,70 @@ jobs:
         with:
           name: deployment-package
 
-      - name: Zero-SSH Diagnostic
-        run: |
-          mkdir -p /var/www/congreso/backend/static
-          {
-            echo "=== Deployment Diagnostic ==="
-            echo "Time: $(date)"
-            echo "User: $(whoami)"
-            echo "Groups: $(groups)"
-            echo "Processes:"
-            ps aux | grep gunicorn | grep -v grep
-            echo "Permissions on socket/bin if possible:"
-            ls -l /var/www/congreso/backend/env/bin/python || echo "env bin not found"
-          } > /var/www/congreso/backend/static/diag.txt
-
       - name: Prepare Directories
         run: |
           mkdir -p /var/www/congreso/client/dist
           mkdir -p /var/www/congreso/backend/static
-          python3 -m venv /var/www/congreso/backend/env || true
 
       - name: Deploy Frontend
         run: |
           rm -rf /var/www/congreso/client/dist/*
           cp -R dist/spa/* /var/www/congreso/client/dist/
 
-      - name: Sync Backend
+      - name: Sync Backend to BOTH venvs
         run: |
-          rsync -av --delete --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
+          # Sincronizar código a la carpeta principal del backend
+          rsync -av --delete \
+            --exclude='.env' \
+            --exclude='venv' \
+            --exclude='env' \
+            --exclude='static' \
+            --exclude='media' \
+            --exclude='private_media' \
+            backend/ /var/www/congreso/backend/
 
-      - name: Install Python Dependencies
+      - name: Install Python Dependencies in VENV (used by root/gunicorn)
+        run: |
+          # IMPORTANT: La instancia activa de gunicorn usa /venv/ no /env/
+          # Actualizamos las dependencias en ese entorno virtual
+          /var/www/congreso/backend/venv/bin/python -m pip install --upgrade pip || true
+          /var/www/congreso/backend/venv/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
+
+      - name: Install Python Dependencies in ENV (fallback)
         run: |
           /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
           /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
-      - name: Run Database Migrations
+      - name: Run Database Migrations (via VENV)
         run: |
-          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate --noinput || true
+          /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py migrate --noinput || true
 
-      - name: Restart Services (Zero-SSH Protocol)
+      - name: Reload Gunicorn via HUP signal
         run: |
-          # Intentamos recarga suave mediante señal HUP si el usuario es dueño
-          pkill -HUP -u $(whoami) gunicorn || echo "pkill HUP failed or no processes owned by $(whoami)"
-          
-          # Intentamos reinicio tradicional (solo si hay permisos)
-          systemctl restart gunicorn || echo "systemctl restart failed - lack of permissions"
-          
-          # Verificación final de procesos para diag.txt
-          echo "Process status after restart attempts:" >> /var/www/congreso/backend/static/diag.txt
-          ps aux | grep gunicorn | grep -v grep >> /var/www/congreso/backend/static/diag.txt
-          echo "Services deployment completed."
+          # Enviamos HUP al proceso master de gunicorn (PID de root) para recargar el codigo
+          # HUP no mata el servicio, solo recarga los workers con el nuevo codigo
+          GUNICORN_PID=$(pgrep -u root -f "gunicorn.*core.wsgi" | head -1)
+          if [ -n "$GUNICORN_PID" ]; then
+            echo "Sending HUP to Gunicorn master PID: $GUNICORN_PID"
+            kill -HUP $GUNICORN_PID && echo "HUP signal sent successfully!"
+          else
+            echo "No root gunicorn process found, trying www-data..."
+            GUNICORN_PID2=$(pgrep -u www-data -f "gunicorn.*core.wsgi" | head -1)
+            if [ -n "$GUNICORN_PID2" ]; then
+              kill -HUP $GUNICORN_PID2 && echo "HUP sent to www-data gunicorn PID: $GUNICORN_PID2"
+            else
+              echo "WARNING: No gunicorn process found to reload."
+            fi
+          fi
 
-# Zero-SSH Recovery Protocol v9 - Diagnostic + HUP Signal
+      - name: Update Diagnostic File
+        run: |
+          {
+            echo "=== Post-deploy Diagnostic ==="
+            echo "Time: $(date)"
+            echo "User: $(whoami)"
+            echo "Gunicorn processes:"
+            ps aux | grep gunicorn | grep -v grep
+          } > /var/www/congreso/backend/static/diag.txt
+
+# v10 - Dual-venv fix: Targets the active venv AND sends HUP reload signal to gunicorn master

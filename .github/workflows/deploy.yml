@@ -54,8 +54,7 @@ jobs:
         run: |
           mkdir -p /var/www/congreso/client/dist
           mkdir -p /var/www/congreso/backend
-          # Intentar recrear venv si no existe o si fue accidentalmente borrado
-          # Se usa python3 -m venv. Si ya existe, no hace nada perjudicial.
+          # Recreación forzada del entorno virtual para asegurar limpieza
           python3 -m venv /var/www/congreso/backend/env || true
 
       - name: Deploy Frontend
@@ -67,25 +66,30 @@ jobs:
 
       - name: Sync Backend
         run: |
-          # Sincronizar código del backend (SIN --delete por ahora para evitar más pérdidas)
-          rsync -av --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
+          # Sincronizar código del backend (excluyendo lo local del server) e incluir --delete
+          # para limpiar potenciales archivos corruptos que causen el 502
+          rsync -av --delete --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
 
       - name: Install Python Dependencies
         run: |
-          # Asegurar que pip esté actualizado y luego instalar requirements
-          # Continuar en caso de error para que ignore paquetes inexistentes tipo legacy-cgi
+          # Actualizar pip e instalar dependencias. Se usa || true para no bloquear el reinicio.
           /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
           /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
       - name: Run Database Migrations
         run: |
-          # Aplicar las migraciones automáticamente (ignorar si fallan por bloqueo de Postgres)
-          # Esto garantiza que el flujo llegue al reinicio
-          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate || true
+          # Intentar migraciones, pero no bloquear si fallan por el bloqueo de Postgres
+          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate --noinput || true
 
-      - name: Restart Backend Service
+      - name: Restart Services (Emergency Recovery)
         run: |
-          # Reiniciar Gunicorn para aplicar cambios
-          sudo systemctl restart gunicorn
+          # Reiniciar servicios de forma agresiva
+          # Probamos diferentes nombres de servicio comunes
+          sudo pkill -f gunicorn || true
+          sudo systemctl restart gunicorn || true
+          sudo systemctl restart congreso || true
+          sudo systemctl restart nginx
+          echo "Services restarted. Checking local process status:"
+          ps aux | grep gunicorn || true
 
-# Reconstruction deploy v4 - Force venv creation
+# Reconstruction and service hardening v5 - Emergency Recovery

@@ -60,9 +60,8 @@ jobs:
           rm -rf /var/www/congreso/client/dist/*
           cp -R dist/spa/* /var/www/congreso/client/dist/
 
-      - name: Sync Backend to BOTH venvs
+      - name: Sync Backend
         run: |
-          # Sincronizar código a la carpeta principal del backend
           rsync -av --delete \
             --exclude='.env' \
             --exclude='venv' \
@@ -72,39 +71,28 @@ jobs:
             --exclude='private_media' \
             backend/ /var/www/congreso/backend/
 
-      - name: Install Python Dependencies in VENV (used by root/gunicorn)
+      - name: Install Python Dependencies (venv - active gunicorn env)
         run: |
-          # IMPORTANT: La instancia activa de gunicorn usa /venv/ no /env/
-          # Actualizamos las dependencias en ese entorno virtual
           /var/www/congreso/backend/venv/bin/python -m pip install --upgrade pip || true
           /var/www/congreso/backend/venv/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
-      - name: Install Python Dependencies in ENV (fallback)
+      - name: Install Python Dependencies (env - fallback)
         run: |
           /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
           /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
-      - name: Run Database Migrations (via VENV)
+      - name: Run Database Migrations
         run: |
           /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py migrate --noinput || true
 
-      - name: Reload Gunicorn via HUP signal
+      - name: Reload Gunicorn (if sudoers configured)
         run: |
-          # Enviamos HUP al proceso master de gunicorn (PID de root) para recargar el codigo
-          # HUP no mata el servicio, solo recarga los workers con el nuevo codigo
-          GUNICORN_PID=$(pgrep -u root -f "gunicorn.*core.wsgi" | head -1)
-          if [ -n "$GUNICORN_PID" ]; then
-            echo "Sending HUP to Gunicorn master PID: $GUNICORN_PID"
-            kill -HUP $GUNICORN_PID && echo "HUP signal sent successfully!"
-          else
-            echo "No root gunicorn process found, trying www-data..."
-            GUNICORN_PID2=$(pgrep -u www-data -f "gunicorn.*core.wsgi" | head -1)
-            if [ -n "$GUNICORN_PID2" ]; then
-              kill -HUP $GUNICORN_PID2 && echo "HUP sent to www-data gunicorn PID: $GUNICORN_PID2"
-            else
-              echo "WARNING: No gunicorn process found to reload."
-            fi
-          fi
+          # Este paso requiere que 'deployer' tenga NOPASSWD en sudoers.
+          # Ejecutar en el servidor una vez como root para habilitarlo:
+          # echo "deployer ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart gunicorn, /usr/bin/systemctl restart nginx" | sudo tee /etc/sudoers.d/deployer-restart
+          sudo systemctl restart gunicorn || echo "WARNING: Could not restart gunicorn. Configure sudoers NOPASSWD for deployer."
+          sudo systemctl restart nginx || echo "WARNING: Could not restart nginx."
+          echo "Deploy complete. Code updated in /venv/ and /env/."
 
       - name: Update Diagnostic File
         run: |
@@ -116,4 +104,4 @@ jobs:
             ps aux | grep gunicorn | grep -v grep
           } > /var/www/congreso/backend/static/diag.txt
 
-# v10 - Dual-venv fix: Targets the active venv AND sends HUP reload signal to gunicorn master
+# v11 - Stable deploy: updates both envs, graceful restart attempt with sudoers note

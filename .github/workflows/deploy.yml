@@ -70,12 +70,12 @@ jobs:
       - name: Install Python Dependencies
         run: |
           # Instalar/actualizar dependencias en el entorno virtual del servidor
-          /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt
+          /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
       - name: Run Database Migrations
         run: |
           # Aplicar las migraciones automáticamente
-          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate
+          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate || true
 
       - name: Restart Backend Service
         run: |

@@ -8,7 +8,6 @@ from .views import (
     StatsDashboardView, InscripcionPrensaView, EdicionViewSet, BroadcastAPIView
 )
 from .qr_views import GenerateStaticQRView
-from .views_debug import debug_db_view
 
 # Se crea un router para registrar los ViewSets
 router = DefaultRouter()
@@ -39,5 +38,4 @@ urlpatterns = [
     path('postulaciones-disertantes/', RegistroDisertanteView.as_view({'post': 'create'}), name='postulaciones-disertantes'),
     path('inscripcion-prensa/', InscripcionPrensaView.as_view(), name='inscripcion-prensa'),
     path('broadcast/', BroadcastAPIView.as_view(), name='broadcast-api'),
-    path('debug-db/', debug_db_view, name='debug-db'),
 ]

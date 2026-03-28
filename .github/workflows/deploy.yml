@@ -50,10 +50,6 @@ jobs:
         with:
           name: deployment-package
 
-      - name: Create Version File
-        run: |
-          echo "Deploy Time: $(date)" > backend/VERSION.txt
-
       - name: Prepare Directories
         run: |
           mkdir -p /var/www/congreso/client/dist
@@ -69,7 +65,7 @@ jobs:
       - name: Sync Backend
         run: |
           # Sincronizar código del backend (excluyendo lo local del server)
-          rsync -av --delete --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
+          rsync -av --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
 
       - name: Install Python Dependencies
         run: |
@@ -83,7 +79,7 @@ jobs:
 
       - name: Restart Backend Service
         run: |
-          # Reiniciar Gunicorn para aplicar cambios (con fallback)
-          sudo systemctl restart gunicorn || (sudo pkill -f gunicorn && sudo systemctl start gunicorn)
+          # Reiniciar Gunicorn para aplicar cambios
+          sudo systemctl restart gunicorn
 
 # Triggering fresh hybrid deploy

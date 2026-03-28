@@ -286,7 +286,7 @@ const RegistroParticipantes: React.FC = () => {
             'STUDENT': 'student',
             'TEACHER': 'teacher',
             'PROFESSIONAL': 'professional',
-            'PRESS': 'press',
+            'PRESS': 'PRESS',
             'GROUP_REPRESENTATIVE': 'groupRepresentative'
           };
           if (backendToFrontendMap[data.profile_type]) {

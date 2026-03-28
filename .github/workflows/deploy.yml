@@ -104,4 +104,4 @@ jobs:
             ps aux | grep gunicorn | grep -v grep
           } > /var/www/congreso/backend/static/diag.txt
 
-# v11 - Stable deploy: updates both envs, graceful restart attempt with sudoers note
+# v11b - Stable deploy: updates both envs, graceful restart OR manual restart needed

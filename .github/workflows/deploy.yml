@@ -64,8 +64,8 @@ jobs:
 
       - name: Sync Backend
         run: |
-          # Sincronizar código del backend (excluyendo lo local del server)
-          rsync -av --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
+          # Sincronizar código del backend (excluyendo lo local del server) e incluir --delete
+          rsync -av --delete --exclude='.env' --exclude='venv' --exclude='env' --exclude='static' --exclude='media' --exclude='private_media' backend/ /var/www/congreso/backend/
 
       - name: Install Python Dependencies
         run: |
@@ -74,12 +74,13 @@ jobs:
 
       - name: Run Database Migrations
         run: |
-          # Aplicar las migraciones automáticamente
+          # Aplicar las migraciones automáticamente (ignorar errores temporales)
           /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate || true
 
       - name: Restart Backend Service
         run: |
-          # Reiniciar Gunicorn para aplicar cambios
+          # Reiniciar Gunicorn para aplicar cambios (limpieza profunda de zombies)
+          sudo pkill -f gunicorn || true
           sudo systemctl restart gunicorn
 
-# Triggering fresh hybrid deploy
+# Deep clean and stable deploy v2

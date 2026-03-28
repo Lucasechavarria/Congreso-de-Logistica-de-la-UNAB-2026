@@ -50,6 +50,11 @@ jobs:
         with:
           name: deployment-package
 
+      - name: Debug Environment
+        run: |
+          echo "Running as user: $(whoami)"
+          groups
+
       - name: Prepare Directories
         run: |
           mkdir -p /var/www/congreso/client/dist
@@ -82,9 +87,9 @@ jobs:
 
       - name: Restart Services
         run: |
-          # Reiniciar servicios básicos (estos suelen tener permisos NOPASSWD)
-          sudo systemctl restart gunicorn
-          sudo systemctl restart nginx
-          echo "Services restarted."
+          # Reiniciar servicios sin sudo (entorno root o con su privilegio)
+          systemctl restart gunicorn
+          systemctl restart nginx
+          echo "Services restarted successfully."
 
-# Reconstruction and service hardening v6 - Compatibility fix
+# Reconstruction and service hardening v7 - Root Environment (No Sudo)

@@ -75,7 +75,8 @@ jobs:
       - name: Run Database Migrations
         run: |
           # Aplicar las migraciones automáticamente (ignorar errores temporales)
-          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate || true
+          # /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate || true
+          echo "Skipping migrations for emergency recovery"
 
       - name: Restart Backend Service
         run: |
@@ -83,4 +84,4 @@ jobs:
           sudo pkill -f gunicorn || true
           sudo systemctl restart gunicorn
 
-# Deep clean and stable deploy v2
+# Deep clean and stable deploy v3 - Skip Migrations

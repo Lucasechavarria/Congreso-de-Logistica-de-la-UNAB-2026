@@ -124,21 +124,28 @@ class RegistroDisertanteView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        from django.db import transaction
         try:
-            serializer.is_valid(raise_exception=True)
-            postulacion = serializer.save()
-            # Enviar email de confirmación de postulación
-            from .email import send_postulacion_disertante_email
-            email_success = send_postulacion_disertante_email(postulacion)
-            
-            msg = 'Postulación recibida correctamente.'
-            if email_success:
-                msg += ' Se ha enviado un email de confirmación.'
-            else:
-                msg += ' No se pudo enviar el email de confirmación (sistema de correos no configurado).'
+            with transaction.atomic():
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                postulacion = serializer.save()
                 
-            return Response({'status': 'success', 'message': msg, 'id': postulacion.id}, status=status.HTTP_201_CREATED)
+                # Enviar email de confirmación de postulación
+                from .email import send_postulacion_disertante_email
+                email_success = False
+                try:
+                    email_success = send_postulacion_disertante_email(postulacion)
+                except Exception as e:
+                    print(f"[ERROR] Fallo crítico al enviar email de disertante: {e}")
+                
+                msg = 'Postulación recibida correctamente.'
+                if email_success:
+                    msg += ' Se ha enviado un email de confirmación.'
+                else:
+                    msg += ' Postulación guardada, pero ocurrió un problema al enviar el correo.'
+                    
+                return Response({'status': 'success', 'message': msg, 'id': postulacion.id}, status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
             error_messages: dict[str, Any] = {}
             if isinstance(e.detail, dict):
@@ -151,7 +158,8 @@ class RegistroDisertanteView(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 error_messages = {'detail': str(e.detail)}
             return Response({'status': 'error', 'message': error_messages}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"[ERROR] Error inesperado en RegistroDisertanteView: {str(e)}")
+            return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado al procesar su postulación. Por favor intente nuevamente.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AsistenteCRMView(views.APIView):
     """

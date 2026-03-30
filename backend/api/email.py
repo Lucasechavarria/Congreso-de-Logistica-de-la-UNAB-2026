@@ -160,6 +160,8 @@ def send_individual_confirmation_email(asistente):
             tipo_inscripcion = "Visitante"
         elif asistente.profile_type == asistente.ProfileType.GRADUADO:
             tipo_inscripcion = "Graduado"
+        elif asistente.profile_type == asistente.ProfileType.PRESS:
+            tipo_inscripcion = "Prensa/Influencer"
         elif asistente.profile_type == asistente.ProfileType.OTRO:
             tipo_inscripcion = "Otro"
         
@@ -213,10 +215,25 @@ def send_postulacion_disertante_email(postulacion):
     Envía email de agradecimiento por postulación al disertante.
     """
     try:
+        # Sanetizar ejes temáticos si vienen como string JSON (TextField en DB)
+        charla_ejes = postulacion.ejes_tematicos
+        if isinstance(charla_ejes, str) and (charla_ejes.startswith('[') or charla_ejes.startswith('{')):
+            import json
+            try:
+                data_parsed = json.loads(charla_ejes)
+                if isinstance(data_parsed, list):
+                    charla_ejes = ", ".join(data_parsed)
+                else:
+                    charla_ejes = str(data_parsed)
+            except:
+                pass
+        elif isinstance(charla_ejes, list):
+            charla_ejes = ", ".join(charla_ejes)
+
         context = {
             'disertante_nombre': postulacion.nombre_apellido,
             'charla_titulo': postulacion.titulo_charla,
-            'charla_ejes': ", ".join(postulacion.ejes_tematicos) if isinstance(postulacion.ejes_tematicos, list) else postulacion.ejes_tematicos,
+            'charla_ejes': charla_ejes,
             'year': 2026,
             'evento_nombre': 'Congreso de Logística UNAB',
         }

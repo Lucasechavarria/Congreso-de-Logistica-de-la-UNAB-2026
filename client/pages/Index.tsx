@@ -108,16 +108,16 @@ export default function Index() {
   return (
     <Layout>
       <Helmet>
-        <title>Congreso Logística y Transporte Multimodal 2026 | UNAB</title>
-        <meta name="description" content="Únete al Congreso de Logística y Transporte 2026 en la UNAB. Descubre tendencias en transporte multimodal, logística verde y automatización. ¡Inscríbete hoy!" />
-        <meta name="keywords" content="Congreso de logística y transporte multimodal Argentina 2026, Tendencias en logística verde y sostenibilidad en Argentina, Automatización de carga y descarga en transporte multimodal, Congreso universitario de logística sustentable UNAB 2026" />
+        <title>Congreso Logística y Transporte 2026 | UNAB</title>
+        <meta name="description" content="Únete al Congreso de Logística y Transporte 2026 en la UNAB. Descubre tendencias en logística verde y automatización. ¡Inscríbete hoy!" />
+        <meta name="keywords" content="Congreso de logística y transporte Argentina 2026, Tendencias en logística verde y sostenibilidad en Argentina, Automatización de carga y descarga, Congreso universitario de logística sustentable UNAB 2026" />
         <link rel="canonical" href="https://www.congresologistica.unab.edu.ar/congreso-logistica-unab-2026" />
         {/* Schema.org for Event (Google Rich Snippets) */}
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Event",
-            "name": "Congreso de Logística y Transporte Multimodal 2026",
+            "name": "Congreso de Logística y Transporte 2026",
             "startDate": "2026-11-07T09:00",
             "endDate": "2026-11-08T18:00",
             "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
@@ -137,7 +137,7 @@ export default function Index() {
             "image": [
               "https://www.congresologistica.unab.edu.ar/images/CONGRESO-LOGISTICA-2.png"
             ],
-            "description": "Únete al Congreso de Logística y Transporte 2026 en la UNAB. Descubre tendencias en transporte multimodal, logística verde y automatización.",
+            "description": "Únete al Congreso de Logística y Transporte 2026 en la UNAB. Descubre tendencias en logística verde y automatización.",
             "offers": {
               "@type": "Offer",
               "url": "https://www.congresologistica.unab.edu.ar/registro-participantes",

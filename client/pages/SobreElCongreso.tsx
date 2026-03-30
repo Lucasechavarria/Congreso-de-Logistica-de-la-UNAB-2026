@@ -54,7 +54,7 @@ const NEWS_ARTICLES = [
   {
     title: "Diario de Malvinas: Consolidación Regional",
     date: "15 de Noviembre, 2025",
-    resume: "Reseña del éxito institucional del congreso, destacando la sinergia entre la universidad, el sector público y las empresas líderes del transporte multimodal.",
+    resume: "Reseña del éxito institucional del congreso, destacando la sinergia entre la universidad, el sector público y las empresas líderes del transporte y la logística.",
     link: "https://eldiariodemalvinas.com.ar/municipios-bonaerenses/primer-congreso-de-logistica-y-transporte-de-la-unab/"
   },
   {

@@ -9,7 +9,7 @@ django.setup()
 from api.models import Asistente, Empresa
 
 def count_today():
-    today = datetime(2026, 3, 20).date()
+    today = timezone.now().date()
     # Asistentes
     asistentes = Asistente.objects.filter(fecha_registro__date=today)
     # Empresas

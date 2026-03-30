@@ -2,10 +2,9 @@ import { ReactNode, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Button } from "./ui/button";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Mail, MapPin, Calendar } from "lucide-react";
 import CongressLogo from "./CongressLogo";
 import MobileNav from "./MobileNav";
-import { FiMail, FiMapPin, FiCalendar } from "react-icons/fi";
 
 interface LayoutProps {
   children: ReactNode;
@@ -216,11 +215,11 @@ export default function Layout({ children }: LayoutProps) {
             <div className="text-left">
               <h3 className="text-lg font-bold mb-4">Información del Evento</h3>
               <p className="text-gray-300 mb-2 flex items-center justify-start">
-                <FiCalendar className="text-white mr-2 flex-shrink-0" />
+                <Calendar className="text-white mr-2 flex-shrink-0 h-5 w-5" />
                 <span>7 de Noviembre de 2026</span>
               </p>
               <p className="text-gray-300 mb-2 notranslate flex items-center justify-start">
-                <FiMapPin className="text-white mr-2 flex-shrink-0" />
+                <MapPin className="text-white mr-2 flex-shrink-0 h-5 w-5" />
                 <span>Campus UNaB, Blas Parera 132, Burzaco</span>
               </p>
               <p className="text-gray-300 notranslate">
@@ -228,7 +227,7 @@ export default function Layout({ children }: LayoutProps) {
                   href="mailto:congresologisticaytransporte@unab.edu.ar"
                   className="text-gray-300 hover:underline flex items-center justify-start"
                 >
-                  <FiMail className="text-white mr-2 flex-shrink-0" />
+                  <Mail className="text-white mr-2 flex-shrink-0 h-5 w-5" />
                   <span>
                     congresologisticaytransporte
                     <br className="md:hidden" />

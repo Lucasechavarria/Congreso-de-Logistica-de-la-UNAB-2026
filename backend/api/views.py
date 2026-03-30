@@ -91,29 +91,33 @@ class RegistroEmpresasView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        from django.db import transaction
         try:
-            serializer.is_valid(raise_exception=True)
-            empresa = serializer.save()
-            # Enviar email de confirmación al contacto de la empresa
-            from .email import send_empresa_confirmation_email
-            email_success = False
-            try:
-                email_success = send_empresa_confirmation_email(empresa)
-            except Exception as e:
-                print(f"[ERROR] No se pudo enviar el email de confirmación a la empresa: {e}")
-            
-            msg = 'Registro de empresa realizado correctamente.'
-            if email_success:
-                msg += ' Se ha enviado un email de confirmación.'
-            else:
-                msg += ' No se pudo enviar el email de confirmación (sistema de correos no configurado).'
+            with transaction.atomic():
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                empresa = serializer.save()
+                
+                # Enviar email de confirmación al contacto de la empresa
+                from .email import send_empresa_confirmation_email
+                email_success = False
+                try:
+                    email_success = send_empresa_confirmation_email(empresa)
+                except Exception as e:
+                    print(f"[ERROR] No se pudo enviar el email de confirmación a la empresa: {e}")
+                
+                msg = 'Registro de empresa realizado correctamente.'
+                if email_success:
+                    msg += ' Se ha enviado un email de confirmación.'
+                else:
+                    msg += ' Registro guardado, pero ocurrió un problema al enviar el correo.'
 
-            return Response({'status': 'success', 'message': msg, 'id': empresa.id}, status=status.HTTP_201_CREATED)
+                return Response({'status': 'success', 'message': msg, 'id': empresa.id}, status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
             return Response({'status': 'error', 'message': e.detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"[ERROR] Error inesperado en RegistroEmpresasView: {str(e)}")
+            return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado al procesar el registro de la empresa. Por favor intente más tarde.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class RegistroDisertanteView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """
@@ -249,7 +253,7 @@ class RegistroViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 if email_success:
                     msg += ' Se ha enviado un email de confirmación.'
                 else:
-                    msg += ' Inscripción guardada, pero ocurrió un problema al enviar el correo.'
+                    msg += ' Registro guardado, pero ocurrió un problema al enviar el correo.'
                 
                 headers = self.get_success_headers(serializer.data)
                 return Response({'status': 'success', 'message': msg, 'id': inscripcion.id}, status=status.HTTP_201_CREATED, headers=headers)
@@ -265,7 +269,8 @@ class RegistroViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 error_messages = {'detail': str(e.detail)}
             return Response({'status': 'error', 'message': error_messages}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"[ERROR] Error inesperado en RegistroViewSet: {str(e)}")
+            return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado al procesar su inscripción. Por favor intente nuevamente.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VerificarDNIView(views.APIView):
     """
@@ -1253,18 +1258,32 @@ class InscripcionPrensaView(views.APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = InscripcionPrensaSerializer(data=request.data)
-        if serializer.is_valid():
-            inscripcion = serializer.save()
+        from django.db import transaction
+        try:
+            with transaction.atomic():
+                serializer = InscripcionPrensaSerializer(data=request.data)
+                if not serializer.is_valid():
+                    return Response({
+                        'status': 'error',
+                        'message': serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                inscripcion = serializer.save()
+                
+                # Intentar enviar email de notificación interna o confirmación si existe
+                # Por ahora el sistema usa inscripciones de prensa voluntarias
+                
+                return Response({
+                    'status': 'success',
+                    'message': 'Tu inscripción fue recibida correctamente. Nos pondremos en contacto próximamente.',
+                    'id': inscripcion.id,
+                }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f"[ERROR] Error inesperado en InscripcionPrensaView: {str(e)}")
             return Response({
-                'status': 'success',
-                'message': 'Tu inscripción fue recibida correctamente. Nos pondremos en contacto próximamente.',
-                'id': inscripcion.id,
-            }, status=status.HTTP_201_CREATED)
-        return Response({
-            'status': 'error',
-            'errors': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+                'status': 'error',
+                'message': 'Ha ocurrido un error inesperado al procesar su solicitud de prensa. Por favor intente más tarde.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class BroadcastAPIView(views.APIView):

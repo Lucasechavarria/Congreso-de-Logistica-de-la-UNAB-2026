@@ -78,6 +78,7 @@ const RegistroDisertante: React.FC = () => {
     const { toast } = useToast();
     const [showModal, setShowModal] = useState(false);
     const [isCheckingCRM, setIsCheckingCRM] = useState(false);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [crmMode, setCrmMode] = useState(false); // Indica si estamos editando un existente
 
     const {
@@ -210,11 +211,13 @@ const RegistroDisertante: React.FC = () => {
         try {
             const response = await postularDisertante(dataToSend);
             if (response && response.status === "success" || response.id) {
+                const msg = response.message || "Hemos recibido tu propuesta. Nuestro equipo académico se contactará contigo.";
                 toast({
                     title: "✅ ¡Postulación Registrada!",
-                    description: "Hemos recibido tu propuesta. Nuestro equipo académico se contactará contigo.",
+                    description: msg,
                     variant: "default",
                 });
+                setSuccessMessage(msg);
                 setShowModal(true);
                 reset();
             } else {
@@ -342,11 +345,11 @@ const RegistroDisertante: React.FC = () => {
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="mx-auto flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                                <Presentation className="w-8 h-8 text-blue-600" />
+                                <CheckCircle className="w-8 h-8 text-blue-600" />
                             </div>
                             <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Postulación Enviada!</h2>
                             <p className="text-slate-600 mb-8 leading-relaxed">
-                                Su propuesta para disertar ha sido enviada con éxito. El Comité Académico evaluará la postulación y nos pondremos en contacto pronto por correo electrónico.
+                                {successMessage || "Se ha enviado un email de confirmación a la dirección registrada con todos los detalles del congreso."}
                             </p>
                             <FormButton onClick={handleCloseModal} fullWidth>
                                 Continuar

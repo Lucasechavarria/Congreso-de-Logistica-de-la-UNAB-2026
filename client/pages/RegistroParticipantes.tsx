@@ -156,6 +156,7 @@ const RegistroParticipantes: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showModal, setShowModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [profileType, setProfileType] = useState<FormData["profileType"]>("visitor");
 
   // Estado para el archivo Excel
@@ -464,11 +465,13 @@ const RegistroParticipantes: React.FC = () => {
       }
 
       if (response && response.status === "success") {
+        const successMsg = response.message || "Tu inscripción ha sido procesada correctamente.";
         toast({
           title: "✅ ¡Registro exitoso!",
-          description: response.message || "Tu inscripción ha sido procesada correctamente.",
+          description: successMsg,
           variant: "default",
         });
+        setSuccessMessage(successMsg); // Add state for this
         setShowModal(true);
         reset();
         setValue("groupSize", 0);
@@ -574,7 +577,7 @@ const RegistroParticipantes: React.FC = () => {
               </div>
               <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Inscripción Exitosa!</h2>
               <p className="text-slate-600 mb-8 leading-relaxed">
-                Se ha enviado un email de confirmación a la dirección registrada con todos los detalles del congreso.
+                {successMessage || "Se ha enviado un email de confirmación a la dirección registrada con todos los detalles del congreso."}
               </p>
               <FormButton
                 onClick={() => {

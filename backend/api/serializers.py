@@ -34,8 +34,22 @@ class InscripcionPrensaSerializer(serializers.ModelSerializer):
         edicion_activa = Edicion.objects.filter(activa=True).first()
         if not edicion_activa:
             raise serializers.ValidationError({'edicion': 'No hay una edición activa configurada en el sistema.'})
-        validated_data['edicion'] = edicion_activa
-        return InscripcionPrensa.objects.create(**validated_data)
+        
+        email = validated_data.get('email')
+        nombre = validated_data.get('nombre_apellido')
+        
+        # Upsert logic for Press
+        inscripcion = InscripcionPrensa.objects.filter(email=email).first()
+        if inscripcion:
+            for attr, value in validated_data.items():
+                setattr(inscripcion, attr, value)
+            inscripcion.edicion = edicion_activa
+            inscripcion.save()
+        else:
+            validated_data['edicion'] = edicion_activa
+            inscripcion = InscripcionPrensa.objects.create(**validated_data)
+            
+        return inscripcion
 
 
 class PostulacionDisertanteSerializer(serializers.ModelSerializer):
@@ -179,6 +193,7 @@ class ProgramaSerializer(serializers.ModelSerializer):
 
 class EmpresaSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
+        import json
         errors = {}
         # Solo nombre_empresa es estrictamente obligatorio aquí
         if not data.get('nombre_empresa'):
@@ -186,13 +201,32 @@ class EmpresaSerializer(serializers.ModelSerializer):
         
         if errors:
             raise serializers.ValidationError(errors)
-        return super().to_internal_value(data)
+            
+        ret = super().to_internal_value(data)
+        
+        # SQL_ASCII compatibility: stringify lists/dicts
+        if 'participacion_opciones' in ret and not isinstance(ret['participacion_opciones'], str):
+            ret['participacion_opciones'] = json.dumps(ret['participacion_opciones'])
+            
+        return ret
 
     def validate_sitio_web(self, value):
         """Permite que el sitio web sea opcional aceptando cadenas vacías o None."""
         if not value or (isinstance(value, str) and not value.strip()):
             return None
         return value
+
+    def to_representation(self, instance):
+        import json
+        ret = super().to_representation(instance)
+        # SQL_ASCII compatibility: parse JSON back to list/dict for frontend
+        val = getattr(instance, 'participacion_opciones', None)
+        if val and isinstance(val, str) and (val.startswith('[') or val.startswith('{')):
+            try:
+                ret['participacion_opciones'] = json.loads(val)
+            except:
+                pass
+        return ret
 
     def validate_logo(self, value):
         """Validación flexible para el logo."""
@@ -307,18 +341,26 @@ class AsistenteSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         import json
         ret = super().to_internal_value(data)
-        if 'tipo_grupo' in ret and not isinstance(ret['tipo_grupo'], str):
-            ret['tipo_grupo'] = json.dumps(ret['tipo_grupo'])
+        for field in ['tipo_grupo', 'prensa_links']:
+            if field in ret and ret[field] is not None and not isinstance(ret[field], str):
+                ret[field] = json.dumps(ret[field])
         return ret
 
     def to_representation(self, instance):
         import json
         ret = super().to_representation(instance)
-        
+        # SQL_ASCII compatibility: parse JSON back to list/dict for frontend
+        for field in ['tipo_grupo', 'prensa_links']:
+            val = getattr(instance, field, None)
+            if val and isinstance(val, str) and (val.startswith('[') or val.startswith('{')):
+                try:
+                    ret[field] = json.loads(val)
+                except:
+                    pass
         # Handle tipo_grupo if it belongs to DetalleGrupo
         if hasattr(instance, 'detalle_grupo'):
             val = instance.detalle_grupo.tipo_grupo
-            if val and isinstance(val, str):
+            if val and isinstance(val, str) and (val.startswith('[') or val.startswith('{')):
                 try:
                     ret['tipo_grupo'] = json.loads(val)
                 except:

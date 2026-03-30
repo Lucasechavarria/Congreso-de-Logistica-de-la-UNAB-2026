@@ -136,7 +136,7 @@ class Empresa(models.Model):
     cargo_contacto = models.CharField(max_length=255, blank=True, null=True, verbose_name="Cargo que cumple en la empresa / institución")
 
     # Participation
-    participacion_opciones = models.CharField(max_length=50, blank=True, null=True, verbose_name="¿Cómo les gustaría participar?")
+    participacion_opciones = models.CharField(max_length=500, blank=True, null=True, verbose_name="¿Cómo les gustaría participar?")
     participacion_otra = models.CharField(max_length=255, blank=True, null=True, verbose_name="Otra forma de participación")
 
     # Logística y TyC

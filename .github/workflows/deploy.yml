@@ -90,8 +90,8 @@ jobs:
       - name: Restart Services
         run: |
           # Reinicio usando 'sudo', asumiendo permisos NOPASSWD otorgados en Fase 1
-          sudo systemctl restart gunicorn
-          sudo systemctl restart nginx
+          systemctl restart gunicorn
+          systemctl restart nginx
           echo "Deploy complete. Memory freed and services restarted."
 
       - name: Update Diagnostic File

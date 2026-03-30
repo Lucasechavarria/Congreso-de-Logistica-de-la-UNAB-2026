@@ -60,6 +60,12 @@ jobs:
           rm -rf /var/www/congreso/client/dist/*
           cp -R dist/spa/* /var/www/congreso/client/dist/
 
+      - name: Clean Python Cache
+        run: |
+          # Eliminar archivos .pyc compilados para ahorrar espacio antes de sincronizar
+          find backend/ -type d -name "__pycache__" -exec rm -rf {} + || true
+          find backend/ -name "*.pyc" -delete || true
+
       - name: Sync Backend
         run: |
           rsync -av --delete \
@@ -71,28 +77,22 @@ jobs:
             --exclude='private_media' \
             backend/ /var/www/congreso/backend/
 
-      - name: Install Python Dependencies (venv - active gunicorn env)
+      - name: Install Python Dependencies (venv)
         run: |
+          # Usar exclusivamente /venv/ (entorno real de gunicorn) para ahorrar espacio
           /var/www/congreso/backend/venv/bin/python -m pip install --upgrade pip || true
           /var/www/congreso/backend/venv/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
-
-      - name: Install Python Dependencies (env - fallback)
-        run: |
-          /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
-          /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
       - name: Run Database Migrations
         run: |
           /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py migrate --noinput || true
 
-      - name: Reload Gunicorn (if sudoers configured)
+      - name: Restart Services
         run: |
-          # Este paso requiere que 'deployer' tenga NOPASSWD en sudoers.
-          # Ejecutar en el servidor una vez como root para habilitarlo:
-          # echo "deployer ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart gunicorn, /usr/bin/systemctl restart nginx" | sudo tee /etc/sudoers.d/deployer-restart
-          sudo systemctl restart gunicorn || echo "WARNING: Could not restart gunicorn. Configure sudoers NOPASSWD for deployer."
-          sudo systemctl restart nginx || echo "WARNING: Could not restart nginx."
-          echo "Deploy complete. Code updated in /venv/ and /env/."
+          # Reinicio usando 'sudo', asumiendo permisos NOPASSWD otorgados en Fase 1
+          sudo systemctl restart gunicorn
+          sudo systemctl restart nginx
+          echo "Deploy complete. Memory freed and services restarted."
 
       - name: Update Diagnostic File
         run: |
@@ -104,4 +104,4 @@ jobs:
             ps aux | grep gunicorn | grep -v grep
           } > /var/www/congreso/backend/static/diag.txt
 
-# v11b - Stable deploy: updates both envs, graceful restart OR manual restart needed
+# v12 - Optimized deploy: single venv, cache cleanup, strict sudo reload.

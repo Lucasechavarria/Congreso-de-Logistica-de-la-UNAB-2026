@@ -96,3 +96,8 @@ netlify/
 .netlify/
 .terraform/
 .serverless/
+
+# Django generated static files
+backend/static/
+static/
+

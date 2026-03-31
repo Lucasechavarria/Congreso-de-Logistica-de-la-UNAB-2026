@@ -184,12 +184,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 STATIC_URL = '/static/'
 
+# En producción y desarrollo (para collectstatic), recolectar archivos estáticos aquí
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
 # En desarrollo, asegúrate de que Django busque los archivos estáticos en las apps
 if os.getenv('DJANGO_ENV') == 'development':
     STATICFILES_DIRS = []
-else:
-    # En producción, recolectar archivos estáticos aquí
-    STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

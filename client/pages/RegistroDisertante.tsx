@@ -7,7 +7,9 @@ import {
     FormButton,
     FormCard,
     FormSection,
-    FormTextArea
+    FormTextArea,
+    FormCheckbox,
+    FormSelect
 } from "@/components/ui/modern-form";
 import {
     User,
@@ -119,11 +121,20 @@ const RegistroDisertante: React.FC = () => {
 
                         // Extraer el eje
                         let ejePrincipal = "";
-                        let ejeOtro = "";
                         const rawEjes = d.ejes_tematicos || "";
-                        if (rawEjes.includes("Otro") || !ejesOpciones.includes(rawEjes.replace(/[\[\]'"]/g, ''))) {
-                            // Si no está en las opciones normales, es probable que sea "Otro"
-                            // Nota: esto requeriría un trato más fino según cómo envíe la API
+                        try {
+                            const ejes = Array.isArray(rawEjes) ? rawEjes : (typeof rawEjes === 'string' && (rawEjes.startsWith('[') || rawEjes.startsWith('{')) ? JSON.parse(rawEjes) : [rawEjes]);
+                            if (ejes && ejes.length > 0) {
+                                // Buscar si el eje existe en nuestras opciones
+                                const foundEje = ejesOpciones.find(opt => ejes.includes(opt));
+                                ejePrincipal = foundEje || (ejes[0] === "otro" ? "otro" : "");
+                                if (!foundEje && ejes[0] && ejes[0] !== "otro") {
+                                    ejePrincipal = "otro";
+                                    // El valor de ejeOtro se asignará en el reset general abajo
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Error parseando ejes:", e);
                         }
 
                         // Formatear público objetivo
@@ -131,7 +142,10 @@ const RegistroDisertante: React.FC = () => {
                         try {
                             publico = Array.isArray(d.publico_dirigido) ? d.publico_dirigido : JSON.parse(d.publico_dirigido?.replace(/'/g, '"') || "[]");
                         } catch {
-                            publico = [];
+                            // Fallback para strings simples o nulos
+                            if (d.publico_dirigido && typeof d.publico_dirigido === 'string') {
+                                publico = [d.publico_dirigido];
+                            }
                         }
 
                         reset({
@@ -146,11 +160,12 @@ const RegistroDisertante: React.FC = () => {
                             tituloCharla: d.titulo_charla || "",
                             resumenCharla: d.resumen_charla || "",
                             objetivosCharla: d.objetivos_charla || "",
-                            // Asignaciones simplificadas por ahora
                             modalidad: modalidadOpciones.find(m => parseadoModalidad.includes(m)) || "",
                             participacionTipo: participacionOpciones.find(p => parseadoParticipacion.includes(p)) || "",
                             publicoDirigido: publico,
-                            ejesTematicos: "", // Requiere adaptación específica
+                            ejesTematicos: ejePrincipal,
+                            ejeOtro: d.eje_otro || (ejePrincipal === "otro" ? (Array.isArray(rawEjes) ? rawEjes[0] : rawEjes) : ""),
+                            aceptaTyC: true
                         });
 
                         setCrmMode(true);
@@ -569,23 +584,17 @@ const RegistroDisertante: React.FC = () => {
 
                         {/* TyC y Botón de envío */}
                         <div className="pt-6 border-t border-slate-200">
-                            <div className="mb-6 flex items-start gap-3 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-                                <input
-                                    type="checkbox"
+                            <div className="mb-6 bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
+                                <FormCheckbox
                                     id="aceptaTyC"
-                                    className="mt-1 h-5 w-5 rounded border-gray-300 text-congress-blue focus:ring-congress-blue focus:outline-none"
+                                    label={
+                                        <span className="text-sm text-slate-700 leading-relaxed">
+                                            Declaro que la información es verídica y confirmo que he leído y acepto expresamente las <TermsAndConditionsModal type="disertante" /> del Congreso de Logística y Transporte.
+                                        </span>
+                                    }
                                     {...register("aceptaTyC")}
+                                    error={errors.aceptaTyC?.message}
                                 />
-                                <div className="flex-1">
-                                    <label htmlFor="aceptaTyC" className="text-sm text-gray-700 leading-relaxed">
-                                        Declaro que la información es verídica y confirmo que he leído y acepto expresamente las <TermsAndConditionsModal type="disertante" /> del Congreso de Logística y Transporte.
-                                    </label>
-                                    {errors.aceptaTyC && (
-                                        <p className="text-xs text-red-600 font-medium mt-1">
-                                            {errors.aceptaTyC.message}
-                                        </p>
-                                    )}
-                                </div>
                             </div>
 
                             <FormButton
@@ -593,9 +602,9 @@ const RegistroDisertante: React.FC = () => {
                                 fullWidth
                                 size="lg"
                                 isLoading={isSubmitting}
-                                icon={<Presentation className="h-5 w-5" />}
+                                className="shadow-xl shadow-congress-blue/20"
                             >
-                                {isSubmitting ? "Enviando Postulación..." : crmMode ? "Actualizar Postulación" : "Enviar Postulación como Disertante"}
+                                {isSubmitting ? "Enviando Postulación..." : crmMode ? "Actualizar Mi Postulación" : "Enviar Mi Postulación"}
                             </FormButton>
                         </div>
                     </form>

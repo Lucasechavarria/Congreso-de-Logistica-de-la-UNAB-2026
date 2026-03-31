@@ -33,7 +33,7 @@ const GALLERY_IMAGES = [
   { url: "/images/edicion-2025/2025-gallery-6.webp", alt: "Exposición de stands empresariales" },
   { url: "/images/edicion-2025/2025-gallery-7.webp", alt: "Debates y rondas de negocios" },
   { url: "/images/edicion-2025/2025-gallery-8.webp", alt: "Innovación tecnológica en el campus" },
-  { url: "/images/edicion-2025/2025-gallery-9.webp", alt: "Cierre de la jornada 2025" },
+  { url: "/images/edicion-2025/2025-gallery-9.jpeg", alt: "Cierre de la jornada 2025" },
   { url: "/images/edicion-2025/2025-gallery-10.webp", alt: "Intercambio de experiencias" },
   { url: "/images/edicion-2025/2025-gallery-11.webp", alt: "Participación institucional" }
 ];

@@ -154,32 +154,35 @@ const RegistroEmpresas: React.FC = () => {
 
   const onSubmit = async (data: CompanyRegistrationFormData) => {
     try {
-      const dataToSend: any = {
-        nombre_empresa: data.companyName,
-        email_empresa: data.companyEmail,
-        sitio_web: data.website || "",
-        descripcion: data.companyDescription || "",
-        nombre_contacto: data.contactPersonName,
-        email_contacto: data.contactPersonEmail,
-        celular_contacto: data.contactPersonPhone,
-        cargo_contacto: data.cargoContacto,
-        participo_edicion_anterior: data.participoEdicionAnterior,
-        rubro_logistico: data.rubroLogistico,
-        requiere_electricidad: data.requiereElectricidad,
-        computadora_o_pantalla: data.computadoraOPantalla,
-        tipo_mobiliario: data.tipoMobiliario,
-        gazebo_propio: data.gazeboPropio,
-        estructura_adicional: data.estructuraAdicional || "",
-        acciones_stand: data.accionesStand || "",
-        acepta_tyc: data.aceptaTyC,
-        participacion_opciones: [participationType || "stand"]
-      };
+      const formData = new FormData();
+      formData.append("nombre_empresa", data.companyName);
+      formData.append("email_empresa", data.companyEmail);
+      formData.append("sitio_web", data.website || "");
+      formData.append("descripcion", data.companyDescription || "");
+      formData.append("nombre_contacto", data.contactPersonName);
+      formData.append("email_contacto", data.contactPersonEmail);
+      formData.append("celular_contacto", data.contactPersonPhone);
+      formData.append("cargo_contacto", data.cargoContacto);
+      formData.append("participo_edicion_anterior", String(data.participoEdicionAnterior));
+      formData.append("rubro_logistico", data.rubroLogistico);
+      formData.append("requiere_electricidad", String(data.requiereElectricidad));
+      formData.append("computadora_o_pantalla", String(data.computadoraOPantalla));
+      formData.append("tipo_mobiliario", data.tipoMobiliario);
+      formData.append("gazebo_propio", String(data.gazeboPropio));
+      formData.append("estructura_adicional", data.estructuraAdicional || "");
+      formData.append("acciones_stand", data.accionesStand || "");
+      formData.append("acepta_tyc", String(data.aceptaTyC));
+      formData.append("participacion_opciones", JSON.stringify([participationType || "stand"]));
 
       if (otraParticipacion) {
-        dataToSend.participacion_otra = otraParticipacion;
+        formData.append("participacion_otra", otraParticipacion);
       }
 
-      const response = await registrarEmpresa(dataToSend);
+      if (data.logo && data.logo[0]) {
+        formData.append("logo", data.logo[0]);
+      }
+
+      const response = await registrarEmpresa(formData);
       if (response && (response.status === "success" || response.id)) {
         const msg = response.message || "Tu registro empresarial ha sido procesado correctamente.";
         toast({
@@ -306,28 +309,105 @@ const RegistroEmpresas: React.FC = () => {
             </FormSection>
 
             <FormSection title="Participación" description="Modalidad de interés">
-              <select
-                className="w-full p-3 border rounded-lg"
-                value={participationType}
-                onChange={e => setParticipationType(e.target.value)}
-                required
-              >
-                <option value="">Seleccione una opción...</option>
-                {participationOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.label}</option>
-                ))}
-              </select>
+              <div className="space-y-4">
+                <select
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-congress-blue outline-none"
+                  value={participationType}
+                  onChange={e => setParticipationType(e.target.value)}
+                  required
+                >
+                  <option value="">Seleccione una opción...</option>
+                  {participationOptions.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+                {participationType === "otra" && (
+                  <FormInput
+                    label="Especifique otra modalidad"
+                    placeholder="Escriba aquí..."
+                    value={otraParticipacion}
+                    onChange={e => setOtraParticipacion(e.target.value)}
+                  />
+                )}
+              </div>
+            </FormSection>
+
+            <FormSection title="Logística y Necesidades" description="Detalles para la organización del espacio">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormCheckbox
+                  label="¿Participó en ediciones anteriores?"
+                  {...register("participoEdicionAnterior")}
+                />
+                <FormCheckbox
+                  label="¿Requiere conexión eléctrica?"
+                  {...register("requiereElectricidad")}
+                />
+                <FormCheckbox
+                  label="¿Traerá pantalla/computadora propia?"
+                  {...register("computadoraOPantalla")}
+                />
+                <FormCheckbox
+                  label="¿Cuenta con gazebo propio?"
+                  {...register("gazeboPropio")}
+                />
+              </div>
+
+              <div className="mt-6">
+                <label className="text-sm font-semibold text-slate-800 mb-2 block">Tipo de Mobiliario Requerido</label>
+                <select
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-congress-blue outline-none"
+                  {...register("tipoMobiliario")}
+                >
+                  <option value="Ninguno">No requiere mobiliario</option>
+                  <option value="Mesa y dos sillas">Mesa y dos sillas</option>
+                  <option value="Solo mesa">Solo mesa</option>
+                  <option value="Solo dos sillas">Solo dos sillas</option>
+                </select>
+              </div>
+
+              <div className="mt-6 space-y-6">
+                <FormTextArea
+                  label="Estructura Adicional"
+                  placeholder="Describa si traerá banners, back de prensa, etc."
+                  {...register("estructuraAdicional")}
+                />
+                <FormTextArea
+                  label="Acciones en el Stand"
+                  placeholder="Sorteos, entrega de merchandising, juegos, etc."
+                  {...register("accionesStand")}
+                />
+              </div>
+
+              <div className="mt-6">
+                <FormFileInput
+                  label="Logo de la Empresa (Opcional)"
+                  {...register("logo")}
+                  accept="image/*"
+                  helperText="Formatos soportados: JPG, PNG. Máx 2MB."
+                />
+              </div>
             </FormSection>
 
             <div className="pt-6 border-t border-slate-200">
-              <div className="mb-6 flex items-start gap-3">
-                <input type="checkbox" id="aceptaTyC" {...register("aceptaTyC")} className="mt-1" />
-                <label htmlFor="aceptaTyC" className="text-sm">
-                  He leído y acepto las Bases y Condiciones.
-                </label>
+              <div className="mb-6 bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
+                <FormCheckbox
+                  id="aceptaTyC"
+                  label={
+                    <span className="text-sm text-slate-700 leading-relaxed">
+                      Declaro que la información es verídica y confirmo que he leído y acepto las <TermsAndConditionsModal type="stand" /> para empresas participantes.
+                    </span>
+                  }
+                  {...register("aceptaTyC")}
+                  error={errors.aceptaTyC?.message}
+                />
               </div>
-              <FormButton type="submit" fullWidth isLoading={isSubmitting}>
-                {isSubmitting ? "Enviando..." : "Registrar Empresa"}
+              <FormButton
+                type="submit"
+                fullWidth
+                isLoading={isSubmitting}
+                className="shadow-xl shadow-congress-blue/20"
+              >
+                {isSubmitting ? "Enviando Registro..." : "Registrar Empresa"}
               </FormButton>
             </div>
           </form>

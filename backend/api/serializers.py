@@ -334,7 +334,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
             'career_taught', 'work_area', 'occupation',
             'group_name', 'group_municipality', 'group_size', 'tipo_grupo',
             'miembros_grupo', 'miembros_grupo_nuevos', 'miembros_representados', 'rol_especifico',
-            'prensa_medio', 'prensa_links'
+            'prensa_medio', 'prensa_links', 'asistencia_confirmada', 'fecha_confirmacion'
         ]
         read_only_fields = ['id', 'miembros_representados']
 
@@ -369,9 +369,9 @@ class AsistenteSerializer(serializers.ModelSerializer):
         # Pull data from detail models if they exist
         profile_type = instance.profile_type
         
-        if profile_type == Asistente.ProfileType.STUDENT and hasattr(instance, 'detalle_estudiante'):
+        if profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO] and hasattr(instance, 'detalle_estudiante'):
             detalle = instance.detalle_estudiante
-            ret['is_unab_student'] = detalle.is_unab_student
+            ret['is_unab_student'] = getattr(detalle, 'is_unab_student', False)
             ret['institution'] = detalle.institution
             ret['career'] = detalle.career
             ret['year_of_study'] = detalle.year_of_study
@@ -381,7 +381,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
             ret['institution'] = detalle.institution
             ret['career_taught'] = detalle.career_taught
             
-        elif profile_type == Asistente.ProfileType.PROFESSIONAL and hasattr(instance, 'detalle_profesional'):
+        elif profile_type in [Asistente.ProfileType.PROFESSIONAL, Asistente.ProfileType.OTRO] and hasattr(instance, 'detalle_profesional'):
             detalle = instance.detalle_profesional
             ret['work_area'] = detalle.work_area
             ret['occupation'] = detalle.occupation
@@ -445,7 +445,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
 
         # Upsert detalles según profile_type
         profile_type = asistente.profile_type
-        if profile_type == Asistente.ProfileType.STUDENT:
+        if profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO]:
             DetalleEstudiante.objects.update_or_create(
                 asistente=asistente,
                 defaults={
@@ -463,11 +463,11 @@ class AsistenteSerializer(serializers.ModelSerializer):
                     'career_taught': career_taught,
                 }
             )
-        elif profile_type == Asistente.ProfileType.PROFESSIONAL:
+        elif profile_type in [Asistente.ProfileType.PROFESSIONAL, Asistente.ProfileType.OTRO]:
             DetalleProfesional.objects.update_or_create(
                 asistente=asistente,
                 defaults={
-                    'work_area': work_area,
+                    'work_area': work_area if profile_type == Asistente.ProfileType.PROFESSIONAL else "Otro",
                     'occupation': occupation,
                 }
             )

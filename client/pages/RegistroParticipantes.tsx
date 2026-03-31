@@ -99,9 +99,21 @@ const visitorSchema = participantSchema.extend({
 });
 
 const pressSchema = participantSchema.extend({
-  profileType: z.literal("PRESS"),
+  profileType: z.literal("press"),
   prensaMedio: z.string().optional(),
   prensaLinks: z.string().optional(),
+});
+
+const graduadoSchema = participantSchema.extend({
+  profileType: z.literal("graduado"),
+  institution: z.string().min(1, "La institución es requerida"),
+  career: z.string().min(1, "La carrera es requerida"),
+});
+
+const otroSchema = participantSchema.extend({
+  profileType: z.literal("otro"),
+  occupation: z.string().min(1, "Su ocupación o rol es requerido"),
+  institution: z.string().optional(),
 });
 
 const formSchema = z
@@ -111,6 +123,8 @@ const formSchema = z
     teacherSchema,
     professionalSchema,
     pressSchema,
+    graduadoSchema,
+    otroSchema,
     groupRepresentativeSchema,
   ])
   .superRefine((data, ctx) => {
@@ -428,32 +442,41 @@ const RegistroParticipantes: React.FC = () => {
           teacher: "TEACHER",
           professional: "PROFESSIONAL",
           press: "PRESS",
-          groupRepresentative: "GROUP_REPRESENTATIVE",
+          graduado: "GRADUADO",
+          otro: "OTRO",
+          grouprepresentative: "GROUP_REPRESENTATIVE",
         };
 
+        const currentProfileType = data.profileType.toLowerCase();
         const asistenteData: any = {
           first_name: data.firstName,
           last_name: data.lastName,
           dni: data.dni,
           email: data.email,
           phone: data.phone,
-          profile_type: profileTypeMap[data.profileType?.toLowerCase()] || data.profileType,
+          profile_type: profileTypeMap[currentProfileType] || data.profileType.toUpperCase(),
           terminos_aceptados: data.aceptaTyC,
         };
 
         // Agregar campos específicos según el tipo de participante
-        if (data.profileType === "student") {
-          asistenteData.is_unab_student = data.isUnabStudent || false;
-          if (data.institution) asistenteData.institution = data.institution;
-          if (data.career) asistenteData.career = data.career;
-          if (data.yearOfStudy) asistenteData.year_of_study = data.yearOfStudy;
-        } else if (data.profileType === "teacher") {
-          if (data.institution) asistenteData.institution = data.institution;
-          if (data.careerTaught) asistenteData.career_taught = data.careerTaught;
-        } else if (data.profileType === "professional") {
-          if (data.workArea) asistenteData.work_area = data.workArea;
-          if (data.occupation) asistenteData.occupation = data.occupation;
-        } else if (data.profileType === "PRESS") {
+        if (currentProfileType === "student") {
+          asistenteData.is_unab_student = (data as any).isUnabStudent || false;
+          if ((data as any).institution) asistenteData.institution = (data as any).institution;
+          if ((data as any).career) asistenteData.career = (data as any).career;
+          if ((data as any).yearOfStudy) asistenteData.year_of_study = (data as any).yearOfStudy;
+        } else if (currentProfileType === "teacher") {
+          if ((data as any).institution) asistenteData.institution = (data as any).institution;
+          if ((data as any).careerTaught) asistenteData.career_taught = (data as any).careerTaught;
+        } else if (currentProfileType === "professional") {
+          if ((data as any).workArea) asistenteData.work_area = (data as any).workArea;
+          if ((data as any).occupation) asistenteData.occupation = (data as any).occupation;
+        } else if (currentProfileType === "graduado") {
+          if ((data as any).institution) asistenteData.institution = (data as any).institution;
+          if ((data as any).career) asistenteData.career = (data as any).career;
+        } else if (currentProfileType === "otro") {
+          if ((data as any).occupation) asistenteData.occupation = (data as any).occupation;
+          if ((data as any).institution) asistenteData.institution = (data as any).institution;
+        } else if (currentProfileType === "press") {
           if ((data as any).prensaMedio) asistenteData.prensa_medio = (data as any).prensaMedio;
           if ((data as any).prensaLinks) asistenteData.prensa_links = (data as any).prensaLinks;
         }
@@ -643,8 +666,10 @@ const RegistroParticipantes: React.FC = () => {
                   { value: "student", label: "Estudiante" },
                   { value: "teacher", label: "Docente" },
                   { value: "professional", label: "Profesional" },
-                  { value: "PRESS", label: "Prensa/Influencer" },
-                  { value: "groupRepresentative", label: "Representante de Grupo" }
+                  { value: "graduado", label: "Graduado/a" },
+                  { value: "press", label: "Prensa/Influencer" },
+                  { value: "groupRepresentative", label: "Representante de Grupo" },
+                  { value: "otro", label: "Otro" }
                 ]}
                 {...register("profileType")}
                 onChange={(e) => setProfileType(e.target.value as FormData["profileType"])}
@@ -771,7 +796,7 @@ const RegistroParticipantes: React.FC = () => {
               </FormSection>
             )}
 
-            {profileType === "PRESS" && (
+            {profileType === "press" && (
               <FormSection title="Información de Prensa/Influencer" description="Complete los datos sobre su medio o canal de difusión">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormInput
@@ -1077,32 +1102,27 @@ const RegistroParticipantes: React.FC = () => {
 
             {/* TyC y Botón de envío */}
             <div className="pt-6 border-t border-slate-200">
-              <div className="mb-6 flex items-start gap-3 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-                <input
-                  type="checkbox"
+              <div className="mb-6 bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
+                <FormCheckbox
                   id="aceptaTyC"
-                  className="mt-1 h-5 w-5 rounded border-gray-300 text-congress-blue focus:ring-congress-blue"
+                  label={
+                    <span className="text-sm text-slate-700 leading-relaxed">
+                      Declaro que la información es verídica y confirmo que he leído y acepto expresamente las <TermsAndConditionsModal type="asistente" /> del Congreso de Logística y Transporte.
+                    </span>
+                  }
                   {...register("aceptaTyC")}
+                  error={getErrorMessage("aceptaTyC")}
                 />
-                <div className="flex-1">
-                  <label htmlFor="aceptaTyC" className="text-sm text-gray-700">
-                    He leído y acepto las <TermsAndConditionsModal type="asistente" /> del Congreso de Logística y Transporte.
-                  </label>
-                  {getErrorMessage("aceptaTyC") && (
-                    <p className="text-xs text-red-600 font-medium mt-1">
-                      {getErrorMessage("aceptaTyC")}
-                    </p>
-                  )}
-                </div>
               </div>
+
               <FormButton
                 type="submit"
                 fullWidth
                 size="lg"
                 isLoading={isSubmitting}
-                icon={<CheckCircle className="h-5 w-5" />}
+                className="shadow-xl shadow-congress-blue/20"
               >
-                {isSubmitting ? "Registrando..." : "Registrar Participante"}
+                {isSubmitting ? "Procesando Registro..." : "Confirmar Mi Registro"}
               </FormButton>
             </div>
           </form>

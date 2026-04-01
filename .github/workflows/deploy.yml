@@ -77,11 +77,24 @@ jobs:
             --exclude='private_media' \
             backend/ /var/www/congreso/backend/
 
-      - name: Install Python Dependencies (env)
+      - name: Ensure Python Environment (env)
         run: |
-          # Usar exclusivamente /env/ (entorno real de gunicorn) para ahorrar espacio
-          /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
-          /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
+          # 1. Si existe venv pero no env, lo renombramos para no perder datos
+          if [ -d "/var/www/congreso/backend/venv" ] && [ ! -d "/var/www/congreso/backend/env" ]; then
+            echo "Migrando carpeta venv a env..."
+            sudo mv /var/www/congreso/backend/venv /var/www/congreso/backend/env
+          fi
+          
+          # 2. Si no existe env, lo creamos de cero
+          if [ ! -d "/var/www/congreso/backend/env" ]; then
+            echo "Creando nuevo entorno virtual en /env/..."
+            python3 -m venv /var/www/congreso/backend/env
+          fi
+
+      - name: Install Python Dependencies
+        run: |
+          /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip
+          /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt
 
       - name: Run Database Migrations
         run: |

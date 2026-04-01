@@ -85,7 +85,7 @@ export default function MobileNav() {
               style={{ height: '100dvh' }}
             >
               {/* Header con padding para safe area (notch) */}
-              <div className="flex items-center justify-between p-6 pt-10 border-b border-white/10 shrink-0">
+              <div className="flex items-center justify-between p-6 pt-[calc(env(safe-area-inset-top)+2.5rem)] border-b border-white/10 shrink-0">
                 <span className="text-xl font-bold text-white tracking-tight">MENU</span>
                 <button
                   onClick={() => setIsMenuOpen(false)}
@@ -96,7 +96,7 @@ export default function MobileNav() {
               </div>
 
               {/* Navigation scrollable area */}
-              <nav className="flex-1 overflow-y-auto pt-4 pb-12 px-4 space-y-2 overscroll-contain custom-scrollbar">
+              <nav className="flex-1 overflow-y-auto py-4 px-4 space-y-2 overscroll-contain custom-scrollbar">
                 {menuItems.map((item, index) => (
                   <div key={item.name}>
                     {item.isDropdown ? (
@@ -165,8 +165,8 @@ export default function MobileNav() {
                 ))}
               </nav>
 
-              {/* Footer con padding inferior para evitar el corte */}
-              <div className="p-6 pb-10 border-t border-white/10 bg-black/10 shrink-0">
+              {/* Footer con padding inferior adaptado a dispositivos móviles modernos */}
+              <div className="p-6 pb-[calc(env(safe-area-inset-bottom)+2rem)] border-t border-white/10 bg-black/10 shrink-0">
                 <p className="text-xs text-white/40 text-center">
                   © 2026 Congreso UNAB <br/> Logística y Transporte
                 </p>

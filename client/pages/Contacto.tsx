@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Instagram, MapPin, Linkedin } from "lucide-react";
+import { Mail, Instagram, MapPin, Linkedin, MessageSquare } from "lucide-react";
+import SafeContact from "@/components/SafeContact";
 import FloatingParticles from "@/components/FloatingParticles";
 import { motion } from "framer-motion";
 
@@ -71,15 +72,14 @@ export default function Contacto() {
                   Correo Electrónico
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <a
-                  href="mailto:congresologisticaytransporte@unab.edu.ar"
-                  className="text-lg text-white font-medium leading-relaxed hover:underline break-words"
-                >
-                  congresologisticaytransporte
-                  <br className="md:hidden" />
-                  @unab.edu.ar
-                </a>
+              <CardContent className="flex justify-center">
+                <SafeContact
+                  type="email"
+                  user="congresologisticaytransporte"
+                  domain="unab.edu.ar"
+                  className="text-lg text-white font-medium hover:underline"
+                  label="congresologisticaytransporte@unab.edu.ar"
+                />
               </CardContent>
             </Card>
           </motion.div>
@@ -154,7 +154,28 @@ export default function Contacto() {
                 </a>
               </CardContent>
             </Card>
+            {/* WhatsApp */}
+          <motion.div variants={fadeInUp}>
+            <Card className="group border-0 shadow-xl hover:shadow-2xl rounded-2xl bg-gradient-to-br from-green-500/90 to-green-600/80 p-6 transition-all duration-300 transform hover:scale-105 text-center h-full">
+              <CardHeader className="flex flex-col items-center justify-center mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-full flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300 icon-float">
+                  <MessageSquare className="w-10 h-10 text-white" />
+                </div>
+                <CardTitle className="text-2xl font-bold text-white group-hover:text-green-200 transition-colors">
+                  WhatsApp
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <SafeContact
+                  type="whatsapp"
+                  phone="5491178270919"
+                  className="text-lg text-white font-medium hover:underline"
+                  label="+54 9 11 7827-0919"
+                />
+              </CardContent>
+            </Card>
           </motion.div>
+        </motion.div>
         </motion.div>
       </div>
     </div>

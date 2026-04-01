@@ -5,6 +5,9 @@ import { Button } from "./ui/button";
 import { ChevronDown, Mail, MapPin, Calendar } from "lucide-react";
 import CongressLogo from "./CongressLogo";
 import MobileNav from "./MobileNav";
+import SafeContact from "./SafeContact";
+import WhatsAppBubble from "./WhatsAppBubble";
+import { MessageSquare } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -222,19 +225,26 @@ export default function Layout({ children }: LayoutProps) {
                 <MapPin className="text-white mr-2 flex-shrink-0 h-5 w-5" />
                 <span>Campus UNaB, Blas Parera 132, Burzaco</span>
               </p>
-              <p className="text-gray-300 notranslate">
-                <a
-                  href="mailto:congresologisticaytransporte@unab.edu.ar"
-                  className="text-gray-300 hover:underline flex items-center justify-start"
-                >
-                  <Mail className="text-white mr-2 flex-shrink-0 h-5 w-5" />
-                  <span>
-                    congresologisticaytransporte
-                    <br className="md:hidden" />
-                    @unab.edu.ar
-                  </span>
-                </a>
-              </p>
+              <div className="text-gray-300 notranslate space-y-3">
+                {/* Email Seguro */}
+                <SafeContact
+                  type="email"
+                  user="congresologisticaytransporte"
+                  domain="unab.edu.ar"
+                  className="text-gray-300 hover:text-white transition-colors"
+                  icon={<Mail className="text-white flex-shrink-0 h-5 w-5" />}
+                  label="congresologisticaytransporte@unab.edu.ar"
+                />
+                
+                {/* WhatsApp Seguro */}
+                <SafeContact
+                  type="whatsapp"
+                  phone="5491178270919"
+                  className="text-gray-300 hover:text-white transition-colors"
+                  icon={<MessageSquare className="text-green-400 flex-shrink-0 h-5 w-5" />}
+                  label="+54 9 11 7827-0919"
+                />
+              </div>
             </div>
             <div className="notranslate flex flex-col items-center text-center">
               <h3 className="text-lg font-bold mb-4">
@@ -267,6 +277,9 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </footer>
+      
+      {/* Botón Flotante de WhatsApp */}
+      <WhatsAppBubble />
     </div>
   );
 }

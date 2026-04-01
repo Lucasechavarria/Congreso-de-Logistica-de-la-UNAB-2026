@@ -481,14 +481,25 @@ def manual_certificate_view(request):
     return render(request, 'admin/manual_certificate.html', context)
 
 class InscripcionAdmin(admin.ModelAdmin):
-    list_display = ('asistente', 'empresa', 'fecha_inscripcion', 'edicion')
+    list_display = ('asistente', 'empresa', 'fecha_inscripcion_detalle', 'edicion')
     list_filter = ('edicion', 'fecha_inscripcion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'empresa__razon_social')
+    readonly_fields = ('fecha_inscripcion',)
+
+    def fecha_inscripcion_detalle(self, obj):
+        return obj.fecha_inscripcion.strftime("%d/%m/%Y %H:%M:%S") if obj.fecha_inscripcion else "-"
+    fecha_inscripcion_detalle.short_description = 'Fecha Inscripción'
+    fecha_inscripcion_detalle.admin_order_field = 'fecha_inscripcion'
 
 class AsistenteAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'dni', 'get_ediciones', 'get_asistencia_actual', 'fecha_registro')
+    list_display = ('first_name', 'last_name', 'email', 'dni', 'get_ediciones', 'get_asistencia_actual', 'fecha_registro_detalle')
     list_filter = (DNIFilter, 'inscripciones__asistencia_confirmada', 'inscripciones__edicion', 'fecha_registro')
     search_fields = ('first_name', 'last_name', 'email', 'dni')
+
+    def fecha_registro_detalle(self, obj):
+        return obj.fecha_registro.strftime("%d/%m/%Y %H:%M:%S") if obj.fecha_registro else "-"
+    fecha_registro_detalle.short_description = 'Registrado el'
+    fecha_registro_detalle.admin_order_field = 'fecha_registro'
     readonly_fields = ('fecha_registro', 'dni_update_token', 'dni_email_sent_date')
     inlines = [MiembroGrupoInline]
     

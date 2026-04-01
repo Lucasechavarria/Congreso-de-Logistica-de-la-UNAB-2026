@@ -117,9 +117,10 @@ def send_confirmation_email(inscripcion_instance):
     logo_path = get_logo_path()
 
     try:
-        # Alertar al congreso solo si no es un visitante común
+        # Alerta al administrador del congreso solo si NO es un visitante común
+        # Según requerimientos: no saturar con avisos de inscripciones generales.
         bcc_list = []
-        if asistente.profile_type != "VISITOR":
+        if asistente.profile_type not in ["VISITOR", asistente.ProfileType.VISITOR]:
             bcc_list.append(CONGRESO_EMAIL)
 
         # Crear el email con HTML y texto plano
@@ -192,9 +193,9 @@ def send_individual_confirmation_email(asistente):
         
         logo_path = get_logo_path()
         
-        # Alertar al congreso solo si no es un visitante común
+        # Alerta al administrador del congreso solo si NO es un visitante común
         bcc_list = []
-        if asistente.profile_type != asistente.ProfileType.VISITOR:
+        if asistente.profile_type not in ["VISITOR", asistente.ProfileType.VISITOR]:
             bcc_list.append(CONGRESO_EMAIL)
 
         email = EmailMultiAlternatives(

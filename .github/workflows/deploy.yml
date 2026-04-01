@@ -79,14 +79,14 @@ jobs:
 
       - name: Ensure Python Environment (env)
         run: |
-          # 1. Si existe venv pero no env, lo renombramos
-          if [ -d "/var/www/congreso/backend/venv" ] && [ ! -d "/var/www/congreso/backend/env" ]; then
-            echo "Migrando carpeta venv a env..."
-            sudo mv /var/www/congreso/backend/venv /var/www/congreso/backend/env
+          # 1. Eliminar rastro de venv (carpeta obsoleta que causa conflictos de ruta)
+          if [ -d "/var/www/congreso/backend/venv" ]; then
+            echo "Eliminando carpeta venv obsoleta..."
+            sudo rm -rf /var/www/congreso/backend/venv
           fi
           
-          # 2. Si no existe env, lo creamos. Si ya existe, lo "re-inicializamos" para arreglar rutas
-          echo "Asegurando integridad del entorno virtual en /env/..."
+          # 2. Asegurar que env existe y está limpio para evitar errores 203/EXEC
+          echo "Saneando entorno virtual en /env/..."
           python3 -m venv /var/www/congreso/backend/env
 
       - name: Install Python Dependencies

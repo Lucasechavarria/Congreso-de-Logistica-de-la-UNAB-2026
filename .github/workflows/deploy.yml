@@ -85,13 +85,15 @@ jobs:
 
       - name: Run Database Migrations
         run: |
-          /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py migrate --noinput || true
+          /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py migrate --noinput
 
       - name: Restart Services
         run: |
-          # Reinicio usando 'sudo', asumiendo permisos NOPASSWD otorgados en Fase 1
+          # Reinicio forzado para asegurar que se cargue el nuevo código
           sudo systemctl restart gunicorn
           sudo systemctl restart nginx
+          echo "Verificando estado de servicios..."
+          sudo systemctl status gunicorn --no-pager
           echo "Deploy complete. Memory freed and services restarted."
 
       - name: Update Diagnostic File

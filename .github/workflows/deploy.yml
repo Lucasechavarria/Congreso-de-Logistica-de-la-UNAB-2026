@@ -77,15 +77,15 @@ jobs:
             --exclude='private_media' \
             backend/ /var/www/congreso/backend/
 
-      - name: Install Python Dependencies (venv)
+      - name: Install Python Dependencies (env)
         run: |
-          # Usar exclusivamente /venv/ (entorno real de gunicorn) para ahorrar espacio
-          /var/www/congreso/backend/venv/bin/python -m pip install --upgrade pip || true
-          /var/www/congreso/backend/venv/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
+          # Usar exclusivamente /env/ (entorno real de gunicorn) para ahorrar espacio
+          /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip || true
+          /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt || true
 
       - name: Run Database Migrations
         run: |
-          /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py migrate --noinput
+          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate --noinput
 
       - name: Restart Services
         run: |

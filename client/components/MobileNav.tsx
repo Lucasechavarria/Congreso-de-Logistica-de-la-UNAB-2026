@@ -67,7 +67,7 @@ export default function MobileNav() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex justify-end"
+            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex justify-end h-[100dvh]"
           >
             {/* Overlay background click to close */}
             <div 
@@ -81,9 +81,11 @@ export default function MobileNav() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative w-[300px] max-w-[85%] h-full bg-congress-blue shadow-2xl flex flex-col"
+              className="relative w-[300px] max-w-[85%] h-full bg-congress-blue shadow-2xl flex flex-col overflow-hidden"
+              style={{ height: '100dvh' }}
             >
-              <div className="flex items-center justify-between p-6 border-b border-white/10">
+              {/* Header con padding para safe area (notch) */}
+              <div className="flex items-center justify-between p-6 pt-10 border-b border-white/10 shrink-0">
                 <span className="text-xl font-bold text-white tracking-tight">MENU</span>
                 <button
                   onClick={() => setIsMenuOpen(false)}
@@ -93,7 +95,8 @@ export default function MobileNav() {
                 </button>
               </div>
 
-              <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+              {/* Navigation scrollable area */}
+              <nav className="flex-1 overflow-y-auto pt-4 pb-12 px-4 space-y-2 overscroll-contain custom-scrollbar">
                 {menuItems.map((item, index) => (
                   <div key={item.name}>
                     {item.isDropdown ? (
@@ -162,7 +165,8 @@ export default function MobileNav() {
                 ))}
               </nav>
 
-              <div className="p-6 border-t border-white/10 bg-black/10">
+              {/* Footer con padding inferior para evitar el corte */}
+              <div className="p-6 pb-10 border-t border-white/10 bg-black/10 shrink-0">
                 <p className="text-xs text-white/40 text-center">
                   © 2026 Congreso UNAB <br/> Logística y Transporte
                 </p>

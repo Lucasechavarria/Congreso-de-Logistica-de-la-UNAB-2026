@@ -378,21 +378,24 @@ def process_certificate_batch_api(request):
 
 
 # Inyectar el dashboard en el Admin de Django
-original_get_urls = admin.site.get_urls
+def patch_admin_urls():
+    original_get_urls = admin.site.get_urls
+    
+    def get_urls(*args, **kwargs):
+        urls = original_get_urls(*args, **kwargs)
+        custom_urls = [
+            path('dashboard/', admin.site.admin_view(admin_dashboard), name='admin-dashboard'),
+            path('broadcast/', admin.site.admin_view(broadcast_view), name='admin-broadcast'),
+            path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
+            path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
+            path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
+            path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
+        ]
+        return custom_urls + urls
+    
+    admin.site.get_urls = get_urls
 
-def get_urls():
-    urls = original_get_urls()
-    custom_urls = [
-        path('dashboard/', admin.site.admin_view(admin_dashboard), name='admin-dashboard'),
-        path('broadcast/', admin.site.admin_view(broadcast_view), name='admin-broadcast'),
-        path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
-        path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
-        path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
-        path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
-    ]
-    return custom_urls + urls
-
-admin.site.get_urls = get_urls
+patch_admin_urls()
 # Cambiar el título del índice para incluir un link directo con estilo HTML
 admin.site.index_title = format_html(
     'Admin Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Dashboard</a> | '
@@ -540,9 +543,21 @@ class AsistenteAdmin(admin.ModelAdmin):
         for col, campo in enumerate(campos):
             ws.write(0, col, campo)
 
+        # Obtener edición activa para los datos de asistencia
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+
         for row, asistente in enumerate(asistentes, start=1):
+            # Obtener inscripción para la edición activa
+            insc = asistente.inscripciones.filter(edicion=edicion_activa).first() if edicion_activa else None
+            
             for col, campo in enumerate(campos):
-                valor = getattr(asistente, campo, '')
+                if campo == 'asistencia_confirmada':
+                    valor = insc.asistencia_confirmada if insc else False
+                elif campo == 'fecha_confirmacion':
+                    valor = insc.fecha_confirmacion if insc else ''
+                else:
+                    valor = getattr(asistente, campo, '')
+                
                 ws.write(row, col, str(valor) if valor is not None else '')
 
         response = HttpResponse(content_type='application/vnd.ms-excel')
@@ -580,10 +595,21 @@ class AsistenteAdmin(admin.ModelAdmin):
         for col, campo in enumerate(campos):
             ws.write(0, col, campo)
 
+        # Obtener edición activa
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+
         # Escribir datos
         for row, asistente in enumerate(asistentes, start=1):
+            # Obtener inscripción para la edición activa
+            insc = asistente.inscripciones.filter(edicion=edicion_activa).first() if edicion_activa else None
+
             for col, campo in enumerate(campos):
-                valor = getattr(asistente, campo, '')
+                if campo == 'asistencia_confirmada':
+                    valor = insc.asistencia_confirmada if insc else False
+                elif campo == 'fecha_confirmacion':
+                    valor = insc.fecha_confirmacion if insc else ''
+                else:
+                    valor = getattr(asistente, campo, '')
                 ws.write(row, col, str(valor) if valor is not None else '')
 
         # Preparar respuesta

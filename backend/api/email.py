@@ -85,6 +85,10 @@ def send_empresa_confirmation_email(empresa_instance):
                 logo_img.add_header('Content-Disposition', 'inline', filename='logo-congreso.png')
                 email.attach(logo_img)
         email.send()
+        
+        # Alerta al administrador sobre la nueva postulación empresarial
+        send_admin_postulation_alert(empresa_instance, "Empresa")
+        
         return True
     except Exception as e:
         print(f"[ERROR] Error enviando email a empresa {empresa_instance.nombre_empresa}: {e}")
@@ -113,13 +117,18 @@ def send_confirmation_email(inscripcion_instance):
     logo_path = get_logo_path()
 
     try:
+        # Alertar al congreso solo si no es un visitante común
+        bcc_list = []
+        if asistente.profile_type != "VISITOR":
+            bcc_list.append(CONGRESO_EMAIL)
+
         # Crear el email con HTML y texto plano
         email = EmailMultiAlternatives(
             subject='Confirmación de Inscripción al Congreso de Logística UNAB',
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
-            bcc=[CONGRESO_EMAIL]
+            bcc=bcc_list
         )
         email.attach_alternative(html_content, "text/html")
 
@@ -183,12 +192,17 @@ def send_individual_confirmation_email(asistente):
         
         logo_path = get_logo_path()
         
+        # Alertar al congreso solo si no es un visitante común
+        bcc_list = []
+        if asistente.profile_type != asistente.ProfileType.VISITOR:
+            bcc_list.append(CONGRESO_EMAIL)
+
         email = EmailMultiAlternatives(
             subject='Confirmación de Inscripción al Congreso de Logística UNAB',
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
-            bcc=[CONGRESO_EMAIL]
+            bcc=bcc_list
         )
         email.attach_alternative(html_content, "text/html")
         
@@ -264,6 +278,10 @@ def send_postulacion_disertante_email(postulacion):
         
         email.send()
         print(f"[INFO] Email de postulación enviado a: {postulacion.email}")
+        
+        # Alerta al administrador sobre la nueva postulación
+        send_admin_postulation_alert(postulacion, "Disertante")
+        
         return True
     except Exception as e:
         print(f"[ERROR] Error enviando email de postulación a {postulacion.email}: {e}")
@@ -491,19 +509,16 @@ def send_group_confirmation_emails(representante):
     }
 
 def send_certificate_email(certificado_instance):
+    """
+    Genera el certificado en memoria, lo envía por email y lo ELIMINA del servidor inmediatamente.
+    """
     asistente = certificado_instance.asistente
 
-    # Contexto para la plantilla del certificado
-    context = {
-        'asistente_nombre': asistente.nombre_completo,
-        'fecha_emision': date.today().strftime("%d de %B de %Y"),
-    }
-
     try:
-        # Generar el PDF usando el método del modelo Certificado (imagen base personalizada)
-        certificado_instance.generar_pdf(save=True)
-        # Leer el PDF generado
-        pdf_file = certificado_instance.pdf_generado.read()
+        # Generar el PDF en memoria (save=False para que solo devuelva el buffer)
+        pdf_buffer = certificado_instance.generar_pdf(save=False)
+        pdf_content = pdf_buffer.getvalue()
+        
         # Crear el email
         email = EmailMultiAlternatives(
             subject='Certificado de Asistencia al Congreso de Logística UNAB',
@@ -514,7 +529,7 @@ def send_certificate_email(certificado_instance):
         )
         email.attach(
             f'Certificado_{asistente.nombre_completo.replace(" ", "_")}.pdf',
-            pdf_file,
+            pdf_content,
             'application/pdf'
         )
         # Enviar el email
@@ -534,6 +549,60 @@ def send_certificate_email(certificado_instance):
         certificado_instance.save(update_fields=['intentos'])
         print(f"Error enviando certificado a {asistente.email}: {e}")
         return False
+
+def send_admin_postulation_alert(instance, tipo):
+    """
+    Envía una alerta dedicada al administrador con los detalles de la nueva postulación.
+    """
+    try:
+        datos = {}
+        admin_url = ""
+        
+        if tipo == "Empresa":
+            datos = {
+                "Empresa": instance.nombre_empresa,
+                "Contacto": instance.nombre_contacto,
+                "Email": instance.email_contacto,
+                "Celular": instance.celular_contacto,
+                "Rubro": instance.rubro_logistico,
+                "Participación": instance.participacion_opciones,
+            }
+            admin_url = f"{settings.BASE_URL}/admin/api/empresa/{instance.id}/change/"
+        else:
+            datos = {
+                "Disertante": instance.nombre_apellido,
+                "DNI": instance.dni,
+                "Email": instance.email,
+                "Teléfono": instance.telefono,
+                "Profesión": instance.profesion_cargo,
+                "Institución": instance.empresa_institucion,
+                "Título Charla": instance.titulo_charla,
+            }
+            admin_url = f"{settings.BASE_URL}/admin/api/postulaciondisertante/{instance.id}/change/"
+
+        context = {
+            'tipo_postulacion': tipo,
+            'datos': datos,
+            'admin_url': admin_url
+        }
+        
+        html_content = render_to_string('api/email/admin_notification_postulacion.html', context)
+        text_content = strip_tags(html_content)
+        
+        email = EmailMultiAlternatives(
+            subject=f'NUEVA POSTULACIÓN: {tipo} - {instance.nombre_empresa if tipo == "Empresa" else instance.nombre_apellido}',
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[CONGRESO_EMAIL]
+        )
+        email.attach_alternative(html_content, "text/html")
+        email.send()
+        print(f"[INFO] Alerta enviada al administrador para: {instance.id}")
+        return True
+    except Exception as e:
+        print(f"[ERROR] No se pudo enviar alerta al admin: {e}")
+        return False
+
 
 def send_broadcast_batch_email(recipient_list, subject, body_html):
     """

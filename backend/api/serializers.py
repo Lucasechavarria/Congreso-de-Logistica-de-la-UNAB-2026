@@ -309,6 +309,10 @@ class AsistenteSerializer(serializers.ModelSerializer):
     miembros_representados = serializers.SerializerMethodField()  # Para lectura
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     
+    # Campos dinámicos para asistencia (según edición activa)
+    asistencia_confirmada = serializers.SerializerMethodField()
+    fecha_confirmacion = serializers.SerializerMethodField()
+    
     # Overrides to disable UniqueValidator, as we do Upsert manually
     email = serializers.EmailField()
     dni = serializers.CharField(max_length=8, required=False, allow_blank=True, allow_null=True)
@@ -390,10 +394,8 @@ class AsistenteSerializer(serializers.ModelSerializer):
             detalle = instance.detalle_grupo
             ret['group_name'] = detalle.group_name
             ret['group_municipality'] = detalle.group_municipality
-            ret['group_size'] = detalle.group_size
-            
         return ret
-    
+
     def get_miembros_representados(self, obj):
         """Devuelve la información de los miembros representados"""
         if obj.es_representante_grupo:
@@ -406,6 +408,18 @@ class AsistenteSerializer(serializers.ModelSerializer):
                 'dni': m.dni
             } for m in miembros]
         return []
+
+    def get_asistencia_confirmada(self, obj):
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa: return False
+        insc = obj.inscripciones.filter(edicion=edicion_activa).first()
+        return insc.asistencia_confirmada if insc else False
+
+    def get_fecha_confirmacion(self, obj):
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa: return None
+        insc = obj.inscripciones.filter(edicion=edicion_activa).first()
+        return insc.fecha_confirmacion if insc else None
 
     def create(self, validated_data):
         from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional, DetalleGrupo

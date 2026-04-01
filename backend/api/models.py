@@ -228,10 +228,6 @@ class Asistente(models.Model):
     ciudad_provincia = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ciudad / Provincia")
     fecha_registro = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de registro")
 
-    # --- Campos de Estado para QR y Certificados ---
-    asistencia_confirmada = models.BooleanField(default=False, verbose_name="Asistencia Confirmada")
-    fecha_confirmacion = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Confirmación")
-
     # --- Términos y Condiciones ---
     terminos_aceptados = models.BooleanField(default=False, verbose_name="Acepta Términos y Condiciones")
 
@@ -372,8 +368,13 @@ class Certificado(models.Model):
         buffer = BytesIO()
         img.save(buffer, format="PDF", resolution=100.0)
         buffer.seek(0)
-        file_name = f"certificado_{self.asistente.email}.pdf"
-        self.pdf_generado.save(file_name, ContentFile(buffer.getvalue()), save=save)
+        
+        if save:
+            file_name = f"certificado_{self.asistente.email}.pdf"
+            self.pdf_generado.save(file_name, ContentFile(buffer.getvalue()), save=True)
+        
+        return buffer
+
 
 class Edicion(models.Model):
     anio = models.IntegerField(unique=True, verbose_name="Año de la Edición")
@@ -468,6 +469,10 @@ class Inscripcion(models.Model):
     edicion = models.ForeignKey(Edicion, on_delete=models.CASCADE, related_name='inscripciones')
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True)
     fecha_inscripcion = models.DateTimeField(default=timezone.now)
+
+    # --- Campos de Estado (Mapeados por edición) ---
+    asistencia_confirmada = models.BooleanField(default=False, verbose_name="Asistencia Confirmada")
+    fecha_confirmacion = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Confirmación")
 
     def __str__(self):
         return f"Inscripción de {self.asistente} - {self.edicion}"

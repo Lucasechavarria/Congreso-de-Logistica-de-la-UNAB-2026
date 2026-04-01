@@ -1,28 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FiMenu, FiX } from "react-icons/fi";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function MobileNav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
+  const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const location = useLocation();
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-    if (isMenuOpen) {
-      setIsSubMenuOpen(false);
-    }
-  };
-
-  const closeMenu = () => {
+  // Cerrar menú al cambiar de ruta
+  useEffect(() => {
     setIsMenuOpen(false);
-    setIsSubMenuOpen(false);
-  };
+    setOpenSubMenu(null);
+  }, [location.pathname]);
 
-  const toggleSubMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsSubMenuOpen(!isSubMenuOpen);
+  // Evitar scroll cuando el menú está abierto
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+  }, [isMenuOpen]);
+
+  const toggleSubMenu = (name: string) => {
+    setOpenSubMenu(openSubMenu === name ? null : name);
   };
 
   const menuItems = [
@@ -49,73 +52,125 @@ export default function MobileNav() {
 
   return (
     <div className="lg:hidden">
-      {/* Hamburger Button */}
+      {/* Botón Hamburguesa - Flotante o integrado */}
       <button
-        onClick={toggleMenu}
-        className="text-white p-2 focus:outline-none"
+        onClick={() => setIsMenuOpen(true)}
+        className="text-white p-2 focus:outline-none hover:bg-white/10 rounded-full transition-colors"
+        aria-label="Abrir menú"
       >
-        {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+        <FiMenu size={28} />
       </button>
 
-      {/* Mobile Menu Overlay */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 bg-congress-blue z-50 flex flex-col items-center justify-center space-y-6">
-          <button
-            onClick={closeMenu}
-            className="absolute top-4 right-4 text-white p-2"
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex justify-end"
           >
-            <FiX size={24} />
-          </button>
-          <nav className="flex flex-col space-y-4 text-2xl font-semibold w-full px-8">
-            {menuItems.map((item, index) => (
-              <div
-                key={item.name}
-                className="animate-fade-in-down"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                {item.isDropdown ? (
-                  <>
-                    <button
-                      onClick={toggleSubMenu}
-                      className="w-full text-left text-white hover:text-congress-cyan transition-colors flex items-center justify-between"
-                    >
-                      {item.name}
-                      {isSubMenuOpen ? (
-                        <ChevronUp size={24} />
-                      ) : (
-                        <ChevronDown size={24} />
-                      )}
-                    </button>
-                    {isSubMenuOpen && (
-                      <div className="flex flex-col space-y-2 mt-2 pl-4 animate-fade-in-down">
-                        {item.subItems?.map((subItem, subIndex) => (
-                          <Link
-                            key={subItem.name}
-                            to={subItem.path}
-                            onClick={closeMenu}
-                            className="text-base font-normal text-white hover:text-congress-cyan transition-colors"
-                            style={{ animationDelay: `${subIndex * 0.1}s` }}
-                          >
-                            {subItem.name}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <Link
-                    to={item.path}
-                    onClick={closeMenu}
-                    className="text-white hover:text-congress-cyan transition-colors"
-                  >
-                    {item.name}
-                  </Link>
-                )}
+            {/* Overlay background click to close */}
+            <div 
+              className="absolute inset-0" 
+              onClick={() => setIsMenuOpen(false)} 
+            />
+
+            {/* Menu Panel */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-[300px] max-w-[85%] h-full bg-congress-blue shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <span className="text-xl font-bold text-white tracking-tight">MENU</span>
+                <button
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-white p-2 hover:bg-white/10 rounded-full transition-colors"
+                >
+                  <FiX size={24} />
+                </button>
               </div>
-            ))}
-          </nav>
-        </div>
-      )}
+
+              <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+                {menuItems.map((item, index) => (
+                  <div key={item.name}>
+                    {item.isDropdown ? (
+                      <div>
+                        <button
+                          onClick={() => toggleSubMenu(item.name)}
+                          className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${
+                            openSubMenu === item.name 
+                              ? "bg-white/10 text-congress-cyan" 
+                              : "text-white hover:bg-white/5"
+                          }`}
+                        >
+                          <span className="text-lg font-medium">{item.name}</span>
+                          <motion.div
+                            animate={{ rotate: openSubMenu === item.name ? 180 : 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <ChevronDown size={20} />
+                          </motion.div>
+                        </button>
+                        
+                        <AnimatePresence>
+                          {openSubMenu === item.name && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.3, ease: "easeInOut" }}
+                              className="overflow-hidden bg-white/5 rounded-b-xl mx-2"
+                            >
+                              <div className="py-2 flex flex-col">
+                                {item.subItems?.map((subItem) => {
+                                  const isActive = location.pathname === subItem.path;
+                                  return (
+                                    <Link
+                                      key={subItem.name}
+                                      to={subItem.path}
+                                      className={`px-6 py-3 text-base transition-colors ${
+                                        isActive 
+                                          ? "text-congress-cyan font-bold" 
+                                          : "text-white/80 hover:text-white"
+                                      }`}
+                                    >
+                                      {subItem.name}
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ) : (
+                      <Link
+                        to={item.path}
+                        className={`block p-4 rounded-xl transition-all ${
+                          location.pathname === item.path
+                            ? "bg-white/10 text-congress-cyan font-bold"
+                            : "text-white hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="text-lg font-medium">{item.name}</span>
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </nav>
+
+              <div className="p-6 border-t border-white/10 bg-black/10">
+                <p className="text-xs text-white/40 text-center">
+                  © 2026 Congreso UNAB <br/> Logística y Transporte
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-}
+}

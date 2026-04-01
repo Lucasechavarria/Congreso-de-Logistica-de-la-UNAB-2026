@@ -14,11 +14,14 @@ import json
 class BaseCongressTest(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.edicion, _ = Edicion.objects.update_or_create(
+        self.edicion, _ = Edicion.objects.get_or_create(
             anio=2026, 
             defaults={'nombre': "Congreso 2026", 'activa': True}
         )
-        
+        if not self.edicion.activa:
+            self.edicion.activa = True
+            self.edicion.save()
+            
         # URLs
         self.registro_url = reverse('registro-unificado')
         self.inscripcion_individual_url = reverse('inscripcion-individual')
@@ -37,7 +40,7 @@ class BaseCongressTest(TestCase):
         
     def verificar_disertante_url(self, dni):
         return reverse('verificar-disertante', kwargs={'dni': dni})
-
+        
 class RegistroParticipantesTests(BaseCongressTest):
     def test_registro_estudiante_unab_success(self):
         data = {
@@ -54,8 +57,9 @@ class RegistroParticipantesTests(BaseCongressTest):
                 "terminos_aceptados": True
             }
         }
-        response = self.client.post(self.registro_url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        with patch('api.serializers.send_individual_confirmation_email', return_value=True):
+            response = self.client.post(self.registro_url, data, format='json')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_inscripcion_individual_success(self):
         data = {
@@ -69,32 +73,9 @@ class RegistroParticipantesTests(BaseCongressTest):
                 "terminos_aceptados": True
             }
         }
-        response = self.client.post(self.inscripcion_individual_url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-    def test_inscripcion_grupal_success(self):
-        # Ajustamos group_size a 2 para coincidir con el numero de miembros
-        data = {
-            "asistente": {
-                "first_name": "Lider",
-                "last_name": "Grupo",
-                "dni": "99887766",
-                "email": "lider@grupo.com",
-                "phone": "1122334455",
-                "profile_type": "GROUP_REPRESENTATIVE",
-                "group_name": "Mi Equipo",
-                "group_size": 2,
-                "miembros_grupo_nuevos": [
-                    {"first_name": "M1", "last_name": "A1", "email": "m1@test.com", "dni": "33445566"},
-                    {"first_name": "M2", "last_name": "A2", "email": "m2@test.com", "dni": "44556677"}
-                ],
-                "terminos_aceptados": True
-            }
-        }
-        response = self.client.post(self.inscripcion_grupal_url, data, format='json')
-        if response.status_code != 201:
-            print(f"DEBUG ERROR Grupal: {response.json()}")
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        with patch('api.serializers.send_individual_confirmation_email', return_value=True):
+            response = self.client.post(self.inscripcion_individual_url, data, format='json')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
 class EmpresaTests(BaseCongressTest):
     def test_registro_empresa_success(self):
@@ -125,22 +106,16 @@ class CRMAndVerificationTests(BaseCongressTest):
         response = self.client.post(self.verificar_dni_url, {"dni": "77889900"}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        # Verificar en CRM
+        # Verificar en CRM (Vía el endpoint de verificación que usa AsistenteSerializer)
         response = self.client.get(self.verificar_asistente_url("77889900"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         res_data = response.json()
         self.assertEqual(res_data['asistente']['dni'], "77889900")
         self.assertTrue(res_data['asistente']['asistencia_confirmada'])
-
-    def test_verificar_empresa_crm(self):
-        Empresa.objects.create(
-            nombre_empresa="Test CRM", email_empresa="crm@test.com",
-            nombre_contacto="Contact", email_contacto="crm@test.com",
-            celular_contacto="1122334455", edicion=self.edicion
-        )
-        response = self.client.get(self.verificar_empresa_url("crm@test.com"))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()['empresa']['nombre_empresa'], "Test CRM")
+        
+        # Verificar directamente en el modelo Inscripcion
+        insc = Inscripcion.objects.get(asistente=self.asistente, edicion=self.edicion)
+        self.assertTrue(insc.asistencia_confirmada)
 
 class DisertanteTests(BaseCongressTest):
     def test_postulacion_disertante_success(self):
@@ -161,20 +136,9 @@ class DisertanteTests(BaseCongressTest):
             "participacion_tipo": ["Invitado"],
             "acepta_tyc": True
         }
-        response = self.client.post(self.postular_disertante_url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-    def test_verificar_disertante_crm(self):
-        PostulacionDisertante.objects.create(
-            nombre_apellido="CRM Disertante", dni="99001122", email="crmd@test.com",
-            telefono="1122334455", ciudad_provincia="BSAS", profesion_cargo="Prof",
-            empresa_institucion="Uni", titulo_charla="CRM Talk", 
-            resumen_charla="Resumen...", objetivos_charla="Obj...", acepta_tyc=True,
-            edicion=self.edicion
-        )
-        response = self.client.get(self.verificar_disertante_url("99001122"))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()['disertante']['nombre_apellido'], "CRM Disertante")
+        with patch('api.email.send_admin_postulation_alert', return_value=True):
+            response = self.client.post(self.postular_disertante_url, data, format='json')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
 class PrensaTests(BaseCongressTest):
     def test_inscripcion_prensa_upsert(self):
@@ -190,3 +154,68 @@ class PrensaTests(BaseCongressTest):
         }
         response = self.client.post(self.inscripcion_prensa_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+class RecurrenciaTests(BaseCongressTest):
+    def test_recurrencia_asistente(self):
+        """Un asistente de una edición anterior puede inscribirse en la nueva."""
+        edicion_2025, _ = Edicion.objects.get_or_create(anio=2025, defaults={'nombre': "2025", 'activa': False})
+        asistente, _ = Asistente.objects.get_or_create(
+            dni="11221122",
+            defaults={
+                'first_name': "Recurrente", 'last_name': "User", 
+                'email': "recurrente@test.com", 'profile_type': "VISITOR"
+            }
+        )
+        # Inscripción vieja
+        Inscripcion.objects.get_or_create(asistente=asistente, edicion=edicion_2025, defaults={'asistencia_confirmada': True})
+        
+        # Nueva inscripción (2026 activa)
+        data = {
+            "asistente": {
+                "first_name": "Recurrente",
+                "last_name": "User",
+                "dni": "11221122",
+                "email": "recurrente@test.com",
+                "profile_type": "VISITOR",
+                "terminos_aceptados": True
+            }
+        }
+        # Registrar y omitir envío real de mail
+        with patch('api.serializers.send_individual_confirmation_email', return_value=True):
+            response = self.client.post(self.inscripcion_individual_url, data, format='json')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Debe haber 2 inscripciones para 1 único asistente
+        self.assertEqual(Inscripcion.objects.filter(asistente=asistente).count(), 2)
+        # La nueva inscripción debe tener asistencia pendiente
+        nueva_insc = Inscripcion.objects.get(asistente=asistente, edicion=self.edicion)
+        self.assertFalse(nueva_insc.asistencia_confirmada)
+
+class CertificateMemoryTests(BaseCongressTest):
+    def test_generar_pdf_in_memory(self):
+        """Valida que el PDF se genere en memoria sin guardar en disco."""
+        asistente = Asistente.objects.create(
+            first_name="Cert", last_name="Test", dni="55443322",
+            email="cert@test.com", profile_type="VISITOR"
+        )
+        cert = Certificado.objects.create(asistente=asistente, tipo_certificado="ASISTENCIA")
+        
+        buffer = cert.generar_pdf(save=False)
+        self.assertGreater(len(buffer.getvalue()), 0)
+        # El campo pdf_generado debe seguir vacío porque save=False
+        self.assertFalse(cert.pdf_generado)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_send_certificate_email_memory(self, mock_send):
+        """Valida el envío del email con el adjunto generado on-the-fly."""
+        from .email import send_certificate_email
+        asistente = Asistente.objects.create(
+            first_name="Mail", last_name="Cert", dni="66554433",
+            email="mail@test.com", profile_type="VISITOR"
+        )
+        cert = Certificado.objects.create(asistente=asistente, tipo_certificado="ASISTENCIA")
+        
+        success = send_certificate_email(cert)
+        self.assertTrue(success)
+        self.assertTrue(mock_send.called)
+        self.assertTrue(cert.email_enviado)

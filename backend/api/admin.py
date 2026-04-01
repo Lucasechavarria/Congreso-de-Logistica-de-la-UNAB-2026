@@ -137,8 +137,8 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
     total_inscritos = Inscripcion.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
     total_disertantes = Disertante.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
     total_empresas = Empresa.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
-    total_confirmados = Asistente.objects.filter(
-        inscripciones__edicion=edicion_actual,
+    total_confirmados = Inscripcion.objects.filter(
+        edicion=edicion_actual,
         asistencia_confirmada=True
     ).distinct().count() if edicion_actual else 0
 
@@ -236,7 +236,7 @@ def broadcast_view(request):
                 emails.update(Asistente.objects.values_list('email', flat=True))
             
             if rol == 'ASISTENTES_CONFIRMADOS':
-                emails.update(Asistente.objects.filter(asistencia_confirmada=True).values_list('email', flat=True))
+                emails.update(Inscripcion.objects.filter(asistencia_confirmada=True).values_list('asistente__email', flat=True))
             
             if rol == 'TODOS' or rol == 'DISERTANTES':
                 emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))
@@ -388,6 +388,7 @@ def get_urls():
         path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
         path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
         path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
+        path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
     ]
     return custom_urls + urls
 
@@ -397,7 +398,8 @@ admin.site.index_title = format_html(
     'Admin Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Dashboard</a> | '
     '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a> | '
     '<a href="/admin/backup-db/" style="color: #f87171; text-decoration: underline;">Backup DB</a> | '
-    '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a>'
+    '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a> | '
+    '<a href="/admin/manual-certificate/" style="color: #60a5fa; text-decoration: underline;">Certificado Manual</a>'
 )
 admin.site.site_header = "Congreso Logística UNAB 2026 Admin"
 admin.site.site_title = "Panel Administrativo"
@@ -433,16 +435,58 @@ class MiembroGrupoInline(admin.TabularInline):
     extra = 0
     readonly_fields = ('fecha_registro',)
 
+def manual_certificate_view(request):
+    """
+    Vista para generar y enviar un certificado manualmente ingresando Nombre e Email.
+    """
+    if not request.user.is_staff:
+        return HttpResponse("No autorizado.", status=403)
+
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        email_addr = request.POST.get('email')
+        tipo = request.POST.get('tipo', 'ASISTENCIA')
+
+        if not nombre or not email_addr:
+            messages.error(request, "Nombre y Email son obligatorios.")
+        else:
+            try:
+                # Buscamos si ya existe un asistente con ese email, si no creamos uno temporal
+                asistente, _ = Asistente.objects.get_or_create(
+                    email=email_addr,
+                    defaults={'first_name': nombre.split(' ')[0], 'last_name': ' '.join(nombre.split(' ')[1:]) or '—'}
+                )
+                
+                cert = Certificado(asistente=asistente, tipo_certificado=tipo)
+                cert.save()
+                
+                # Usar la lógica de envío en memoria
+                from .email import send_certificate_email
+                success = send_certificate_email(cert)
+                
+                if success:
+                    messages.success(request, f"Certificado enviado exitosamente a {email_addr}.")
+                else:
+                    messages.error(request, f"Error al enviar el certificado a {email_addr}.")
+            except Exception as e:
+                messages.error(request, f"Error crítico: {str(e)}")
+
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Generación de Certificado Manual',
+    }
+    return render(request, 'admin/manual_certificate.html', context)
+
 class InscripcionAdmin(admin.ModelAdmin):
     list_display = ('asistente', 'empresa', 'fecha_inscripcion', 'edicion')
     list_filter = ('edicion', 'fecha_inscripcion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'empresa__razon_social')
 
 class AsistenteAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'dni', 'get_ediciones', 'asistencia_confirmada', 'fecha_registro')
-    list_filter = (DNIFilter, 'asistencia_confirmada', 'inscripciones__edicion', 'fecha_confirmacion', 'fecha_registro')
+    list_display = ('first_name', 'last_name', 'email', 'dni', 'get_ediciones', 'get_asistencia_actual', 'fecha_registro')
+    list_filter = (DNIFilter, 'inscripciones__asistencia_confirmada', 'inscripciones__edicion', 'fecha_registro')
     search_fields = ('first_name', 'last_name', 'email', 'dni')
-    readonly_fields = ('fecha_registro', 'fecha_confirmacion', 'dni_update_token', 'dni_email_sent_date')
+    readonly_fields = ('fecha_registro', 'dni_update_token', 'dni_email_sent_date')
     inlines = [MiembroGrupoInline]
     
     def get_queryset(self, request):
@@ -463,7 +507,14 @@ class AsistenteAdmin(admin.ModelAdmin):
     def get_ediciones(self, obj):
         ediciones = Edicion.objects.filter(inscripciones__asistente=obj).values_list('anio', flat=True)
         return ", ".join(map(str, ediciones)) if ediciones else "-"
-    get_ediciones.short_description = 'Ediciones'
+    def get_asistencia_actual(self, obj):
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa: return "—"
+        insc = obj.inscripciones.filter(edicion=edicion_activa).first()
+        if insc and insc.asistencia_confirmada:
+            return format_html('<span style="color: green;">✔ Confirmada</span>')
+        return format_html('<span style="color: red;">✘ Pendiente</span>')
+    get_asistencia_actual.short_description = 'Asistencia 2026'
     actions = ['confirmar_asistencia', 'enviar_certificados', 'enviar_solicitud_actualizacion_dni', 'enviar_certificados_lote_40', 'exportar_no_estudiantes_xls', 'exportar_asistentes_xls']
     def exportar_asistentes_xls(self, request, queryset):
         """
@@ -687,33 +738,41 @@ class AsistenteAdmin(admin.ModelAdmin):
     enviar_solicitud_actualizacion_dni.short_description = "Enviar solicitud de actualización de DNI (máx. 50)"  # type: ignore
 
     def confirmar_asistencia(self, request, queryset):
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa:
+            self.message_user(request, "No hay una edición activa configurada.", level='error')
+            return
+
         updated_count = 0
         for asistente in queryset:
-            if not asistente.asistencia_confirmada:
-                asistente.asistencia_confirmada = True
-                asistente.fecha_confirmacion = timezone.now()
-                asistente.save()
+            insc, created = Inscripcion.objects.get_or_create(asistente=asistente, edicion=edicion_activa)
+            if not insc.asistencia_confirmada:
+                insc.asistencia_confirmada = True
+                insc.fecha_confirmacion = timezone.now()
+                insc.save()
                 
-                # Crear certificado de asistencia (Quedará en cola: email_enviado=False)
+                # Crear certificado de asistencia
                 Certificado.objects.get_or_create(
                     asistente=asistente,
                     tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
                 )
                 updated_count += 1
         
-        self.message_user(request, f"{updated_count} asistencias confirmadas. Los certificados han sido añadidos a la cola de envío.")
-    confirmar_asistencia.short_description = "Confirmar asistencia (Añadir a cola de certificados)"  # type: ignore
+        self.message_user(request, f"{updated_count} asistencias confirmadas para {edicion_activa}. Los certificados están en cola.")
+    confirmar_asistencia.short_description = "Confirmar asistencia edición activa (Cola certificados)"  # type: ignore
 
     def enviar_certificados(self, request, queryset):
-        # Esta acción ahora solo asegura que existan los objetos Certificado en cola
+        edicion_activa = Edicion.objects.filter(activa=True).first()
         queued_count = 0
-        for asistente in queryset.filter(asistencia_confirmada=True):
-            obj, created = Certificado.objects.get_or_create(
-                asistente=asistente,
-                tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
-            )
-            if created or not obj.email_enviado:
-                queued_count += 1
+        for asistente in queryset:
+            insc = Inscripcion.objects.filter(asistente=asistente, edicion=edicion_activa, asistencia_confirmada=True).first()
+            if insc:
+                obj, created = Certificado.objects.get_or_create(
+                    asistente=asistente,
+                    tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
+                )
+                if created or not obj.email_enviado:
+                    queued_count += 1
         
         self.message_user(request, f"{queued_count} certificados listos en la cola para ser procesados.")
     enviar_certificados.short_description = "Añadir certificados de seleccionados a la cola"  # type: ignore

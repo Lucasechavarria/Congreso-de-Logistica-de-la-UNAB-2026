@@ -289,30 +289,30 @@ class VerificarDNIView(views.APIView):
             if not edicion_activa:
                 return Response({'status': 'error', 'message': 'No hay una edición activa configurada.'}, status=400)
 
-            # Buscar al asistente y verificar que tenga una inscripción para la edición activa
+            # Buscar al asistente e inscripción para la edición activa
             asistente = Asistente.objects.get(dni=dni)
-            if not Inscripcion.objects.filter(asistente=asistente, edicion=edicion_activa).exists():
+            inscripcion = asistente.inscripciones.filter(edicion=edicion_activa).first()
+            
+            if not inscripcion:
                 return Response({
                     'status': 'error', 
                     'message': f'El asistente está registrado en el sistema pero no tiene inscripción para la edición activa ({edicion_activa.nombre}).'
                 }, status=403)
                 
-            print(f"DEBUG: Asistente {asistente.dni} asistencia_confirmada: {asistente.asistencia_confirmada}")
+            if inscripcion.asistencia_confirmada:
+                fecha_confirmacion_str = inscripcion.fecha_confirmacion.strftime("%d/%m/%Y a las %H:%M:%S") if inscripcion.fecha_confirmacion else "fecha desconocida"
+                return Response({
+                    'status': 'error',
+                    'message': f'La asistencia ya fue confirmada el {fecha_confirmacion_str}.',
+                }, status=status.HTTP_409_CONFLICT)
+
         except Asistente.DoesNotExist:
             return Response({'status': 'error', 'message': 'DNI no encontrado en el listado de registrados.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if asistente.asistencia_confirmada:
-            # Ensure fecha_confirmacion is not None before calling strftime
-            fecha_confirmacion_str = asistente.fecha_confirmacion.strftime("%d/%m/%Y a las %H:%M:%S") if asistente.fecha_confirmacion else "fecha desconocida"
-            return Response({
-                'status': 'error',
-                'message': f'La asistencia ya fue confirmada el {fecha_confirmacion_str}.',
-            }, status=status.HTTP_409_CONFLICT)
-
-        # Confirmar asistencia
-        asistente.asistencia_confirmada = True
-        asistente.fecha_confirmacion = timezone.now()
-        asistente.save()
+        # Confirmar asistencia en la inscripción
+        inscripcion.asistencia_confirmada = True
+        inscripcion.fecha_confirmacion = timezone.now()
+        inscripcion.save()
 
         # Crear certificado de asistencia
         certificado, created = Certificado.objects.get_or_create(
@@ -397,10 +397,9 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
             inscripcion = serializer.save()
             
             # Confirmar asistencia inmediatamente para registro in-situ
-            asistente = inscripcion.asistente
-            asistente.asistencia_confirmada = True
-            asistente.fecha_confirmacion = timezone.now()
-            asistente.save()
+            inscripcion.asistencia_confirmada = True
+            inscripcion.fecha_confirmacion = timezone.now()
+            inscripcion.save()
             
             # Crear certificado de asistencia
             certificado, created = Certificado.objects.get_or_create(
@@ -1218,8 +1217,8 @@ class StatsDashboardView(views.APIView):
 
             # 4. KPIs Generales (Filtrado por edición seleccionada)
             total_inscritos = Inscripcion.objects.filter(edicion=edicion).count() if edicion else 0
-            total_confirmados = Asistente.objects.filter(
-                inscripciones__edicion=edicion,
+            total_confirmados = Inscripcion.objects.filter(
+                edicion=edicion,
                 asistencia_confirmada=True
             ).distinct().count() if edicion else 0
 
@@ -1311,7 +1310,7 @@ class BroadcastAPIView(views.APIView):
             emails.update(Asistente.objects.values_list('email', flat=True))
         
         if rol == 'ASISTENTES_CONFIRMADOS':
-            emails.update(Asistente.objects.filter(asistencia_confirmada=True).values_list('email', flat=True))
+            emails.update(Inscripcion.objects.filter(asistencia_confirmada=True).values_list('asistente__email', flat=True))
         
         if rol == 'TODOS' or rol == 'DISERTANTES':
             emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))

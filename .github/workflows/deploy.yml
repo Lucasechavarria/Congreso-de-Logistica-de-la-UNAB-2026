@@ -79,22 +79,21 @@ jobs:
 
       - name: Ensure Python Environment (env)
         run: |
-          # 1. Si existe venv pero no env, lo renombramos para no perder datos
+          # 1. Si existe venv pero no env, lo renombramos
           if [ -d "/var/www/congreso/backend/venv" ] && [ ! -d "/var/www/congreso/backend/env" ]; then
             echo "Migrando carpeta venv a env..."
             sudo mv /var/www/congreso/backend/venv /var/www/congreso/backend/env
           fi
           
-          # 2. Si no existe env, lo creamos de cero
-          if [ ! -d "/var/www/congreso/backend/env" ]; then
-            echo "Creando nuevo entorno virtual en /env/..."
-            python3 -m venv /var/www/congreso/backend/env
-          fi
+          # 2. Si no existe env, lo creamos. Si ya existe, lo "re-inicializamos" para arreglar rutas
+          echo "Asegurando integridad del entorno virtual en /env/..."
+          python3 -m venv /var/www/congreso/backend/env
 
       - name: Install Python Dependencies
         run: |
+          # Usar 'python -m pip' es más robusto ante rutas movidas
           /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip
-          /var/www/congreso/backend/env/bin/pip install -r /var/www/congreso/backend/requirements.txt
+          /var/www/congreso/backend/env/bin/python -m pip install -r /var/www/congreso/backend/requirements.txt
 
       - name: Run Database Migrations
         run: |

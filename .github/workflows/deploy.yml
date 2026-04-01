@@ -79,13 +79,16 @@ jobs:
 
       - name: Ensure Python Environment (env)
         run: |
-          # 1. Eliminar rastro de venv (carpeta obsoleta que causa conflictos de ruta)
+          # 1. Recuperar propiedad de las carpetas (si fueron manipuladas por root o sudo)
+          sudo chown -R $(whoami):$(whoami) /var/www/congreso/backend/
+
+          # 2. Eliminar rastro de venv (carpeta obsoleta que causa conflictos de ruta)
           if [ -d "/var/www/congreso/backend/venv" ]; then
             echo "Eliminando carpeta venv obsoleta..."
             sudo rm -rf /var/www/congreso/backend/venv
           fi
           
-          # 2. Asegurar que env existe y está limpio para evitar errores 203/EXEC
+          # 3. Asegurar que env existe y está limpio para evitar errores 203/EXEC
           echo "Saneando entorno virtual en /env/..."
           python3 -m venv /var/www/congreso/backend/env
 

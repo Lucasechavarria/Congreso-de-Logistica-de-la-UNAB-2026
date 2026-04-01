@@ -104,9 +104,21 @@ jobs:
 
       - name: Restart Services
         run: |
-          # Reinicio forzado para asegurar que se cargue el nuevo código
+          # 1. Matar procesos huérfanos y limpiar sockets para evitar 502 Bad Gateway
+          # Se ignoran fallos si no hay procesos (|| true)
+          echo "Saneando procesos de Gunicorn antiguos..."
+          sudo pkill -9 gunicorn || true
+          sudo rm -f /var/www/congreso/backend/congreso.sock || true
+          
+          # 2. Reinicio forzado para asegurar que se cargue el nuevo código
+          # Se usa el socket UNIX para coincidir con la configuración de NGINX
           sudo systemctl restart gunicorn
           sudo systemctl restart nginx
+          
+          # 3. Asegurar permisos del socket para Nginx
+          sudo chown www-data:www-data /var/www/congreso/backend/congreso.sock || true
+          sudo chmod 666 /var/www/congreso/backend/congreso.sock || true
+          
           echo "Verificando estado de servicios..."
           sudo systemctl status gunicorn --no-pager
           echo "Deploy complete. Memory freed and services restarted."

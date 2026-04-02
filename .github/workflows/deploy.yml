@@ -52,8 +52,13 @@ jobs:
 
       - name: Prepare Directories
         run: |
+          # 1. Asegurar directorios base
           mkdir -p /var/www/congreso/client/dist
           mkdir -p /var/www/congreso/backend/static
+          
+          # 2. Reclamar propiedad de las carpetas antes de cualquier operación de escritura/borrado
+          # Esto es CRÍTICO para que rsync y rm funcionen sin Permission Denied
+          sudo chown -R $(whoami):$(whoami) /var/www/congreso/
 
       - name: Deploy Frontend
         run: |
@@ -68,19 +73,24 @@ jobs:
 
       - name: Sync Backend
         run: |
+          # Usamos --no-perms --no-owner --no-group para evitar errores de rsync al intentar
+          # establecer dueños que no corresponden al usuario del runner.
+          # Excluimos archivos temporales y sockets para evitar fallos de unlink.
           rsync -av --delete \
+            --no-perms --no-owner --no-group \
             --exclude='.env' \
             --exclude='venv' \
             --exclude='env' \
             --exclude='static' \
             --exclude='media' \
             --exclude='private_media' \
+            --exclude='*.sock' \
+            --exclude='*.ctl' \
+            --exclude='__pycache__/' \
             backend/ /var/www/congreso/backend/
 
       - name: Ensure Python Environment (env)
         run: |
-          # 1. Recuperar propiedad de las carpetas (si fueron manipuladas por root o sudo)
-          sudo chown -R $(whoami):$(whoami) /var/www/congreso/backend/
 
           # 2. Eliminar rastro de venv (carpeta obsoleta que causa conflictos de ruta)
           if [ -d "/var/www/congreso/backend/venv" ]; then

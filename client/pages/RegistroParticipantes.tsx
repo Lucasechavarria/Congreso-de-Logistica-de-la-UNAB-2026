@@ -81,6 +81,11 @@ const groupMemberSchema = z.object({
     .regex(/^\d{7,8}$/, "El DNI debe tener 8 dígitos numéricos")
     .transform((val) => val.replace(/\D/g, "").slice(0, 8)),
   email: z.string().email("Debe ser un correo electrónico válido"),
+  phone: z.string().optional(),
+  profileType: z.string().optional(),
+  institution: z.string().optional(),
+  career: z.string().optional(),
+  comision: z.string().optional(),
 });
 
 const groupRepresentativeSchema = participantSchema.extend({
@@ -216,10 +221,15 @@ const RegistroParticipantes: React.FC = () => {
 
           setValue("groupSize", validRows.length);
           const mappedMembers = validRows.map(row => ({
-            firstName: String(row.NOMBRE || row.Nombre || row.nombre || row.FirstName || ""),
-            lastName: String(row.Apellido || row.apellido || row.LastName || ""),
-            dni: String(row.DNI || row.dni || "").replace(/\D/g, "").slice(0, 8),
-            email: String(row["CORREO ELECTRONICO"] || row.Email || row.email || row.Correo || "")
+            firstName: String(row.nombre || row.Nombre || row.NOMBRE || row.FirstName || ""),
+            lastName: String(row.apellido || row.Apellido || row.LastName || ""),
+            dni: String(row.dni || row.DNI || "").replace(/\D/g, "").slice(0, 8),
+            email: String(row.email || row.Email || row.Correo || row["CORREO ELECTRONICO"] || ""),
+            phone: String(row.telefono || row.Telefono || row.Phone || row.Celular || ""),
+            profileType: String(row.perfil || row.Perfil || row.Profile || "VISITOR").toUpperCase(),
+            institution: String(row.institucion || row.Institucion || row.Institution || ""),
+            career: String(row.carrera || row.Carrera || row.Career || row.Cargo || ""),
+            comision: String(row.comision || row.comisión || row.Comision || row.Comisión || row.curso || row.Curso || "")
           }));
 
           replace(mappedMembers);

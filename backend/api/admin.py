@@ -553,17 +553,22 @@ class AsistenteAdmin(admin.ModelAdmin):
                     else:
                         stats = {'total': 0, 'created': 0, 'updated': 0, 'errors': 0, 'error_details': []}
                         
-                        with transaction.atomic():
-                            for index, row in df.iterrows():
-                                stats['total'] += 1
-                                try:
+                        for index, row in df.iterrows():
+                            stats['total'] += 1
+                            try:
+                                with transaction.atomic():
                                     dni = str(row.get('dni')).strip().split('.')[0] # Limpiar .0 de excels
                                     email = str(row.get('email')).strip().lower()
-                                    nombre = str(row.get('nombre')).strip()
-                                    apellido = str(row.get('apellido')).strip()
+                                    nombre = str(row.get('nombre', '')).strip()
+                                    apellido = str(row.get('apellido', '')).strip()
                                     
-                                    if not dni or not email:
-                                        raise ValueError("DNI o Email vacíos en la fila.")
+                                    if not dni or not email or not nombre or not apellido:
+                                        missing = []
+                                        if not dni: missing.append("DNI")
+                                        if not email: missing.append("Email")
+                                        if not nombre: missing.append("Nombre")
+                                        if not apellido: missing.append("Apellido")
+                                        raise ValueError(f"Datos básicos faltantes: {', '.join(missing)}")
 
                                     # 1. Crear/Actualizar Asistente
                                     profile_type = str(row.get('perfil', 'VISITOR')).upper().strip()
@@ -593,17 +598,23 @@ class AsistenteAdmin(admin.ModelAdmin):
                                     )
 
                                     # 3. Datos extra (Detalles)
-                                    institucion = str(row.get('institucion', '')).strip()
+                                    institucion = str(row.get('institucion', row.get('institución', ''))).strip()
                                     carrera_cargo = str(row.get('carrera', '')).strip()
+                                    comision_excel = str(row.get('comision', row.get('comisión', row.get('curso', '')))).strip()
+
+                                    if comision_excel:
+                                        asistente.comision = comision_excel
+                                        asistente.save()
                                     
                                     if institucion or carrera_cargo:
                                         from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional
-                                        if profile_type == Asistente.ProfileType.STUDENT:
+                                        if profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO]:
                                             DetalleEstudiante.objects.update_or_create(asistente=asistente, defaults={'institution': institucion, 'career': carrera_cargo})
                                         elif profile_type == Asistente.ProfileType.TEACHER:
                                             DetalleDocente.objects.update_or_create(asistente=asistente, defaults={'institution': institucion, 'career_taught': carrera_cargo})
-                                        elif profile_type == Asistente.ProfileType.PROFESSIONAL:
-                                            DetalleProfesional.objects.update_or_create(asistente=asistente, defaults={'work_area': institucion, 'occupation': carrera_cargo})
+                                        elif profile_type in [Asistente.ProfileType.PROFESSIONAL, Asistente.ProfileType.OTRO]:
+                                            work_area = institucion if profile_type == Asistente.ProfileType.PROFESSIONAL else "Otro"
+                                            DetalleProfesional.objects.update_or_create(asistente=asistente, defaults={'work_area': work_area, 'occupation': carrera_cargo})
 
                                     # 4. Enviar Email si se solicitó
                                     if send_emails:
@@ -611,12 +622,12 @@ class AsistenteAdmin(admin.ModelAdmin):
                                             from .email import send_individual_confirmation_email
                                             send_individual_confirmation_email(asistente)
                                         except Exception as e:
-                                            print(f"[ERROR] No se pudo enviar email en carga masiva a {asistente.email}: {e}")
-                                            stats['error_details'].append({'row': index + 2, 'msg': f"Email fallido: {str(e)}"})
-
-                                except Exception as e:
-                                    stats['errors'] += 1
-                                    stats['error_details'].append({'row': index + 2, 'msg': str(e)})
+                                            # No cuenta como error de registro, pero lo logueamos
+                                            stats['error_details'].append({'row': index + 2, 'msg': f"Registro OK, pero email falló: {str(e)}"})
+                            
+                            except Exception as e:
+                                stats['errors'] += 1
+                                stats['error_details'].append({'row': index + 2, 'msg': str(e)})
                         
                         results = stats
                         messages.success(request, f"Procesamiento masivo completado. {stats['created']} nuevos registros.")

@@ -195,6 +195,7 @@ class Asistente(models.Model):
     
     # Campo adicional para roles específicos (ej: "Colaborador/a Estudiante", "Colaborador/a Docente")
     rol_especifico = models.CharField(max_length=255, blank=True, null=True, verbose_name="Rol Específico")
+    comision = models.CharField(max_length=255, blank=True, null=True, verbose_name="Comisión / Curso")
 
     # --- Relación de Grupo ---
     representante_grupo = models.ForeignKey(

@@ -127,15 +127,17 @@ jobs:
           sudo rm -f /var/www/congreso/backend/congreso.sock || true
           
           # 2. Reinicio forzado para asegurar que se cargue el nuevo código
-          sudo systemctl restart gunicorn
+          sudo systemctl restart congreso
           sudo systemctl restart nginx
           
-          # 3. Asegurar permisos del socket para Nginx
-          sudo chown www-data:www-data /var/www/congreso/backend/congreso.sock || true
-          sudo chmod 666 /var/www/congreso/backend/congreso.sock || true
+          # 3. Asegurar permisos del socket para Nginx (www-data)
+          # Esperar un segundo a que Gunicorn cree el socket
+          sleep 2
+          sudo chown :www-data /var/www/congreso/backend/congreso.sock || true
+          sudo chmod 660 /var/www/congreso/backend/congreso.sock || true
           
           echo "Verificando estado de servicios..."
-          sudo systemctl status gunicorn --no-pager
+          sudo systemctl status congreso --no-pager
           echo "Deploy complete. Memory freed and services restarted."
 
       - name: Health Check (Verify Site is UP)

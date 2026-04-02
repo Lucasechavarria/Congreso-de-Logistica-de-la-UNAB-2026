@@ -153,6 +153,10 @@ jobs:
 
       - name: Update Diagnostic File
         run: |
+          # 1. Asegurar permisos antes de escribir el archivo final
+          sudo chown $(whoami):$(whoami) /var/www/congreso/backend/static/diag.txt || true
+          
+          # 2. Generar reporte (se añade || true al grep para evitar fallos si no hay procesos listados)
           {
             echo "=== Post-deploy Diagnostic ==="
             echo "Time: $(date)"
@@ -160,7 +164,10 @@ jobs:
             echo "Status: SUCCESS"
             echo "Health: OK"
             echo "Gunicorn processes:"
-            ps aux | grep gunicorn | grep -v grep
+            ps aux | grep gunicorn | grep -v grep || echo "No active gunicorn processes found in ps (expected if using socket service)."
           } > /var/www/congreso/backend/static/diag.txt
+          
+          # 3. Restaurar permisos para que Nginx pueda servirlo
+          sudo chmod 644 /var/www/congreso/backend/static/diag.txt
 
 # v12 - Optimized deploy: single venv, cache cleanup, strict sudo reload.

@@ -1,0 +1,80 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label='api' %}">API</a>
+&rsaquo; <a href="{% url 'admin:api_asistente_changelist' %}">Asistentes</a>
+&rsaquo; {% trans 'Carga Masiva' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module" style="padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 style="margin-bottom: 20px; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+            <span style="font-size: 1.5em; margin-right: 10px;">📊</span> Carga Masiva de Asistentes (Excel/CSV)
+        </h2>
+
+        <p style="font-size: 1.1em; color: #475569; line-height: 1.6;">
+            Sube un archivo **Excel (.xlsx)** o **CSV** para registrar cientos de asistentes a la vez. 
+            El sistema creará las inscripciones automáticas para la <strong>Edición 2026</strong>.
+        </p>
+
+        <div style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0;">
+            <strong style="color: #1e3a8a;">⚠️ Requisitos del archivo:</strong>
+            <ul style="margin-top: 10px;">
+                <li>Los encabezados deben ser: <strong>nombre, apellido, email, dni, telefono, perfil, institucion, carrera</strong>.</li>
+                <li><strong>DNI</strong>: Solo números (8 dígitos).</li>
+                <li><strong>Perfiles válidos</strong>: VISITOR, STUDENT, TEACHER, PROFESSIONAL, PRESS, GRADUADO, OTRO.</li>
+                <li><strong>Importante</strong>: El sistema evitará duplicados de DNI y Email.</li>
+            </ul>
+        </div>
+
+        <form action="" method="post" enctype="multipart/form-data" style="margin-top: 30px;">
+            {% csrf_token %}
+            <div style="margin-bottom: 20px;">
+                <label for="excel_file" style="font-weight: bold; display: block; margin-bottom: 10px;">Seleccionar Archivo:</label>
+                <input type="file" name="excel_file" id="excel_file" accept=".xlsx, .xls, .csv" required 
+                       style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; width: 100%;">
+            </div>
+            
+            <div style="margin-bottom: 30px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="send_emails" value="yes" checked style="margin-right: 10px;">
+                    Enviar correo de confirmación de inscripción al finalizar la carga
+                </label>
+            </div>
+
+            <div class="submit-row" style="background: none; border: none; padding: 0; text-align: left;">
+                <input type="submit" value="Iniciar Procesamiento Masivo" class="default" 
+                       style="background: #2563eb; padding: 12px 30px; font-weight: bold; cursor: pointer;">
+                <a href="{% url 'admin:api_asistente_changelist' %}" class="closelink" style="margin-left: 20px;">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if results %}
+<div class="module" style="margin-top: 30px; padding: 20px; background: #fff; border-radius: 8px;">
+    <h3>Resultados de la última carga:</h3>
+    <p style="font-size: 1.2em;">
+        ✅ **{{ results.total }}** filas procesadas | 
+        🆕 **{{ results.created }}** creados | 
+        🔄 **{{ results.updated }}** actualizados | 
+        ❌ **{{ results.errors }}** errores.
+    </p>
+    {% if results.error_details %}
+    <details style="margin-top: 10px; color: #ef4444;">
+        <summary>Ver detalles de errores</summary>
+        <ul style="margin-top: 10px;">
+            {% for err in results.error_details %}
+            <li>Fila {{ err.row }}: {{ err.msg }}</li>
+            {% endfor %}
+        </ul>
+    </details>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -362,13 +362,20 @@ def send_bulk_confirmation_email(asistente, es_carga_masiva=False, es_recordator
         
         logo_path = get_logo_path()
         
-        subject_suffix = " - Completar datos faltantes" if datos_faltantes else ""
+        # Alerta al administrador solo si NO es un visitante común/estudiante/docente estándar
+        # NOTA: Las empresas y disertantes tienen sus propias funciones de alerta detalladas.
+        bcc_list = []
+        # Definimos quiénes NO saturan el mail del admin: visitantes, estudiantes, docentes, graduados, profesionales.
+        # Solo queremos bcc para Prensa, Representantes de Grupo (opcional) o roles especiales si se requiere.
+        if asistente.profile_type in [asistente.ProfileType.PRESS, asistente.ProfileType.GROUP_REPRESENTATIVE]:
+            bcc_list.append(CONGRESO_EMAIL)
+
         email = EmailMultiAlternatives(
             subject=f'Confirmación de Inscripción al Congreso de Logística UNAB{subject_suffix}',
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
-            bcc=[CONGRESO_EMAIL]
+            bcc=bcc_list
         )
         email.attach_alternative(html_content, "text/html")
         
@@ -417,12 +424,19 @@ def send_group_confirmation_emails(representante):
         
         logo_path = get_logo_path()
         
+        # Notificar al admin solo si es un perfil que requiere seguimiento (Prensa o similar)
+        # Para representantes de grupo estándar, evitamos saturar si el usuario así lo prefiere.
+        # Por seguridad y seguimiento, el representante suele ser importante, pero lo filtramos si es Visitante.
+        bcc_list_rep = []
+        if representante.profile_type not in [representante.ProfileType.VISITOR, 'VISITOR']:
+            bcc_list_rep.append(CONGRESO_EMAIL)
+
         email_representante = EmailMultiAlternatives(
             subject='Confirmación de Inscripción Grupal - Congreso de Logística UNAB',
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[representante.email],
-            bcc=[CONGRESO_EMAIL]
+            bcc=bcc_list_rep
         )
         email_representante.attach_alternative(html_content, "text/html")
         
@@ -464,12 +478,13 @@ def send_group_confirmation_emails(representante):
             html_content = render_to_string('api/email/confirmacion.html', context_miembro)
             text_content = strip_tags(html_content)
             
+            # Miembros del grupo: NO enviar BCC al admin para evitar saturación masiva
             email_miembro = EmailMultiAlternatives(
                 subject='Confirmación de Inscripción al Congreso de Logística UNAB',
                 body=text_content,
                 from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
                 to=[miembro.email],
-                bcc=[CONGRESO_EMAIL]
+                bcc=[] # Sin copia al admin para miembros individuales
             )
             email_miembro.attach_alternative(html_content, "text/html")
             

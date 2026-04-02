@@ -16,6 +16,8 @@ from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
+from django.db import transaction
+import pandas as pd
 import logging
 import os
 
@@ -400,6 +402,7 @@ patch_admin_urls()
 admin.site.index_title = format_html(
     'Admin Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Dashboard</a> | '
     '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a> | '
+    '<a href="/admin/api/asistente/import-excel/" style="color: #4ade80; text-decoration: underline; font-weight: bold;">Carga Masiva Excel</a> | '
     '<a href="/admin/backup-db/" style="color: #f87171; text-decoration: underline;">Backup DB</a> | '
     '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a> | '
     '<a href="/admin/manual-certificate/" style="color: #60a5fa; text-decoration: underline;">Certificado Manual</a>'
@@ -502,6 +505,116 @@ class AsistenteAdmin(admin.ModelAdmin):
     fecha_registro_detalle.admin_order_field = 'fecha_registro'
     readonly_fields = ('fecha_registro', 'dni_update_token', 'dni_email_sent_date')
     inlines = [MiembroGrupoInline]
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-excel/', self.admin_site.admin_view(self.import_excel_view), name='api_asistente_import_excel'),
+        ]
+        return custom_urls + urls
+
+    def import_excel_view(self, request):
+        results = None
+        if request.method == 'POST' and request.FILES.get('excel_file'):
+            excel_file = request.FILES['excel_file']
+            send_emails = request.POST.get('send_emails') == 'yes'
+            
+            try:
+                # Leer archivo con pandas
+                if excel_file.name.endswith('.csv'):
+                    df = pd.read_csv(excel_file)
+                else:
+                    df = pd.read_excel(excel_file)
+                
+                # Normalizar nombres de columnas a minúsculas
+                df.columns = [str(c).lower().strip() for c in df.columns]
+                
+                # Columnas requeridas
+                required = ['nombre', 'apellido', 'email', 'dni']
+                missing = [c for c in required if c not in df.columns]
+                
+                if missing:
+                    messages.error(request, f"Faltan columnas obligatorias: {', '.join(missing)}")
+                else:
+                    edicion_activa = Edicion.objects.filter(activa=True).first()
+                    if not edicion_activa:
+                        messages.error(request, "No hay una edición activa configurada para vincular los registros.")
+                    else:
+                        stats = {'total': 0, 'created': 0, 'updated': 0, 'errors': 0, 'error_details': []}
+                        
+                        with transaction.atomic():
+                            for index, row in df.iterrows():
+                                stats['total'] += 1
+                                try:
+                                    dni = str(row.get('dni')).strip().split('.')[0] # Limpiar .0 de excels
+                                    email = str(row.get('email')).strip().lower()
+                                    nombre = str(row.get('nombre')).strip()
+                                    apellido = str(row.get('apellido')).strip()
+                                    
+                                    if not dni or not email:
+                                        raise ValueError("DNI o Email vacíos en la fila.")
+
+                                    # 1. Crear/Actualizar Asistente
+                                    profile_type = str(row.get('perfil', 'VISITOR')).upper().strip()
+                                    # Mapear perfiles válidos
+                                    if profile_type not in [t[0] for t in Asistente.ProfileType.choices]:
+                                        profile_type = Asistente.ProfileType.VISITOR
+
+                                    asistente, created = Asistente.objects.update_or_create(
+                                        dni=dni,
+                                        defaults={
+                                            'first_name': nombre,
+                                            'last_name': apellido,
+                                            'email': email,
+                                            'phone': str(row.get('telefono', '')).strip(),
+                                            'profile_type': profile_type,
+                                            'terminos_aceptados': True
+                                        }
+                                    )
+
+                                    if created: stats['created'] += 1
+                                    else: stats['updated'] += 1
+
+                                    # 2. Vincular a Edición 2026 (Inscripcion)
+                                    Inscripcion.objects.get_or_create(
+                                        asistente=asistente,
+                                        edicion=edicion_activa
+                                    )
+
+                                    # 3. Datos extra (Detalles)
+                                    institucion = str(row.get('institucion', '')).strip()
+                                    carrera_cargo = str(row.get('carrera', '')).strip()
+                                    
+                                    if institucion or carrera_cargo:
+                                        from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional
+                                        if profile_type == Asistente.ProfileType.STUDENT:
+                                            DetalleEstudiante.objects.update_or_create(asistente=asistente, defaults={'institution': institucion, 'career': carrera_cargo})
+                                        elif profile_type == Asistente.ProfileType.TEACHER:
+                                            DetalleDocente.objects.update_or_create(asistente=asistente, defaults={'institution': institucion, 'career_taught': carrera_cargo})
+                                        elif profile_type == Asistente.ProfileType.PROFESSIONAL:
+                                            DetalleProfesional.objects.update_or_create(asistente=asistente, defaults={'work_area': institucion, 'occupation': carrera_cargo})
+
+                                    # 4. Enviar Email si se solicitó
+                                    if send_emails:
+                                        from .email import send_individual_confirmation_email
+                                        send_individual_confirmation_email(asistente)
+
+                                except Exception as e:
+                                    stats['errors'] += 1
+                                    stats['error_details'].append({'row': index + 2, 'msg': str(e)})
+                        
+                        results = stats
+                        messages.success(request, f"Procesamiento masivo completado. {stats['created']} nuevos registros.")
+
+            except Exception as e:
+                messages.error(request, f"Error al procesar el archivo: {str(e)}")
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Carga Masiva de Asistentes',
+            'results': results,
+        }
+        return render(request, 'admin/import_asistentes.html', context)
     
     def get_queryset(self, request):
         """

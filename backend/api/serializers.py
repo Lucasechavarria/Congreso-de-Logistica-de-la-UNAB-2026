@@ -474,6 +474,19 @@ class AsistenteSerializer(serializers.ModelSerializer):
             'prensa_medio', 'prensa_links', 'asistencia_confirmada', 'fecha_confirmacion'
         ]
         read_only_fields = ['id', 'miembros_representados']
+        extra_kwargs = {
+            'is_unab_student': {'required': False},
+            'institution': {'required': False},
+            'career': {'required': False},
+            'year_of_study': {'required': False},
+            'career_taught': {'required': False},
+            'work_area': {'required': False},
+            'occupation': {'required': False},
+            'group_name': {'required': False},
+            'group_municipality': {'required': False},
+            'group_size': {'required': False},
+            'comision': {'required': False},
+        }
 
     def to_internal_value(self, data):
         import json
@@ -622,6 +635,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
         email = validated_data.get('email')
 
         # 1. Registro del REPRESENTANTE (Atomico para el individuo)
+        edicion_activa = Edicion.objects.filter(activa=True).first()
         try:
             with transaction.atomic():
                 asistente = None
@@ -650,6 +664,11 @@ class AsistenteSerializer(serializers.ModelSerializer):
                     'group_municipality': group_municipality,
                     'group_size': group_size
                 })
+
+                # Vincular a Edición Activa (Inscripcion)
+                if edicion_activa:
+                    Inscripcion.objects.get_or_create(asistente=asistente, edicion=edicion_activa)
+
         except Exception as e:
             # Si falla el representante, no tiene sentido seguir con el grupo
             raise serializers.ValidationError({"detail": f"Error al registrar representante: {str(e)}"})
@@ -685,6 +704,9 @@ class AsistenteSerializer(serializers.ModelSerializer):
                         m_dni = miembro_data.get('dni')
                         m_email = miembro_data.get('email')
                         
+                        if not m_dni and not m_email:
+                            raise ValueError("Nombre, Email o DNI faltantes en integrante.")
+
                         m_asistente = None
                         if m_dni:
                             m_asistente = Asistente.objects.filter(dni=m_dni).first()
@@ -701,6 +723,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
                             'profile_type': m_profile,
                             'representante_grupo': asistente,
                             'comision': miembro_data.get('comision') or validated_data.get('comision'),
+                            'terminos_aceptados': True,
                         }
 
                         if m_asistente:
@@ -715,12 +738,16 @@ class AsistenteSerializer(serializers.ModelSerializer):
                             'institution': miembro_data.get('institution'),
                             'career': miembro_data.get('career'),
                         })
+
+                        # Vincular miembro a Edición Activa
+                        if edicion_activa:
+                            Inscripcion.objects.get_or_create(asistente=m_asistente, edicion=edicion_activa)
+
                 except Exception as e:
                     fallos_miembros.append(f"{miembro_data.get('first_name', 'Fila')} - {str(e)}")
 
             if fallos_miembros:
                 print(f"[WARNING] Errores en integrantes de grupo: {fallos_miembros}")
-                # Podríamos adjuntar esto al objeto asistente para informar al frontend si fuera necesario
             
             # Enviar emails de confirmación
             try:

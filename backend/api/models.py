@@ -234,6 +234,10 @@ class Asistente(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
+    @property
+    def nombre_completo(self):
+        return f"{self.first_name} {self.last_name}"
+
     def clean(self):
         """Valida que el DNI tenga exactamente 8 dígitos numéricos"""
         super().clean()

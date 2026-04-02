@@ -561,9 +561,12 @@ def send_certificate_email(certificado_instance):
         return True
         
     except Exception as e:
+        import traceback
+        error_msg = f"Error enviando certificado a {asistente.email}: {str(e)}\n{traceback.format_exc()}"
+        print(f"[ERROR] {error_msg}")
+        # En el admin, queremos saber qué pasó
         certificado_instance.intentos += 1
         certificado_instance.save(update_fields=['intentos'])
-        print(f"Error enviando certificado a {asistente.email}: {e}")
         return False
 
 def send_admin_postulation_alert(instance, tipo):

@@ -603,8 +603,12 @@ class AsistenteAdmin(admin.ModelAdmin):
 
                                     # 4. Enviar Email si se solicitó
                                     if send_emails:
-                                        from .email import send_individual_confirmation_email
-                                        send_individual_confirmation_email(asistente)
+                                        try:
+                                            from .email import send_individual_confirmation_email
+                                            send_individual_confirmation_email(asistente)
+                                        except Exception as e:
+                                            print(f"[ERROR] No se pudo enviar email en carga masiva a {asistente.email}: {e}")
+                                            stats['error_details'].append({'row': index + 2, 'msg': f"Email fallido: {str(e)}"})
 
                                 except Exception as e:
                                     stats['errors'] += 1

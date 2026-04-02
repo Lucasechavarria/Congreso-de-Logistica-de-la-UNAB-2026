@@ -89,33 +89,27 @@ jobs:
             --exclude='__pycache__/' \
             backend/ /var/www/congreso/backend/
 
-      - name: Ensure Python Environment (env)
+      - name: Ensure Python Environment (venv)
         run: |
 
-          # 2. Eliminar rastro de venv (carpeta obsoleta que causa conflictos de ruta)
-          if [ -d "/var/www/congreso/backend/venv" ]; then
-            echo "Eliminando carpeta venv obsoleta..."
-            sudo rm -rf /var/www/congreso/backend/venv
-          fi
-          
-          # 3. Asegurar que env existe y está limpio para evitar errores 203/EXEC
-          echo "Saneando entorno virtual en /env/..."
-          python3 -m venv /var/www/congreso/backend/env
+          # Asegurar venv existe y está limpio para evitar errores 203/EXEC
+          echo "Saneando entorno virtual en /venv/..."
+          python3 -m venv /var/www/congreso/backend/venv
 
       - name: Install Python Dependencies
         run: |
           # Usar 'python -m pip' es más robusto ante rutas movidas
-          /var/www/congreso/backend/env/bin/python -m pip install --upgrade pip
-          /var/www/congreso/backend/env/bin/python -m pip install -r /var/www/congreso/backend/requirements.txt
+          /var/www/congreso/backend/venv/bin/python -m pip install --upgrade pip
+          /var/www/congreso/backend/venv/bin/python -m pip install -r /var/www/congreso/backend/requirements.txt
 
       - name: Run Database Migrations
         run: |
-          /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate --noinput
+          /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py migrate --noinput
 
       - name: Validate Python Syntax (Pre-restart)
         run: |
           # Verificar errores de sintaxis antes de reiniciar para evitar downtime
-          /var/www/congreso/backend/env/bin/python -m compileall -q /var/www/congreso/backend/
+          /var/www/congreso/backend/venv/bin/python -m compileall -q /var/www/congreso/backend/
           # Asegurar permisos de ejecución para scripts de mantenimiento
           chmod +x /var/www/congreso/backend/scripts/*.sh || true
 

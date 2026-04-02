@@ -17,7 +17,6 @@ from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db import transaction
-import pandas as pd
 import logging
 import os
 
@@ -515,6 +514,14 @@ class AsistenteAdmin(admin.ModelAdmin):
 
     def import_excel_view(self, request):
         results = None
+        
+        # Validación de dependencia (Lazy Loading)
+        try:
+            import pandas as pd
+        except ImportError:
+            messages.error(request, "Error Crítico: El servidor no tiene instalada la librería 'pandas'. Por favor, contacta a soporte.")
+            return render(request, 'admin/import_asistentes.html', {**self.admin_site.each_context(request), 'title': 'Carga Masiva (Error)'})
+
         if request.method == 'POST' and request.FILES.get('excel_file'):
             excel_file = request.FILES['excel_file']
             send_emails = request.POST.get('send_emails') == 'yes'

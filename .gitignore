@@ -29,7 +29,7 @@ __pycache__/
 backend/db.sqlite3
 backend/media/
 backend/qr_codes/
-backend/certificates/
+# backend/certificates/ <- Quitamos esto para que se puedan subir las imagenes de fondo
 backend/debug_serializer.log
 backend/datos.json
 

@@ -102,16 +102,21 @@ jobs:
         run: |
           /var/www/congreso/backend/env/bin/python /var/www/congreso/backend/manage.py migrate --noinput
 
+      - name: Validate Python Syntax (Pre-restart)
+        run: |
+          # Verificar errores de sintaxis antes de reiniciar para evitar downtime
+          /var/www/congreso/backend/env/bin/python -m compileall -q /var/www/congreso/backend/
+          # Asegurar permisos de ejecución para scripts de mantenimiento
+          chmod +x /var/www/congreso/backend/scripts/*.sh || true
+
       - name: Restart Services
         run: |
           # 1. Matar procesos huérfanos y limpiar sockets para evitar 502 Bad Gateway
-          # Se ignoran fallos si no hay procesos (|| true)
           echo "Saneando procesos de Gunicorn antiguos..."
           sudo pkill -9 gunicorn || true
           sudo rm -f /var/www/congreso/backend/congreso.sock || true
           
           # 2. Reinicio forzado para asegurar que se cargue el nuevo código
-          # Se usa el socket UNIX para coincidir con la configuración de NGINX
           sudo systemctl restart gunicorn
           sudo systemctl restart nginx
           
@@ -123,12 +128,27 @@ jobs:
           sudo systemctl status gunicorn --no-pager
           echo "Deploy complete. Memory freed and services restarted."
 
+      - name: Health Check (Verify Site is UP)
+        run: |
+          # Esperar unos segundos a que Gunicorn levante el socket
+          sleep 5
+          # Verificar si el sitio responde (Ignorar SSL y seguir redirecciones)
+          # Buscamos un código 200 o 302
+          STATUS_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L -k https://www.congresologistica.unab.edu.ar/ || echo "000")
+          echo "Status Code: $STATUS_CODE"
+          if [[ "$STATUS_CODE" != "200" && "$STATUS_CODE" != "302" ]]; then
+            echo "::error::El sitio no está respondiendo correctamente (Status: $STATUS_CODE)"
+            exit 1
+          fi
+
       - name: Update Diagnostic File
         run: |
           {
             echo "=== Post-deploy Diagnostic ==="
             echo "Time: $(date)"
-            echo "User: $(whoami)"
+            echo "Revision: ${{ github.sha }}"
+            echo "Status: SUCCESS"
+            echo "Health: OK"
             echo "Gunicorn processes:"
             ps aux | grep gunicorn | grep -v grep
           } > /var/www/congreso/backend/static/diag.txt

@@ -467,12 +467,16 @@ def manual_certificate_view(request):
                 
                 # Usar la lógica de envío en memoria
                 from .email import send_certificate_email
-                success = send_certificate_email(cert)
+                result = send_certificate_email(cert)
+                
+                # Manejar retorno simple (bool) o tupla (bool, str) para compatibilidad
+                success = result[0] if isinstance(result, tuple) else result
+                error_msg = result[1] if isinstance(result, tuple) else "Error desconocido en el servidor de correo."
                 
                 if success:
                     messages.success(request, f"Certificado enviado exitosamente a {email_addr}.")
                 else:
-                    messages.error(request, f"Error al enviar el certificado a {email_addr}.")
+                    messages.error(request, f"Error al enviar el certificado a {email_addr}: {error_msg}")
             except Exception as e:
                 messages.error(request, f"Error crítico: {str(e)}")
 

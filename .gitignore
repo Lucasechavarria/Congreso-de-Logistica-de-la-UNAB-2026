@@ -29,9 +29,13 @@ __pycache__/
 backend/db.sqlite3
 backend/media/
 backend/qr_codes/
-# backend/certificates/ <- Quitamos esto para que se puedan subir las imagenes de fondo
+backend/*.sql
+backend/backups/
+backend/secrets/
 backend/debug_serializer.log
 backend/datos.json
+backend/*.log
+backend/*.xlsx
 
 # --- Archivos de Entorno & Sensibles ---
 .env
@@ -89,6 +93,12 @@ test_form_api.js
 test_import.js
 FETCH_HEAD
 *.docx.md
+*.rtf
+*.txt
+!requirements.txt
+!README.md
+!API_DOC.md
+!.cursorrules
 
 # --- Específicos de Herramientas ---
 .builder/

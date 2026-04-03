@@ -27,7 +27,9 @@ import {
   UploadCloud,
   FileSpreadsheet,
   Trash2,
-  Link
+  Link,
+  Info,
+  AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDropzone } from "react-dropzone";
@@ -424,22 +426,24 @@ const RegistroParticipantes: React.FC = () => {
         // Estructura para el nuevo sistema de inscripción grupal
         // Enviamos directamente al endpoint de participantes
         const dataToSend = {
-          first_name: data.firstName,
-          last_name: data.lastName,
-          dni: data.dni,
-          email: data.email,
-          phone: data.phone,
-          profile_type: "GROUP_REPRESENTATIVE",
-          group_name: data.groupName,
-          group_municipality: data.groupMunicipality || "",
-          group_size: data.groupSize,
-          terminos_aceptados: data.aceptaTyC,
-          miembros_grupo_nuevos: data.groupMembers.map(member => ({
-            first_name: member.firstName,
-            last_name: member.lastName,
-            dni: member.dni,
-            email: member.email
-          }))
+          asistente: {
+            first_name: data.firstName,
+            last_name: data.lastName,
+            dni: data.dni,
+            email: data.email,
+            phone: data.phone,
+            profile_type: "GROUP_REPRESENTATIVE",
+            group_name: data.groupName,
+            group_municipality: data.groupMunicipality || "",
+            group_size: data.groupSize,
+            terminos_aceptados: data.aceptaTyC,
+            miembros_grupo_nuevos: data.groupMembers.map(member => ({
+              first_name: member.firstName,
+              last_name: member.lastName,
+              dni: member.dni,
+              email: member.email
+            }))
+          }
         };
 
         // Usar la nueva función de API para inscripción con participantes
@@ -971,7 +975,7 @@ const RegistroParticipantes: React.FC = () => {
                   </div>
 
                   {hasDeclaredGroupSize ? (
-                    <div>
+                    <div className="space-y-6">
                       <h3 className="text-lg font-semibold text-slate-900 mb-4">
                         Datos de los {groupSize} Integrantes
                       </h3>
@@ -980,74 +984,95 @@ const RegistroParticipantes: React.FC = () => {
                       </p>
                     </div>
                   ) : (
-                    <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100 mb-6 transition-all">
-                      <h3 className="text-lg font-semibold text-slate-900 mb-2">Carga Masiva (Recomendado)</h3>
-                      <p className="text-sm text-slate-600 mb-4">
-                        Para acelerar el registro, puede descargar nuestra plantilla, completarla y subirla aquí. Si lo prefiere, indique el número de integrantes arriba para cargarlos a mano.
-                      </p>
-
-                      {excelFile ? (
-                        <div className="bg-white p-4 rounded-lg border border-slate-200 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileSpreadsheet className="text-green-600 w-8 h-8" />
-                            <div>
-                              <p className="font-semibold text-slate-800 text-sm">{excelFile.name}</p>
-                              <p className="text-xs text-slate-500">{(excelFile.size / 1024).toFixed(1)} KB</p>
+                    <div className="space-y-6">
+                      {/* Banner Informativo */}
+                      <div className="bg-gradient-to-br from-violet-50 to-indigo-50/50 p-6 rounded-2xl border border-violet-100 shadow-sm transition-all hover:shadow-md">
+                        <div className="flex items-start gap-4">
+                          <div className="bg-violet-100 p-2 rounded-xl">
+                            <Info className="h-6 w-6 text-violet-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-slate-900 mb-1">Pasos para la Inscripción Grupal</h3>
+                            <div className="text-sm text-slate-600 leading-relaxed space-y-2">
+                              <p>Para registrar a su grupo de forma masiva:</p>
+                              <ul className="list-decimal list-inside font-medium text-slate-700 space-y-1">
+                                <li><strong>Descargue</strong> la planilla oficial de abajo.</li>
+                                <li><strong>Complete</strong> los datos de todos sus acompañantes.</li>
+                                <li><strong>Adjunte</strong> el archivo en el recuadro de carga para procesar el grupo.</li>
+                              </ul>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={removeFile}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
                         </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div
-                            {...getRootProps()}
-                            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors duration-200 ${isDragActive ? 'border-congress-blue bg-blue-50/80' : 'border-blue-200 hover:border-congress-blue/50 hover:bg-white/50'
-                              }`}
-                          >
-                            <input {...getInputProps()} />
-                            <UploadCloud className="mx-auto h-12 w-12 text-congress-blue/60 mb-3" />
-                            <p className="font-medium text-slate-800">
-                              {isDragActive ? "Suelte el archivo aquí" : "Arrastre el archivo Excel o haga clic para buscar"}
-                            </p>
-                            <p className="text-xs text-slate-500 mt-2">Solo .xlsx, .xls o .csv</p>
-                          </div>
-                          <div className="text-center">
-                            <a
-                              href="/plantilla_inscripcion_grupos.xlsx"
-                              download
-                              className="inline-flex items-center gap-2 text-sm font-semibold text-congress-blue hover:text-congress-cyan transition-colors"
+                      </div>
+
+                      {/* Sección de Carga/Descarga */}
+                      <div className="bg-white p-6 rounded-xl border border-slate-200">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Carga Masiva (Recomendado)</h3>
+                        {excelFile ? (
+                          <div className="bg-violet-50/50 p-4 rounded-xl border border-violet-100 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <FileSpreadsheet className="text-violet-600 w-10 h-10" />
+                              <div>
+                                <p className="font-semibold text-slate-800">{excelFile.name}</p>
+                                <p className="text-xs text-slate-500">{(excelFile.size / 1024).toFixed(1)} KB</p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={removeFile}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                              title="Descartar archivo"
                             >
-                              <FileSpreadsheet className="w-4 h-4" />
-                              Descargar Plantilla Oficial
-                            </a>
+                              <Trash2 className="w-5 h-5" />
+                            </button>
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="space-y-4">
+                            <div
+                              {...getRootProps()}
+                              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${isDragActive ? 'border-violet-500 bg-violet-50/50' : 'border-slate-200 hover:border-violet-400 hover:bg-slate-50'
+                                }`}
+                            >
+                              <input {...getInputProps()} />
+                              <UploadCloud className="mx-auto h-12 w-12 text-slate-400 mb-3" />
+                              <p className="font-medium text-slate-800">
+                                {isDragActive ? "Suelte el archivo aquí" : "Arrastre el archivo Excel o haga clic para buscar"}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-2">Formatos aceptados: .xlsx, .xls</p>
+                            </div>
+                            <div className="text-center pt-2">
+                              <a
+                                href="/plantilla_inscripcion_grupos.xlsx"
+                                download
+                                className="inline-flex items-center gap-2 text-sm font-bold text-violet-600 hover:text-violet-700 transition-colors"
+                              >
+                                <FileSpreadsheet className="w-4 h-4" />
+                                Descargar Plantilla Oficial
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
+                  {/* Formularios manuales (si se declaró tamaño de grupo) */}
                   {hasDeclaredGroupSize && groupSize > 0 && (
-                    <div className="space-y-6">
+                    <div className="space-y-6 mt-8">
                       {fields.map((item, index) => {
                         const member = watch(`groupMembers.${index}`);
                         const completedFields = [member?.firstName, member?.lastName, member?.dni, member?.email].filter(Boolean).length;
                         const isComplete = completedFields === 4;
 
                         return (
-                          <div key={item.id} className={`rounded-xl p-6 space-y-4 ${isComplete ? 'bg-green-50 border-2 border-green-200' : 'bg-slate-50'}`}>
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-medium text-slate-900">
+                          <div key={item.id} className={`rounded-xl p-6 transition-all duration-200 ${isComplete ? 'bg-green-50 border-2 border-green-200 shadow-sm' : 'bg-slate-50 border border-slate-200'}`}>
+                            <div className="flex items-center justify-between mb-4">
+                              <h4 className="font-bold text-slate-900 flex items-center gap-2">
                                 Integrante #{index + 1}
-                                {isComplete && <span className="ml-2 text-green-600">✓</span>}
+                                {isComplete && <CheckCircle className="h-4 w-4 text-green-600" />}
                               </h4>
-                              <span className="text-sm text-slate-500">
-                                {completedFields}/4 campos completos
+                              <span className="text-xs font-semibold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200">
+                                {completedFields}/4 campos
                               </span>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1088,18 +1113,20 @@ const RegistroParticipantes: React.FC = () => {
                       })}
 
                       {getErrorMessage("groupMembers") && (
-                        <p className="text-xs text-red-600 font-medium mt-4">
+                        <p className="text-xs text-red-600 font-bold mt-4 bg-red-50 p-2 rounded-lg border border-red-100 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
                           {getErrorMessage("groupMembers")}
                         </p>
                       )}
                     </div>
                   )}
+
                   {excelFile && hasDeclaredGroupSize && (
-                    <div className="mt-6 flex justify-end">
+                    <div className="mt-8 flex justify-end">
                       <button
                         type="button"
                         onClick={removeFile}
-                        className="flex items-center gap-2 text-sm font-medium text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors"
+                        className="flex items-center gap-2 text-sm font-bold text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl transition-all border border-transparent hover:border-red-100"
                       >
                         <Trash2 className="w-4 h-4" />
                         Descartar archivo y lista

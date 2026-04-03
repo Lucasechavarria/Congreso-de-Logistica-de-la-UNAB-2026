@@ -665,10 +665,6 @@ class AsistenteSerializer(serializers.ModelSerializer):
                     'group_size': group_size
                 })
 
-                # Vincular a Edición Activa (Inscripcion)
-                if edicion_activa:
-                    Inscripcion.objects.get_or_create(asistente=asistente, edicion=edicion_activa)
-
         except Exception as e:
             # Si falla el representante, no tiene sentido seguir con el grupo
             raise serializers.ValidationError({"detail": f"Error al registrar representante: {str(e)}"})

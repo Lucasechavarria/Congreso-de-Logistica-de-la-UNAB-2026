@@ -16,7 +16,10 @@ from django.db.models.functions import TruncDate
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
 from django.middleware.csrf import get_token
-from .email import send_certificate_email, send_confirmation_email, send_bulk_confirmation_email, send_broadcast_batch_email
+from .email import (
+    send_confirmation_email, send_bulk_confirmation_email, 
+    send_certificate_email, send_admin_postulation_alert
+)
 import pandas as pd
 import re
 
@@ -1269,8 +1272,11 @@ class InscripcionPrensaView(views.APIView):
                 
                 inscripcion = serializer.save()
                 
-                # Intentar enviar email de notificación interna o confirmación si existe
-                # Por ahora el sistema usa inscripciones de prensa voluntarias
+                # Enviar alerta dedicada al administrador
+                try:
+                    send_admin_postulation_alert(inscripcion, "Prensa")
+                except Exception as e:
+                    print(f"[ERROR] No se pudo enviar alerta de prensa al admin: {e}")
                 
                 return Response({
                     'status': 'success',

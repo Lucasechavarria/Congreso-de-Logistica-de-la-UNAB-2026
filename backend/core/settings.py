@@ -305,3 +305,6 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 
 # URL del frontend para enlaces en emails
 FRONTEND_URL = "https://www.congresologistica.unab.edu.ar"
+
+# URL base del servidor (Backend) para enlaces administrativos
+BASE_URL = os.getenv('BASE_URL', FRONTEND_URL)

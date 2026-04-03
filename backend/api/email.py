@@ -7,6 +7,7 @@ from django.utils.html import strip_tags
 from django.conf import settings
 from django.utils import timezone
 import io
+import pandas as pd
 from xhtml2pdf import pisa
 
 # Email oficial del congreso (remitente y copia interna)
@@ -45,6 +46,70 @@ def attach_tyc(email, pdf_type='asistente'):
         except Exception as e:
             print(f"[ERROR] No se pudo adjuntar TyC ({pdf_type}): {e}")
     return False
+    
+def _generar_excel_miembros(representante):
+    """
+    Genera un archivo Excel en memoria con la lista de miembros de un grupo.
+    Retorna el contenido binario (BytesIO).
+    """
+    from io import BytesIO
+    import pandas as pd
+    
+    miembros = representante.get_miembros_grupo()
+    datos = []
+    
+    # Datos del representante
+    datos.append({
+        'Nombre': representante.first_name,
+        'Apellido': representante.last_name,
+        'DNI': representante.dni,
+        'Celular': representante.phone,
+        'Email': representante.email,
+    })
+    
+    # Datos de los miembros
+    for miembro in miembros:
+        # Miembro puede ser objeto Asistente o MiembroGrupo
+        nombre = ""
+        apellido = ""
+        
+        if hasattr(miembro, 'first_name') and hasattr(miembro, 'last_name'):
+            nombre = miembro.first_name
+            apellido = miembro.last_name
+        else:
+            # Caso MiembroGrupo (solo tiene full_name)
+            full_name = getattr(miembro, 'full_name', '-')
+            if ' ' in full_name:
+                partes = full_name.rsplit(' ', 1)
+                nombre = partes[0]
+                apellido = partes[1]
+            else:
+                nombre = full_name
+                apellido = '-'
+                
+        datos.append({
+            'Nombre': nombre,
+            'Apellido': apellido,
+            'DNI': miembro.dni,
+            'Celular': getattr(miembro, 'phone', '-'),
+            'Email': miembro.email if hasattr(miembro, 'email') else '-',
+        })
+    
+    df = pd.DataFrame(datos)
+    output = BytesIO()
+    
+    # Intentar usar openpyxl (requerido por pandas para Excel)
+    try:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Miembros_del_Grupo')
+    except Exception as e:
+        print(f"[ERROR] Error al generar Excel con openpyxl: {e}. Reintentando con XLSXWriter.")
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Miembros_del_Grupo')
+            
+    output.seek(0)
+    return output
+
 def send_empresa_confirmation_email(empresa_instance):
     # Contexto para la plantilla de email
     context = {
@@ -193,9 +258,9 @@ def send_individual_confirmation_email(asistente):
         
         logo_path = get_logo_path()
         
-        # Alerta al administrador del congreso solo si NO es un visitante común
+        # Alerta al administrador del congreso solo si es Prensa
         bcc_list = []
-        if asistente.profile_type not in ["VISITOR", asistente.ProfileType.VISITOR]:
+        if asistente.profile_type == asistente.ProfileType.PRESS:
             bcc_list.append(CONGRESO_EMAIL)
 
         email = EmailMultiAlternatives(
@@ -424,21 +489,27 @@ def send_group_confirmation_emails(representante):
         
         logo_path = get_logo_path()
         
-        # Notificar al admin solo si es un perfil que requiere seguimiento (Prensa o similar)
-        # Para representantes de grupo estándar, evitamos saturar si el usuario así lo prefiere.
-        # Por seguridad y seguimiento, el representante suele ser importante, pero lo filtramos si es Visitante.
-        bcc_list_rep = []
-        if representante.profile_type not in [representante.ProfileType.VISITOR, 'VISITOR']:
-            bcc_list_rep.append(CONGRESO_EMAIL)
-
+        # Alerta al administrador (Docentes como representantes o Inscripción Grupal estándar)
+        # Siempre enviar BCC al admin para representantes de grupo con el Excel adjunto
+        bcc_list_rep = [CONGRESO_EMAIL]
+        
         email_representante = EmailMultiAlternatives(
-            subject='Confirmación de Inscripción Grupal - Congreso de Logística UNAB',
+            subject=f'NUEVA INSCRIPCIÓN GRUPAL: {representante.nombre_completo} - {representante.detalle_grupo.group_name if hasattr(representante, "detalle_grupo") else "Grupo"}',
             body=text_content,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[representante.email],
             bcc=bcc_list_rep
         )
         email_representante.attach_alternative(html_content, "text/html")
+        
+        # Generar y adjuntar Excel de miembros para el admin
+        try:
+            excel_file = _generar_excel_miembros(representante)
+            filename = f"Miembros_Grupo_{representante.last_name}_{date.today().strftime('%Y%m%d')}.xlsx"
+            email_representante.attach(filename, excel_file.getvalue(), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            print(f"[INFO] Excel de miembros adjunto exitosamente al email de {representante.email}")
+        except Exception as excel_err:
+            print(f"[ERROR] No se pudo generar o adjuntar el Excel de miembros: {excel_err}")
         
         # Adjuntar TyC específico para Asistentes
         attach_tyc(email_representante, 'asistente')
@@ -517,6 +588,12 @@ def send_group_confirmation_emails(representante):
     if emails_fallidos:
         print(f"[ERROR] Emails fallidos: {emails_fallidos}")
     
+    # Siempre enviar alerta dedicada al admin para grupos
+    try:
+        send_admin_postulation_alert(representante, "Grupo")
+    except Exception as e:
+        print(f"[ERROR] No se pudo enviar alerta dedicada de grupo al admin: {e}")
+    
     return {
         'emails_enviados': emails_enviados,
         'emails_fallidos': emails_fallidos,
@@ -571,11 +648,16 @@ def send_certificate_email(certificado_instance):
 def send_admin_postulation_alert(instance, tipo):
     """
     Envía una alerta dedicada al administrador con los detalles de la nueva postulación.
+    Soporta: Empresa, Disertante, Prensa, Grupo.
     """
     try:
         datos = {}
         admin_url = ""
+        subject_name = ""
         
+        # Obtener URL base de forma segura
+        base_url = getattr(settings, 'BASE_URL', 'https://www.congresologistica.unab.edu.ar')
+
         if tipo == "Empresa":
             datos = {
                 "Empresa": instance.nombre_empresa,
@@ -585,8 +667,38 @@ def send_admin_postulation_alert(instance, tipo):
                 "Rubro": instance.rubro_logistico,
                 "Participación": instance.participacion_opciones,
             }
-            admin_url = f"{settings.BASE_URL}/admin/api/empresa/{instance.id}/change/"
+            admin_url = f"{base_url}/admin/api/empresa/{instance.id}/change/"
+            subject_name = instance.nombre_empresa
+        elif tipo == "Prensa":
+            # Usar campos del modelo InscripcionPrensa
+            datos = {
+                "Prensa/Influencer": instance.nombre_apellido,
+                "DNI": instance.dni,
+                "Email": instance.email,
+                "Teléfono": instance.telefono,
+                "Tipo Perfil": getattr(instance, 'get_tipo_perfil_display', lambda: instance.tipo_perfil)(),
+                "Medio/Canal": instance.medio_o_canal,
+                "Link Red": instance.url_perfil_red or "N/A",
+                "Link Sitio": instance.url_sitio_medio or "N/A",
+            }
+            admin_url = f"{base_url}/admin/api/inscripcionprensa/{instance.id}/change/"
+            subject_name = instance.nombre_apellido
+        elif tipo == "Grupo":
+            # Usar campos del modelo Asistente (representante)
+            # Intentar obtener detalle del grupo si existe
+            detalle = getattr(instance, 'detalle_grupo', None)
+            datos = {
+                "Representante": instance.nombre_completo,
+                "DNI": instance.dni,
+                "Email": instance.email,
+                "Teléfono": instance.phone,
+                "Grupo/Institución": detalle.group_name if detalle else "N/A",
+                "Cant. Miembros": detalle.group_size if detalle else "N/A",
+            }
+            admin_url = f"{base_url}/admin/api/asistente/{instance.id}/change/"
+            subject_name = f"{instance.nombre_completo} - {detalle.group_name if detalle else 'Grupo'}"
         else:
+            # Caso Disertante
             datos = {
                 "Disertante": instance.nombre_apellido,
                 "DNI": instance.dni,
@@ -596,7 +708,8 @@ def send_admin_postulation_alert(instance, tipo):
                 "Institución": instance.empresa_institucion,
                 "Título Charla": instance.titulo_charla,
             }
-            admin_url = f"{settings.BASE_URL}/admin/api/postulaciondisertante/{instance.id}/change/"
+            admin_url = f"{base_url}/admin/api/postulaciondisertante/{instance.id}/change/"
+            subject_name = instance.nombre_apellido
 
         context = {
             'tipo_postulacion': tipo,
@@ -608,14 +721,25 @@ def send_admin_postulation_alert(instance, tipo):
         text_content = strip_tags(html_content)
         
         email = EmailMultiAlternatives(
-            subject=f'NUEVA POSTULACIÓN: {tipo} - {instance.nombre_empresa if tipo == "Empresa" else instance.nombre_apellido}',
+            # Título dinámico según el tipo
+            subject=f'NUEVA POSTULACIÓN: {tipo} - {subject_name}',
             body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[CONGRESO_EMAIL]
         )
         email.attach_alternative(html_content, "text/html")
+        
+        # Si es un grupo, adjuntar el Excel de miembros también a esta alerta
+        if tipo == "Grupo":
+            try:
+                excel_output = _generar_excel_miembros(instance)
+                filename = f"Miembros_Grupo_{instance.last_name}_{instance.dni}.xlsx"
+                email.attach(filename, excel_output.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            except Exception as e:
+                print(f"[ERROR] No se pudo adjuntar Excel a la alerta de admin: {e}")
+
         email.send()
-        print(f"[INFO] Alerta enviada al administrador para: {instance.id}")
+        print(f"[INFO] Alerta dedicada enviada al administrador para: {instance.id} ({tipo})")
         return True
     except Exception as e:
         print(f"[ERROR] No se pudo enviar alerta al admin: {e}")

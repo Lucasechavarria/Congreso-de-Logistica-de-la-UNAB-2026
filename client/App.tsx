@@ -25,6 +25,7 @@ import HistoriaCampus from "./pages/HistoriaCampus";
 import ActualizarDNI from "./pages/ActualizarDNI";
 import BolsaTrabajo from "./pages/BolsaTrabajo";
 import PostularVacante from "./pages/PostularVacante";
+import DetalleOferta from "./pages/DetalleOferta";
 
 import SobreElCongreso from "./pages/SobreElCongreso";
 import Layout from "./components/Layout";
@@ -166,6 +167,14 @@ const App = () => (
               element={
                 <Layout>
                   <BolsaTrabajo />
+                </Layout>
+              }
+            />
+            <Route
+              path="/bolsa-de-trabajo/:id"
+              element={
+                <Layout>
+                  <DetalleOferta />
                 </Layout>
               }
             />

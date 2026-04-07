@@ -44,6 +44,14 @@ class OfertaLaboralListView(generics.ListAPIView):
             
         return queryset
 
+class OfertaLaboralDetailView(generics.RetrieveAPIView):
+    """
+    Retorna el detalle completo de una oferta laboral por ID.
+    Al ser detail, permitimos verla incluso si está PENDIENTE (para previsualización admin).
+    """
+    queryset = OfertaLaboral.objects.all()
+    serializer_class = OfertaLaboralSerializer
+
 class OfertaLaboralCreateView(generics.CreateAPIView):
     """
     Endpoint para que las empresas postulen nuevas vacantes.

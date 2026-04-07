@@ -262,6 +262,15 @@ export async function getOfertasLaborales(params: Record<string, string> = {}) {
   return await parseResponse(res);
 }
 
+// Función para obtener una oferta laboral por ID
+export async function getOfertaLaboral(id: string | number) {
+  const res = await fetch(`${API_BASE}/bolsa-trabajo/ofertas/${id}/`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  return await parseResponse(res);
+}
+
 // Función para obtener lista de empresas (para filtros)
 export async function getEmpresas() {
   const res = await fetch(`${API_BASE}/empresas/`, {

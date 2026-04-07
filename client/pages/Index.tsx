@@ -416,11 +416,6 @@ export default function Index() {
               <div className="w-20 h-1 bg-congress-cyan mx-auto mb-8 rounded-full"></div>
               <p className="text-xl text-slate-300 leading-relaxed">
                 Te invitamos a participar en la modalidad que prefieras.
-                <span className="font-semibold text-congress-cyan-light">
-                  {" "}
-                  Todas las modalidades son sin costo{" "}
-                </span>
-                para instituciones y empresas que deseen sumarse.
               </p>
             </motion.div>
 

@@ -130,9 +130,7 @@ export default function SeleccionRegistro() {
 
         {/* Footer informativo elegante */}
         <div className="text-center mt-12 mb-8 animate-fade-in-up">
-          <p className="text-congress-blue font-bold text-lg mb-4">
-            🚀 Todas las modalidades de participación son sin costo.
-          </p>
+
           <p className="text-slate-500 text-sm">
             Universidad Nacional Guillermo Brown - 2026
           </p>

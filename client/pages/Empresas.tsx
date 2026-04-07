@@ -214,7 +214,7 @@ export default function Empresas() {
             </motion.h2>
 
             <motion.p variants={fadeInUp} className="text-xl mb-10 text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              Únete a las empresas más innovadoras del sector y presenta tus productos y servicios al público especializado. Todas las modalidades corporativas son <span className="text-white font-bold pb-1 border-b border-congress-cyan">sin cargo</span>.
+              Únete a las empresas más innovadoras del sector y presenta tus productos y servicios al público especializado.
             </motion.p>
 
             <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row justify-center items-center gap-6">

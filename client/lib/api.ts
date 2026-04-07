@@ -270,3 +270,10 @@ export async function getEmpresas() {
   });
   return await parseResponse(res);
 }
+
+// Función para postular una nueva oferta laboral
+export async function postularOfertaLaboral(data: any) {
+  // Usamos el wrapper con CSRF ya que es un POST
+  const res = await postWithCsrf(`${API_BASE}/bolsa-trabajo/ofertas/nueva/`, data);
+  return await parseResponse(res);
+}

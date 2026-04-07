@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Briefcase, Filter, X, Building2, Ghost } from "lucide-react";
+import { Search, Briefcase, Filter, X, Building2, Ghost, Megaphone } from "lucide-react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -92,10 +93,23 @@ export default function BolsaTrabajo() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-slate-400 text-lg max-w-2xl mx-auto"
+            className="text-slate-400 text-lg max-w-2xl mx-auto mb-8"
           >
             Conectamos el talento del Congreso UNAB 2026 con las empresas líderes del sector logístico y de transporte.
           </motion.p>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.25 }}
+            className="flex justify-center"
+          >
+            <Link to="/empresas/postular-vacante">
+              <Button className="bg-[#9b6dd7] hover:bg-[#805ad5] text-white font-bold py-6 px-10 rounded-2xl shadow-[0_0_20px_rgba(155,109,215,0.3)] transition-all hover:scale-[1.05] active:scale-[0.95] flex items-center gap-3 border border-white/20">
+                <Megaphone size={20} className="animate-bounce" />
+                ¿Sos una empresa? Publicá tu vacante
+              </Button>
+            </Link>
+          </motion.div>
         </div>
 
         {/* Filters Box */}

@@ -60,6 +60,12 @@ class OfertaLaboralAPITest(APITestCase):
             nombre_empresa="Test API Corp",
             estado="APROBADO"
         )
+        self.empresa1 = Empresa.objects.create(
+            edicion=self.edicion,
+            nombre_empresa="Empresa Logística A",
+            cuit="30-12345678-9",
+            estado="APROBADO"
+        )
         # Oferta APROBADA y NO expirada
         OfertaLaboral.objects.create(
             empresa=self.empresa,
@@ -113,6 +119,49 @@ class OfertaLaboralAPITest(APITestCase):
         # Búsqueda que NO coincide
         response = self.client.get(url, {'q': 'Inexistente'})
         self.assertEqual(len(response.data), 0)
+
+    def test_post_oferta_crea_empresa_si_no_existe(self):
+        """Verifica que el POST cree una empresa si no hay match por CUIT/Email."""
+        url = reverse('oferta-laboral-create')
+        data = {
+            'nombre_empresa': 'Nueva Empresa S.A.',
+            'email_contacto': 'rrhh@nuevaempresa.com',
+            'titulo_puesto': 'Desarrollador Python',
+            'descripcion': 'Buscamos experto en Django con ganas de aprender.',
+            'requisitos': '3 años de experiencia.',
+            'modalidad': 'REMOTO',
+            'ubicacion': 'Argentina',
+            'canal_postulacion': 'Enviar mail a rrhh@nuevaempresa.com'
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Verificar que se creó la empresa
+        self.assertTrue(Empresa.objects.filter(nombre_empresa='Nueva Empresa S.A.').exists())
+        oferta = OfertaLaboral.objects.get(titulo_puesto='Desarrollador Python')
+        self.assertEqual(oferta.estado, 'PENDIENTE')
+        self.assertEqual(oferta.empresa.nombre_empresa, 'Nueva Empresa S.A.')
+
+    def test_post_oferta_vincula_empresa_existente(self):
+        """Verifica que se vincule a una empresa existente por CUIT."""
+        url = reverse('oferta-laboral-create')
+        data = {
+            'nombre_empresa': 'Nombre Diferente',
+            'cuit': '30-12345678-9', # Mismo CUIT que self.empresa1
+            'email_contacto': 'otro@test.com',
+            'titulo_puesto': 'Puesto de prueba',
+            'descripcion': 'Descripción larga para superar validación.',
+            'requisitos': 'Requisitos mínimos.',
+            'modalidad': 'PRESENCIAL',
+            'ubicacion': 'Sede Central',
+            'canal_postulacion': 'Link a web'
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        oferta = OfertaLaboral.objects.get(titulo_puesto='Puesto de prueba')
+        self.assertEqual(oferta.empresa, self.empresa1)
+        self.assertEqual(oferta.empresa.nombre_empresa, 'Empresa Logística A')
 
     def test_filter_by_modalidad(self):
         url = reverse('oferta-laboral-list')

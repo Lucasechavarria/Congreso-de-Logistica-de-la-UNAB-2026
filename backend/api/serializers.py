@@ -836,7 +836,7 @@ class InscripcionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Inscripcion
-        fields = ['asistente', 'empresa', 'fecha_inscripcion', 'edicion'] 
+        fields = ['asistente', 'empresa', 'fecha_inscripcion', 'edicion', 'desea_alertas_laborales'] 
         read_only_fields = ['fecha_inscripcion', 'edicion']
 
 

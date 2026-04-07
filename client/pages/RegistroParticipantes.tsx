@@ -47,6 +47,7 @@ const participantSchema = z.object({
     .transform((val) => val.replace(/\D/g, "").slice(0, 8)),
   email: z.string().email("Debe ser un correo electrónico válido"),
   phone: z.string().min(1, "El teléfono es requerido"),
+  deseaAlertasLaborales: z.boolean().default(false),
   aceptaTyC: z.literal(true, {
     errorMap: () => ({ message: "Debes aceptar las Bases y Condiciones para continuar" }),
   }),
@@ -443,7 +444,8 @@ const RegistroParticipantes: React.FC = () => {
               dni: member.dni,
               email: member.email
             }))
-          }
+          },
+          desea_alertas_laborales: data.deseaAlertasLaborales || false
         };
 
         // Usar la nueva función de API para inscripción con participantes
@@ -497,6 +499,7 @@ const RegistroParticipantes: React.FC = () => {
 
         const dataToSend = {
           asistente: asistenteData,
+          desea_alertas_laborales: data.deseaAlertasLaborales || false
         };
         response = await inscribirIndividual(dataToSend);
       }
@@ -1137,9 +1140,22 @@ const RegistroParticipantes: React.FC = () => {
               </FormSection>
             )}
 
-            {/* TyC y Botón de envío */}
-            <div className="pt-6 border-t border-slate-200">
-              <div className="mb-6 bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
+            {/* TyC y Alertas */}
+            <div className="pt-6 border-t border-slate-200 space-y-4">
+              <div className="bg-amber-50/30 p-4 rounded-xl border border-amber-100/50">
+                <FormCheckbox
+                  id="deseaAlertasLaborales"
+                  label={
+                    <span className="text-sm font-semibold text-slate-800">
+                      ¿Te gustaría recibir alertas sobre nuevas ofertas laborales?
+                    </span>
+                  }
+                  description="Te enviaremos un resumen semanal con las mejores vacantes de las empresas participantes."
+                  {...register("deseaAlertasLaborales")}
+                />
+              </div>
+
+              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
                 <FormCheckbox
                   id="aceptaTyC"
                   label={

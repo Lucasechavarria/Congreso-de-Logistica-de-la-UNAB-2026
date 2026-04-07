@@ -1348,3 +1348,33 @@ class BroadcastAPIView(views.APIView):
             'status': 'success',
             'message': f'Proceso de envío iniciado para {len(emails_list)} destinatarios.'
         }, status=status.HTTP_202_ACCEPTED)
+
+class DesuscripcionAlertasView(views.APIView):
+    """
+    Vista para que los usuarios puedan desuscribirse de las alertas laborales.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        email = request.query_params.get('email')
+        if not email:
+            return Response({'status': 'error', 'message': 'Email no proporcionado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Buscar asistente por email
+        asistente = Asistente.objects.filter(email=email).first()
+        if not asistente:
+            return Response({'status': 'error', 'message': 'Asistente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Desactivar alertas laborales en todas las inscripciones del asistente
+        updated = Inscripcion.objects.filter(asistente=asistente).update(desea_alertas_laborales=False)
+
+        if updated > 0:
+            return Response({
+                'status': 'success', 
+                'message': 'Te has desuscrito exitosamente de las alertas laborales del Congreso UNaB.'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'status': 'info', 
+                'message': 'No se encontraron alertas activas para este correo.'
+            }, status=status.HTTP_200_OK)

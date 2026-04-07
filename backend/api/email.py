@@ -669,6 +669,17 @@ def send_admin_postulation_alert(instance, tipo):
             }
             admin_url = f"{base_url}/admin/api/empresa/{instance.id}/change/"
             subject_name = instance.nombre_empresa
+        elif tipo == "OfertaLaboral":
+            datos = {
+                "Empresa": instance.empresa.nombre_empresa,
+                "Puesto": instance.titulo_puesto,
+                "Vínculo": f"{instance.modalidad}",
+                "Ubicación": instance.ubicacion,
+                "Canal": instance.canal_postulacion,
+                "Email de contacto": instance.empresa.email_contacto or "N/A",
+            }
+            admin_url = f"{base_url}/admin/bolsa_trabajo/ofertalaboral/{instance.id}/change/"
+            subject_name = f"{instance.titulo_puesto} - {instance.empresa.nombre_empresa}"
         elif tipo == "Prensa":
             # Usar campos del modelo InscripcionPrensa
             datos = {

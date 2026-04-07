@@ -150,12 +150,23 @@ async function postWithCsrf(url: string, data: any, isFormData: boolean = false)
  */
 async function parseResponse(response: Response): Promise<any> {
   const contentType = response.headers.get('content-type');
+  const isJson = contentType && contentType.includes('application/json');
 
-  // Si no es JSON, intentar leer como texto para ver qué devolvió el servidor
-  if (!contentType || !contentType.includes('application/json')) {
+  if (!response.ok) {
+    if (isJson) {
+      const errorData = await response.json();
+      const firstError = Object.values(errorData)[0];
+      const errorMessage = Array.isArray(firstError) ? firstError[0] : (typeof firstError === 'string' ? firstError : 'Error del servidor');
+      throw new Error(errorMessage);
+    }
+    const text = await response.text();
+    throw new Error(`Error ${response.status}: ${text.substring(0, 100)}`);
+  }
+
+  if (!isJson) {
     const text = await response.text();
     console.error('Respuesta no es JSON:', text.substring(0, 500));
-    throw new Error(`El servidor devolvió ${contentType || 'contenido no JSON'}. Puede ser un error del servidor.`);
+    throw new Error('El servidor devolvió un formato inesperado.');
   }
 
   try {
@@ -252,4 +263,43 @@ export async function postularDisertante(data: any) {
   return await parseResponse(res);
 }
 
-// La función getDashboardStats ha sido eliminada. El dashboard ahora se sirve vía Django Admin.
+// Función para obtener ofertas laborales con filtros
+export async function getOfertasLaborales(params: Record<string, string> = {}) {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`${API_BASE}/bolsa-trabajo/ofertas/${query ? `?${query}` : ''}`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  return await parseResponse(res);
+}
+
+// Función para obtener una oferta laboral por ID
+export async function getOfertaLaboral(id: string | number) {
+  const res = await fetch(`${API_BASE}/bolsa-trabajo/ofertas/${id}/`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  return await parseResponse(res);
+}
+
+// Función para obtener lista de empresas (para filtros)
+export async function getEmpresas() {
+  const res = await fetch(`${API_BASE}/empresas/`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  return await parseResponse(res);
+}
+
+// Función para postular una nueva oferta laboral
+export async function postularOfertaLaboral(data: any) {
+  // Usamos el wrapper con CSRF ya que es un POST
+  const res = await postWithCsrf(`${API_BASE}/bolsa-trabajo/ofertas/nueva/`, data);
+  return await parseResponse(res);
+}
+
+// Función para que un candidato se postule a una oferta
+export async function postularCandidato(data: FormData) {
+  const res = await postWithCsrf(`${API_BASE}/bolsa-trabajo/ofertas/postular/`, data, true);
+  return await parseResponse(res);
+}

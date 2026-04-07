@@ -152,6 +152,21 @@ export default function Layout({ children }: LayoutProps) {
                   Registro
                 </Button>
               </Link>
+              <Link to="/bolsa-de-trabajo" className="relative">
+                <Button
+                  variant={isActive("/bolsa-de-trabajo") ? "secondary" : "ghost"}
+                  className={
+                    isActive("/bolsa-de-trabajo")
+                      ? "bg-white text-congress-blue"
+                      : "text-white hover:bg-congress-blue-dark"
+                  }
+                >
+                  Bolsa de Trabajo
+                </Button>
+                <span className="absolute -top-1 -right-1 bg-congress-cyan text-congress-blue text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg animate-pulse ring-1 ring-white/20">
+                  NUEVO
+                </span>
+              </Link>
               <Link to="/contacto">
                 <Button
                   variant={isActive("/contacto") ? "secondary" : "ghost"}

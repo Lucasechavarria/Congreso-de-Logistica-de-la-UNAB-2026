@@ -478,6 +478,7 @@ class Inscripcion(models.Model):
     # --- Campos de Estado (Mapeados por edición) ---
     asistencia_confirmada = models.BooleanField(default=False, verbose_name="Asistencia Confirmada")
     fecha_confirmacion = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Confirmación")
+    desea_alertas_laborales = models.BooleanField(default=False, verbose_name="¿Desea recibir alertas laborales?")
 
     def __str__(self):
         return f"Inscripción de {self.asistente} - {self.edicion}"

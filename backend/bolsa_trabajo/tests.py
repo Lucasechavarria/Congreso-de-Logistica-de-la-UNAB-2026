@@ -8,8 +8,8 @@ class OfertaLaboralModelTest(TestCase):
     def setUp(self):
         # La edición 2026 ya es creada por las migraciones de 'api'
         self.edicion, _ = Edicion.objects.get_or_create(
-            anio=2026, 
-            defaults={'nombre': "Edición 2026 Test"}
+            anio=2030, 
+            defaults={'nombre': "Edición 2030 Test"}
         )
         self.empresa = Empresa.objects.create(
             edicion=self.edicion,
@@ -52,8 +52,8 @@ from django.urls import reverse
 class OfertaLaboralAPITest(APITestCase):
     def setUp(self):
         self.edicion, _ = Edicion.objects.get_or_create(
-            anio=2026, 
-            defaults={'nombre': "Edición 2026 Test"}
+            anio=2030, 
+            defaults={'nombre': "Edición 2030 Test"}
         )
         self.empresa = Empresa.objects.create(
             edicion=self.edicion,
@@ -185,3 +185,102 @@ class OfertaLaboralAPITest(APITestCase):
         )
         response = self.client.get(url, {'empresa': otra_empresa.id})
         self.assertEqual(len(response.data), 0)
+
+from api.models import Asistente, Inscripcion, Edicion
+from api.serializers import InscripcionSerializer
+from .tasks import enviar_newsletter_semanal
+from django.core import mail
+
+class NewsletterTest(TestCase):
+    def setUp(self):
+        self.edicion, _ = Edicion.objects.get_or_create(anio=2030, defaults={'nombre': "Edición 2030", 'activa': True})
+        if not self.edicion.activa:
+            self.edicion.activa = True
+            self.edicion.save()
+        self.asistente = Asistente.objects.create(
+            first_name="Juan",
+            last_name="Perez",
+            dni="12345678",
+            email="juan@test.com"
+        )
+        # Suscrito
+        self.inscripcion_si = Inscripcion.objects.create(
+            asistente=self.asistente,
+            edicion=self.edicion,
+            desea_alertas_laborales=True
+        )
+        
+        self.asistente_no = Asistente.objects.create(
+            first_name="No",
+            last_name="Suscrito",
+            dni="87654321",
+            email="no@test.com"
+        )
+        # No suscrito
+        self.inscripcion_no = Inscripcion.objects.create(
+            asistente=self.asistente_no,
+            edicion=self.edicion,
+            desea_alertas_laborales=False
+        )
+
+        self.empresa = Empresa.objects.create(nombre_empresa="Test", edicion=self.edicion)
+        # Oferta reciente aprobada
+        OfertaLaboral.objects.create(
+            empresa=self.empresa,
+            titulo_puesto="Puesto Reciente",
+            estado="APROBADO",
+            fecha_creacion=timezone.now() - timedelta(days=1)
+        )
+        # Oferta vieja aprobada
+        OfertaLaboral.objects.create(
+            empresa=self.empresa,
+            titulo_puesto="Puesto Viejo",
+            estado="APROBADO",
+            fecha_creacion=timezone.now() - timedelta(days=10)
+        )
+
+    def test_newsletter_filtering(self):
+        """Verifica que el newsletter solo envíe a suscritos y solo ofertas recientes."""
+        # Limpiar buzón de correos de prueba
+        mail.outbox = []
+        
+        resultado = enviar_newsletter_semanal()
+        
+        # Debe haber enviado 1 email (solo a juan@test.com)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["juan@test.com"])
+        
+        # El contenido debe tener 'Puesto Reciente' pero NO 'Puesto Viejo'
+        self.assertIn("Puesto Reciente", mail.outbox[0].body)
+        self.assertNotIn("Puesto Viejo", mail.outbox[0].body)
+
+class DesuscripcionAPITest(APITestCase):
+    def setUp(self):
+        self.edicion, _ = Edicion.objects.get_or_create(anio=2030, defaults={'nombre': "Edición 2030", 'activa': True})
+        if not self.edicion.activa:
+            self.edicion.activa = True
+            self.edicion.save()
+        self.asistente = Asistente.objects.create(
+            first_name="Ana",
+            last_name="Gomez",
+            dni="11223344",
+            email="ana@test.com"
+        )
+        self.inscripcion = Inscripcion.objects.create(
+            asistente=self.asistente,
+            edicion=self.edicion,
+            desea_alertas_laborales=True
+        )
+
+    def test_desuscripcion_exitosa(self):
+        url = reverse('desuscribir-alertas')
+        response = self.client.get(url, {'email': 'ana@test.com'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        self.inscripcion.refresh_from_db()
+        self.assertFalse(self.inscripcion.desea_alertas_laborales)
+
+    def test_desuscripcion_email_no_existe(self):
+        url = reverse('desuscribir-alertas')
+        response = self.client.get(url, {'email': 'inexistente@test.com'})
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

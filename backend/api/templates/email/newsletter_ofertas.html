@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Resumen Semanal de Ofertas - Congreso UNaB 2026</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f8fafc; margin: 0; padding: 0; }
+        .wrapper { width: 100%; table-layout: fixed; background-color: #f8fafc; padding-bottom: 40px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; margin-top: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 40px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; }
+        .header p { margin-top: 8px; opacity: 0.9; font-size: 16px; }
+        .content { padding: 32px 24px; }
+        .intro { margin-bottom: 32px; font-size: 16px; color: #475569; }
+        .job-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; background-color: #ffffff; transition: transform 0.2s; }
+        .job-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; }
+        .job-company { font-size: 14px; font-weight: 600; color: #6366f1; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.05em; }
+        .job-meta { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+        .job-meta span { margin-right: 12px; display: inline-flex; align-items: center; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .badge-remote { background-color: #ecfdf5; color: #059669; }
+        .badge-onsite { background-color: #eff6ff; color: #2563eb; }
+        .badge-hybrid { background-color: #fff7ed; color: #ea580c; }
+        .btn-apply { display: inline-block; padding: 10px 24px; background-color: #4f46e5; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; }
+        .footer { text-align: center; padding: 32px 24px; background-color: #f1f5f9; color: #64748b; font-size: 13px; }
+        .footer p { margin: 8px 0; }
+        .unsubscribe { color: #94a3b8; text-decoration: underline; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div class="header">
+                <h1>Bolsa de Trabajo</h1>
+                <p>{{ edicion.nombre }}</p>
+            </div>
+            <div class="content">
+                <div class="intro">
+                    Hola, hemos seleccionado las mejores oportunidades laborales publicadas esta semana pensando en tu perfil. ¡No pierdas la oportunidad de postularte!
+                </div>
+
+                {% for oferta in ofertas %}
+                <div class="job-card">
+                    <div class="job-company">{{ oferta.empresa.nombre_empresa }}</div>
+                    <h2 class="job-title">{{ oferta.titulo_puesto }}</h2>
+                    <div class="job-meta">
+                        <span>📍 {{ oferta.ubicacion }}</span>
+                        <span class="badge {% if oferta.modalidad == 'REMOTO' %}badge-remote{% elif oferta.modalidad == 'PRESENCIAL' %}badge-onsite{% else %}badge-hybrid{% endif %}">
+                            {{ oferta.get_modalidad_display }}
+                        </span>
+                    </div>
+                    <a href="https://congresologistica.unab.edu.ar/bolsa-de-trabajo/{{ oferta.id }}" class="btn-apply">Ver Detalle y Postularme</a>
+                </div>
+                {% endfor %}
+
+                <div style="text-align: center; margin-top: 32px;">
+                    <p style="font-size: 14px; color: #64748b;">¿Quieres ver más ofertas?</p>
+                    <a href="https://congresologistica.unab.edu.ar/bolsa-de-trabajo" style="color: #4f46e5; font-weight: 700; text-decoration: none;">Explorar toda la Bolsa de Trabajo &rarr;</a>
+                </div>
+            </div>
+            <div class="footer">
+                <p><strong>Universidad Nacional Guillermo Brown (UNaB)</strong></p>
+                <p>Secretaría de Extensión y Bienestar Estudiantil</p>
+                <div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                    <p>Este es un servicio gratuito para los asistentes al congreso.</p>
+                    <p>Si ya no deseas recibir estas alertas, puedes <a href="https://congresologistica.unab.edu.ar/desuscribir-alertas" class="unsubscribe">desactivar las notificaciones aquí</a>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -318,9 +318,7 @@ export default function Index() {
           >
             <div className="bg-gradient-to-br from-[#210d51]/80 to-[#0f0728]/90 backdrop-blur-xl p-8 md:p-12 lg:p-16 flex flex-col md:flex-row items-center gap-10">
               <motion.div variants={fadeInUp} className="flex-1 text-center md:text-left">
-                <div className="inline-block px-4 py-1 rounded-full bg-white/10 border border-white/20 text-[#b07eee] font-bold text-sm tracking-widest uppercase mb-4 shadow-[0_0_15px_rgba(176,126,238,0.3)]">
-                  ¡Sumate a la edición 2026!
-                </div>
+
                 <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
                   CONVOCATORIA <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9c62de] to-[#b07eee]">ABIERTA</span>
                 </h2>

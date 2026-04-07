@@ -72,12 +72,7 @@ export default function LogoCarouselsSection() {
         <h2 className="text-3xl md:text-5xl font-extrabold text-[#3b1066] mb-4 text-center tracking-tight">
           Empresas e Instituciones Participantes
         </h2>
-        <div className="flex justify-center mb-10">
-          <EditionSelector 
-            selectedEditionId={selectedEditionId}
-            onEditionChange={(id) => setSelectedEditionId(id)}
-          />
-        </div>
+
         {isFallback && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}

@@ -23,6 +23,10 @@
             <p><span class="label">Nombre:</span> {{ postulacion.nombre_completo }}</p>
             <p><span class="label">Email:</span> <a href="mailto:{{ postulacion.email }}">{{ postulacion.email }}</a></p>
             <p><span class="label">Teléfono:</span> {{ postulacion.telefono }}</p>
+            <p><span class="label">¿Es estudiante?:</span> {{ postulacion.es_estudiante|yesno:"Sí,No" }}</p>
+            {% if postulacion.es_estudiante and postulacion.institucion %}
+            <p><span class="label">Institución:</span> {{ postulacion.institucion }}</p>
+            {% endif %}
             {% if postulacion.mensaje %}
             <p><span class="label">Mensaje:</span><br>{{ postulacion.mensaje }}</p>
             {% endif %}

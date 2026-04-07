@@ -207,14 +207,8 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
-# Configuración de Celery Beat (Tareas Programadas)
-from celery.schedules import crontab
-CELERY_BEAT_SCHEDULE = {
-    'enviar-newsletter-semanal': {
-        'task': 'bolsa_trabajo.tasks.enviar_newsletter_semanal',
-        'schedule': crontab(hour=9, minute=0, day_of_week='monday'),
-    },
-}
+# Configuración de Celery Beat (Desactivado para Newsletter)
+CELERY_BEAT_SCHEDULE = {}
 
 
 # CORS settings

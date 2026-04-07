@@ -66,6 +66,8 @@ class PostulacionOferta(models.Model):
     telefono = models.CharField(max_length=50, verbose_name="Teléfono")
     cv = models.FileField(upload_to='cvs_postulaciones/', verbose_name="Currículum Vitae")
     mensaje = models.TextField(blank=True, null=True, verbose_name="Mensaje (opcional)")
+    es_estudiante = models.BooleanField(default=False, verbose_name="¿Es estudiante?")
+    institucion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Institución")
     fecha_postulacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de postulación")
 
     def __str__(self):

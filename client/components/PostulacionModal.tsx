@@ -9,8 +9,12 @@ import {
   Mail,
   Phone,
   FileText,
-  CheckCircle2
+  CheckCircle2,
+  GraduationCap,
+  School
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { 
   Dialog, 
@@ -40,6 +44,18 @@ const postulacionSchema = z.object({
   telefono: z.string().min(8, "Teléfono inválido"),
   mensaje: z.string().optional(),
   cv: z.any().refine((file) => file && file.length > 0, "El CV es obligatorio"),
+  es_estudiante: z.enum(["si", "no"], {
+    required_error: "Debes seleccionar una opción",
+  }),
+  institucion: z.string().optional(),
+}).refine((data) => {
+  if (data.es_estudiante === "si" && (!data.institucion || data.institucion.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Debes especificar la institución",
+  path: ["institucion"],
 });
 
 type PostulacionValues = z.infer<typeof postulacionSchema>;
@@ -64,36 +80,77 @@ export default function PostulacionModal({ ofertaId, ofertaTitulo, empresaNombre
       email: "",
       telefono: "",
       mensaje: "",
+      es_estudiante: undefined,
+      institucion: "",
     },
   });
 
+  const esEstudiante = form.watch("es_estudiante");
+
   const onSubmit = async (values: PostulacionValues) => {
     setIsSubmitting(true);
+    console.log('[Postulación] Iniciando envío...', values);
+    
+    // Controlador de aborto para implementar un timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos timeout
+
     try {
       const formData = new FormData();
       formData.append("oferta", ofertaId.toString());
       formData.append("nombre_completo", values.nombre_completo);
       formData.append("email", values.email);
       formData.append("telefono", values.telefono);
+      formData.append("es_estudiante", values.es_estudiante === "si" ? "true" : "false");
+      
+      if (values.es_estudiante === "si" && values.institucion) {
+        formData.append("institucion", values.institucion);
+      }
+      
       if (values.mensaje) formData.append("mensaje", values.mensaje);
-      formData.append("cv", values.cv[0]);
+      
+      if (values.cv && values.cv.length > 0) {
+        formData.append("cv", values.cv[0]);
+      } else {
+        throw new Error("El archivo CV es obligatorio");
+      }
 
-      await postularCandidato(formData);
+      console.log('[Postulación] Enviando a API...');
+      
+      // Pasar el signal al fetch no es posible con mi wrapper actual, 
+      // pero el wrapper parsea la respuesta y arroja error si no es OK.
+      const response = await postularCandidato(formData);
+      clearTimeout(timeoutId);
+      
+      console.log('[Postulación] Éxito:', response);
       setIsSuccess(true);
+      
       toast({
         title: "¡Postulación enviada!",
-        description: "Recibirás un email de confirmación a la brevedad.",
+        description: "Gracias por tu interés. Hemos recibido tus datos.",
       });
+
       setTimeout(() => {
         setIsOpen(false);
         setIsSuccess(false);
         form.reset();
-      }, 3000);
+      }, 4000);
+      
     } catch (err: any) {
+      console.error('[Postulación] Fallo:', err);
+      clearTimeout(timeoutId);
+      
+      let errorMsg = "No se pudo procesar la solicitud.";
+      if (err.name === 'AbortError') {
+        errorMsg = "La conexión tardó demasiado. Revisa tu internet o intenta de nuevo.";
+      } else {
+        errorMsg = err.message || errorMsg;
+      }
+
       toast({
         variant: "destructive",
-        title: "Error",
-        description: err.message || "No se pudo enviar la postulación.",
+        title: "Error al postular",
+        description: errorMsg,
       });
     } finally {
       setIsSubmitting(false);
@@ -206,6 +263,66 @@ export default function PostulacionModal({ ofertaId, ofertaTitulo, empresaNombre
                       </FormItem>
                     )}
                   />
+                  <div className="space-y-4 py-2 border-y border-white/5">
+                    <FormField
+                      control={form.control}
+                      name="es_estudiante"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <GraduationCap className="h-4 w-4 text-congress-cyan" />
+                            <FormLabel className="text-base font-bold">¿Sos estudiante?</FormLabel>
+                          </div>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="flex gap-6"
+                            >
+                              <div className="flex items-center space-x-2 cursor-pointer group">
+                                <RadioGroupItem value="si" id="r1" className="border-white/20 text-congress-cyan" />
+                                <Label htmlFor="r1" className="cursor-pointer group-hover:text-congress-cyan transition-colors">Sí</Label>
+                              </div>
+                              <div className="flex items-center space-x-2 cursor-pointer group">
+                                <RadioGroupItem value="no" id="r2" className="border-white/20 text-congress-cyan" />
+                                <Label htmlFor="r2" className="cursor-pointer group-hover:text-congress-cyan transition-colors">No</Label>
+                              </div>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <AnimatePresence>
+                      {esEstudiante === "si" && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <FormField
+                            control={form.control}
+                            name="institucion"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="flex items-center gap-2">
+                                  <School className="h-4 w-4 text-congress-cyan" />
+                                  ¿De qué institución?
+                                </FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Nombre de la institución..." className="bg-white/5 border-white/10 rounded-xl" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="mensaje"

@@ -150,12 +150,23 @@ async function postWithCsrf(url: string, data: any, isFormData: boolean = false)
  */
 async function parseResponse(response: Response): Promise<any> {
   const contentType = response.headers.get('content-type');
+  const isJson = contentType && contentType.includes('application/json');
 
-  // Si no es JSON, intentar leer como texto para ver qué devolvió el servidor
-  if (!contentType || !contentType.includes('application/json')) {
+  if (!response.ok) {
+    if (isJson) {
+      const errorData = await response.json();
+      const firstError = Object.values(errorData)[0];
+      const errorMessage = Array.isArray(firstError) ? firstError[0] : (typeof firstError === 'string' ? firstError : 'Error del servidor');
+      throw new Error(errorMessage);
+    }
+    const text = await response.text();
+    throw new Error(`Error ${response.status}: ${text.substring(0, 100)}`);
+  }
+
+  if (!isJson) {
     const text = await response.text();
     console.error('Respuesta no es JSON:', text.substring(0, 500));
-    throw new Error(`El servidor devolvió ${contentType || 'contenido no JSON'}. Puede ser un error del servidor.`);
+    throw new Error('El servidor devolvió un formato inesperado.');
   }
 
   try {

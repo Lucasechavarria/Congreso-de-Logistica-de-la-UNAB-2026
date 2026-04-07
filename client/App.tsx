@@ -23,6 +23,7 @@ import RegistroRapido from "./pages/RegistroRapido";
 import GenerarQRs from "./pages/GenerarQRs";
 import HistoriaCampus from "./pages/HistoriaCampus";
 import ActualizarDNI from "./pages/ActualizarDNI";
+import BolsaTrabajo from "./pages/BolsaTrabajo";
 
 import SobreElCongreso from "./pages/SobreElCongreso";
 import Layout from "./components/Layout";
@@ -156,6 +157,14 @@ const App = () => (
               element={
                 <Layout>
                   <ActualizarDNI />
+                </Layout>
+              }
+            />
+            <Route
+              path="/bolsa-de-trabajo"
+              element={
+                <Layout>
+                  <BolsaTrabajo />
                 </Layout>
               }
             />

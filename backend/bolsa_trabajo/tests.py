@@ -104,3 +104,35 @@ class OfertaLaboralAPITest(APITestCase):
         # Solo debe haber 1 oferta (la activa)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['titulo_puesto'], 'Activa')
+
+    def test_filter_by_search(self):
+        url = reverse('oferta-laboral-list')
+        # Búsqueda que coincide
+        response = self.client.get(url, {'q': 'Activa'})
+        self.assertEqual(len(response.data), 1)
+        # Búsqueda que NO coincide
+        response = self.client.get(url, {'q': 'Inexistente'})
+        self.assertEqual(len(response.data), 0)
+
+    def test_filter_by_modalidad(self):
+        url = reverse('oferta-laboral-list')
+        # Modalidad que coincide
+        response = self.client.get(url, {'modalidad': 'REMOTO'})
+        self.assertEqual(len(response.data), 1)
+        # Modalidad que NO coincide (asumiendo que no hay 'PRESENCIAL' activas)
+        response = self.client.get(url, {'modalidad': 'PRESENCIAL'})
+        self.assertEqual(len(response.data), 0)
+
+    def test_filter_by_empresa(self):
+        url = reverse('oferta-laboral-list')
+        # Empresa que coincide
+        response = self.client.get(url, {'empresa': self.empresa.id})
+        self.assertEqual(len(response.data), 1)
+        # Empresa distinta
+        otra_empresa = Empresa.objects.create(
+            edicion=self.edicion,
+            nombre_empresa="Otra",
+            estado="APROBADO"
+        )
+        response = self.client.get(url, {'empresa': otra_empresa.id})
+        self.assertEqual(len(response.data), 0)

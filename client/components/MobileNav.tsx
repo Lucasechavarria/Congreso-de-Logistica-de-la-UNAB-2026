@@ -42,6 +42,7 @@ export default function MobileNav() {
       ],
     },
     { name: "Registro", path: "/registro", isDropdown: false },
+    { name: "Bolsa de Trabajo", path: "/bolsa-de-trabajo", isDropdown: false },
     { name: "Contacto", path: "/contacto", isDropdown: false },
     {
       name: "Historia del Campus",

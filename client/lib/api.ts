@@ -252,4 +252,21 @@ export async function postularDisertante(data: any) {
   return await parseResponse(res);
 }
 
-// La función getDashboardStats ha sido eliminada. El dashboard ahora se sirve vía Django Admin.
+// Función para obtener ofertas laborales con filtros
+export async function getOfertasLaborales(params: Record<string, string> = {}) {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`${API_BASE}/bolsa-trabajo/ofertas/${query ? `?${query}` : ''}`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  return await parseResponse(res);
+}
+
+// Función para obtener lista de empresas (para filtros)
+export async function getEmpresas() {
+  const res = await fetch(`${API_BASE}/empresas/`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  return await parseResponse(res);
+}

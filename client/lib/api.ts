@@ -155,8 +155,19 @@ async function parseResponse(response: Response): Promise<any> {
   if (!response.ok) {
     if (isJson) {
       const errorData = await response.json();
-      const firstError = Object.values(errorData)[0];
-      const errorMessage = Array.isArray(firstError) ? firstError[0] : (typeof firstError === 'string' ? firstError : 'Error del servidor');
+      // Django validation errors can be: { field: [error], ... } or { status: 'error', message: { field: [error] } }
+      let errorObj = errorData;
+      if (errorData.message && typeof errorData.message === 'object') {
+        errorObj = errorData.message;
+      } else if (errorData.status === 'error' && typeof errorData.message === 'string') {
+        throw new Error(errorData.message);
+      }
+
+      const firstError = Object.values(errorObj)[0];
+      const errorMessage = Array.isArray(firstError) 
+        ? firstError[0] 
+        : (typeof firstError === 'string' ? firstError : JSON.stringify(firstError));
+      
       throw new Error(errorMessage);
     }
     const text = await response.text();

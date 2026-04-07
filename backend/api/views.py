@@ -187,7 +187,7 @@ class AsistenteCRMView(views.APIView):
             return Response({
                 'status': 'not_found',
                 'message': 'Asistente no encontrado en CRM histórico.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            }, status=status.HTTP_200_OK)
 
 class EmpresaCRMView(views.APIView):
     """
@@ -208,7 +208,7 @@ class EmpresaCRMView(views.APIView):
             return Response({
                 'status': 'not_found',
                 'message': 'Empresa no encontrada en CRM histórico.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            }, status=status.HTTP_200_OK)
 
 class DisertanteCRMView(views.APIView):
     """
@@ -229,7 +229,7 @@ class DisertanteCRMView(views.APIView):
             return Response({
                 'status': 'not_found',
                 'message': 'Postulante no encontrado en CRM histórico.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            }, status=status.HTTP_200_OK)
 
 
 class RegistroViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):

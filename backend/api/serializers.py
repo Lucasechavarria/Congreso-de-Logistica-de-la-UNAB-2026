@@ -335,6 +335,15 @@ class EmpresaSerializer(serializers.ModelSerializer):
             'cargo_contacto',
             'participacion_opciones',
             'participacion_otra',
+            'participo_edicion_anterior',
+            'rubro_logistico',
+            'requiere_electricidad',
+            'computadora_o_pantalla',
+            'tipo_mobiliario',
+            'gazebo_propio',
+            'estructura_adicional',
+            'acciones_stand',
+            'acepta_tyc',
             'edicion',
             'estado'
         ]
@@ -388,8 +397,15 @@ class EmpresaSerializer(serializers.ModelSerializer):
         if not edicion_activa:
             raise serializers.ValidationError({"edicion": "No hay una edición activa configurada en el sistema."})
 
+        # Si no hay email, verificamos si es una creación legítima de empresa
         email_empresa = validated_data.get('email_empresa')
+        nombre_empresa = validated_data.get('nombre_empresa')
+        
         if not email_empresa:
+            if not nombre_empresa:
+                # Caso de campo opcional vacío: devolvemos una instancia vacía o None manejado por el campo
+                return None
+            # Solo exigimos email si hay otros datos (como nombre_empresa)
             raise serializers.ValidationError({"email_empresa": "El email de la empresa es obligatorio para registro."})
 
         empresa = Empresa.objects.filter(email_empresa=email_empresa).first()
@@ -446,7 +462,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
     
     # Overrides to disable UniqueValidator, as we do Upsert manually
     email = serializers.EmailField()
-    dni = serializers.CharField(max_length=8, required=False, allow_blank=True, allow_null=True)
+    dni = serializers.CharField(max_length=8, required=True, allow_blank=False)
 
     # Legacy fields now handled in related models, write_only to allow GET without AttributeError
     is_unab_student = serializers.BooleanField(required=False, allow_null=True, write_only=True)
@@ -805,10 +821,10 @@ class AsistenteSerializer(serializers.ModelSerializer):
         elif profile_type == Asistente.ProfileType.PRESS:
             # No hay campos obligatorios extra para prensa
             pass
-        elif profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
-            if not data.get('group_name'):
+        elif profile_type == 'GROUP_REPRESENTATIVE':
+            if data.get('group_name') is None: # Solo error si es totalmente nulo/ausente
                 raise serializers.ValidationError({"group_name": "El nombre del grupo o institución es requerido."})
-            if not data.get('group_size'):
+            if data.get('group_size') is None:
                 raise serializers.ValidationError({"group_size": "La cantidad de personas es requerida."})
             
             # Validar que tenga miembros (sistema anterior o nuevo)
@@ -820,15 +836,6 @@ class AsistenteSerializer(serializers.ModelSerializer):
                     "miembros_grupo": "Debe proporcionar la lista de miembros del grupo."
                 })
             
-            # Si usa el sistema nuevo, validar que la cantidad coincida
-            if miembros_nuevos:
-                cantidad_declarada = data.get('group_size', 0)
-                cantidad_miembros = len(miembros_nuevos)
-                if cantidad_declarada != cantidad_miembros:
-                    raise serializers.ValidationError({
-                        "group_size": f"La cantidad declarada ({cantidad_declarada}) no coincide con la cantidad de miembros proporcionados ({cantidad_miembros})."
-                    })
-        
         return data
 
 class InscripcionSerializer(serializers.ModelSerializer):

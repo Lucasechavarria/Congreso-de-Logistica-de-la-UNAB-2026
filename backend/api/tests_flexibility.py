@@ -97,6 +97,8 @@ class RegistrationFlexibilityTests(TestCase):
                 }
             }
             response = self.client.post(self.inscripcion_grupal_url, data_inv, format='json')
+            if response.status_code != status.HTTP_400_BAD_REQUEST:
+                print(f"DEBUG: Expected 400, got {response.status_code}. Content: {response.content}")
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         except Exception:
             traceback.print_exc()

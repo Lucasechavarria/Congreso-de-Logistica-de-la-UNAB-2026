@@ -93,6 +93,7 @@ const RegistroEmpresas: React.FC = () => {
           const response = await verificarEmpresa(watchedEmail);
           if (response && response.status === 'success' && response.empresa) {
             const e = response.empresa;
+            console.log("[CRM] Empresa encontrada:", e.nombre_empresa);
 
             reset({
               companyName: e.nombre_empresa || "",
@@ -134,8 +135,11 @@ const RegistroEmpresas: React.FC = () => {
               description: "Hemos cargado los datos de la empresa de ediciones anteriores.",
               variant: "default",
             });
+          } else {
+            setCrmMode(false);
           }
         } catch (error) {
+          console.log("[CRM] Empresa no disponible o nueva");
           setCrmMode(false);
         } finally {
           setIsCheckingCRM(false);
@@ -184,26 +188,27 @@ const RegistroEmpresas: React.FC = () => {
 
       const response = await registrarEmpresa(formData);
       if (response && (response.status === "success" || response.id)) {
-        const msg = response.message || "Tu registro empresarial ha sido procesado correctamente.";
-        toast({
-          title: "✅ Empresa Registrada",
-          description: msg,
-          variant: "default",
-        });
+        const rawMsg = response.message || "Tu registro empresarial ha sido procesado correctamente.";
+        const msg = typeof rawMsg === 'string' ? rawMsg : JSON.stringify(rawMsg);
+        
         setSuccessMessage(msg);
         setShowModal(true);
         reset();
+        window.scrollTo(0, 0);
       } else {
         toast({
           title: "❌ Error en el registro",
-          description: response?.message || "Ocurrió un error inesperado.",
+          description: typeof response?.message === 'string' 
+              ? response.message 
+              : "Ocurrió un error inesperado al procesar los datos.",
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error en registro:", error);
       toast({
-        title: "❌ Error de conexión",
-        description: "No se pudo conectar con el servidor.",
+        title: "❌ Error en el registro",
+        description: error.message || "No se pudo completar el registro. Por favor, revisa los datos e intenta nuevamente.",
         variant: "destructive",
       });
     }

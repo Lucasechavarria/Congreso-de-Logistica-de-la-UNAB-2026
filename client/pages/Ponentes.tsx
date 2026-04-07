@@ -105,12 +105,7 @@ export default function Ponentes() {
           <p className="text-xl text-gray-700 max-w-2xl mx-auto font-medium leading-relaxed">
             Expertos líderes que compartirán las últimas tendencias y desafíos en logística y transporte.
           </p>
-          <div className="mt-8">
-            <EditionSelector 
-              selectedEditionId={selectedEditionId}
-              onEditionChange={(id) => setSelectedEditionId(id)}
-            />
-          </div>
+
         </motion.div>
 
         {/* Call to Action Section (Glassmorphism + Cinematic) */}

@@ -270,12 +270,7 @@ export default function Empresas() {
           <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-8">
             Nuestras Empresas Participantes
           </h2>
-          <div className="flex justify-center mb-10">
-            <EditionSelector 
-              selectedEditionId={selectedEditionId}
-              onEditionChange={(id) => setSelectedEditionId(id)}
-            />
-          </div>
+
           <LargeLogoCarousel edicionId={selectedEditionId} />
         </div>
       </section>

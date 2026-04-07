@@ -420,15 +420,8 @@ export default function Programa() {
           transition={{ duration: 0.8 }}
           className="text-center mb-12"
         >
-          <div className="inline-block px-4 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#b07eee] font-bold text-sm tracking-widest uppercase mb-4 shadow-[0_0_15px_rgba(176,126,238,0.3)]">
-            Edición {currentEdition?.anio || "2026"}
-          </div>
-          <div className="mb-8">
-            <EditionSelector 
-              selectedEditionId={selectedEditionId}
-              onEditionChange={(id) => setSelectedEditionId(id)}
-            />
-          </div>
+
+
           <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
             CONVOCATORIA <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9c62de] to-[#b07eee]">ABIERTA</span>
           </h1>
@@ -556,14 +549,9 @@ export default function Programa() {
                   Agenda_
                 </h1>
                 <p className="text-xl md:text-2xl text-white/90 max-w-4xl mx-auto font-light drop-shadow-md">
-                  de 10:00 a 18:00 hs • Edición {currentEdition?.anio}
+                  de 10:00 a 18:00 hs
                 </p>
-                <div className="mt-8 flex justify-center">
-                  <EditionSelector 
-                    selectedEditionId={selectedEditionId}
-                    onEditionChange={(id) => setSelectedEditionId(id)}
-                  />
-                </div>
+
                 {loading && (
                   <div className="text-white/80 mt-6 text-lg animate-pulse">Cargando agenda...</div>
                 )}

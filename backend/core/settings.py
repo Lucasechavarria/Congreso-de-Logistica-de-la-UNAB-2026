@@ -206,6 +206,10 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+# Por defecto, ejecutar tareas síncronas para evitar errores 500 si no hay Redis (Broker) disponible.
+# El usuario prefiere que la petición tarde un poco más a que falle.
+CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_TASK_ALWAYS_EAGER', 'True').lower() in ['true', '1', 'yes']
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # Configuración de Celery Beat (Desactivado para Newsletter)
 CELERY_BEAT_SCHEDULE = {}

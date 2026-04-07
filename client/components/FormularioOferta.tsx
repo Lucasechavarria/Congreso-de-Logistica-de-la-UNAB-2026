@@ -113,7 +113,7 @@ export default function FormularioOferta() {
               setIsSuccess(false);
               form.reset();
             }}
-            className="border-white/10 hover:bg-white/5 px-8 py-6 rounded-2xl font-bold"
+            className="border-congress-cyan/30 text-congress-cyan hover:bg-congress-cyan/10 px-8 py-6 rounded-2xl font-bold transition-all"
           >
             Publicar otra vacante
           </Button>

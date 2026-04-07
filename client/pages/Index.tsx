@@ -330,11 +330,11 @@ export default function Index() {
                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
                   <Link to="/registro-disertante">
                     <Button
-                      size="lg"
-                      className="bg-white/10 hover:bg-[#9c62de] text-white font-bold px-8 py-6 text-lg border border-white/30 hover:border-transparent transition-all duration-300 w-full sm:w-auto shadow-[0_0_20px_rgba(156,98,222,0.2)] hover:shadow-[0_0_30px_rgba(156,98,222,0.6)]"
-                    >
-                      Postular Ponencia
-                    </Button>
+  size="lg"
+  className="bg-congress-cyan hover:bg-congress-cyan-light text-white font-bold px-8 py-6 text-lg shadow-lg hover:shadow-2xl transition-all duration-300 w-full sm:w-auto"
+>
+  Postular Ponencia
+</Button>
                   </Link>
                   <Link to="/registro-empresas">
                     <Button

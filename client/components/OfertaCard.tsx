@@ -1,4 +1,6 @@
 import { Building2, MapPin, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
+import PostulacionModal from "./PostulacionModal";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
@@ -93,13 +95,23 @@ export default function OfertaCard({ oferta }: OfertaCardProps) {
       </CardContent>
 
       <CardFooter className="pt-4 border-t border-white/5">
-        <Button 
-          onClick={handlePostular}
-          className="w-full bg-[#9b6dd7] hover:bg-[#8b5cf6] text-white font-semibold transition-all flex items-center justify-center gap-2"
-        >
-          Postular ahora
-          <ExternalLink className="h-4 w-4" />
-        </Button>
+        <div className="flex flex-col gap-2 w-full">
+          <Link to={`/bolsa-de-trabajo/${oferta.id}`} className="w-full">
+            <Button className="w-full bg-[#6b46c1] hover:bg-[#5a34a6] text-white font-semibold transition-all">
+              Ver detalle
+            </Button>
+          </Link>
+          <PostulacionModal 
+            ofertaId={oferta.id} 
+            ofertaTitulo={oferta.titulo_puesto} 
+            empresaNombre={empresa_detalle?.nombre_empresa || "Empresa"}
+          >
+            <Button className="w-full bg-[#9b6dd7] hover:bg-[#8b5cf6] text-white font-semibold transition-all flex items-center justify-center gap-2">
+              Postular ahora
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </PostulacionModal>
+        </div>
       </CardFooter>
     </Card>
   );

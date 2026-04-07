@@ -53,3 +53,25 @@ class OfertaLaboral(models.Model):
         verbose_name = "Oferta Laboral"
         verbose_name_plural = "Ofertas Laborales"
         ordering = ['-fecha_creacion']
+
+class PostulacionOferta(models.Model):
+    oferta = models.ForeignKey(
+        OfertaLaboral, 
+        on_delete=models.CASCADE, 
+        related_name='postulaciones',
+        verbose_name="Oferta"
+    )
+    nombre_completo = models.CharField(max_length=255, verbose_name="Nombre completo")
+    email = models.EmailField(verbose_name="Email")
+    telefono = models.CharField(max_length=50, verbose_name="Teléfono")
+    cv = models.FileField(upload_to='cvs_postulaciones/', verbose_name="Currículum Vitae")
+    mensaje = models.TextField(blank=True, null=True, verbose_name="Mensaje (opcional)")
+    fecha_postulacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de postulación")
+
+    def __str__(self):
+        return f"{self.nombre_completo} - {self.oferta.titulo_puesto}"
+
+    class Meta:
+        verbose_name = "Postulación a Oferta"
+        verbose_name_plural = "Postulaciones a Ofertas"
+        ordering = ['-fecha_postulacion']

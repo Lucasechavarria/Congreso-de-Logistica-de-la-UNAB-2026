@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import OfertaLaboral
+from .models import OfertaLaboral, PostulacionOferta
 from api.serializers import EmpresaSerializer
 
 class OfertaLaboralSerializer(serializers.ModelSerializer):
@@ -31,3 +31,8 @@ class OfertaLaboralCreateSerializer(serializers.ModelSerializer):
         if value not in dict(OfertaLaboral.Modalidad.choices):
             raise serializers.ValidationError("Modalidad no válida.")
         return value
+
+class PostulacionOfertaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostulacionOferta
+        fields = '__all__'

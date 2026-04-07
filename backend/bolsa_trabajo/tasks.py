@@ -73,3 +73,73 @@ def enviar_newsletter_semanal():
             logger.error(f"Error enviando newsletter a {inscripcion.asistente.email}: {e}")
 
     return f"Newsletter enviado a {enviados} suscriptores."
+
+@shared_task
+def enviar_email_postulacion(postulacion_id):
+    """
+    Envía notificaciones por email tanto a la empresa como al postulante.
+    """
+    from .models import PostulacionOferta
+    try:
+        postulacion = PostulacionOferta.objects.get(id=postulacion_id)
+        oferta = postulacion.oferta
+        empresa = oferta.empresa
+
+        # 1. Email para la empresa (Notificación de nuevo candidato)
+        subject_empresa = f"🚀 Nuevo Candidato: {postulacion.nombre_completo} - {oferta.titulo_puesto}"
+        html_empresa = render_to_string('email/postulacion_empresa.html', {
+            'postulacion': postulacion,
+            'oferta': oferta,
+            'empresa': empresa,
+        })
+        text_empresa = strip_tags(html_empresa)
+        
+        email_to_empresa = EmailMultiAlternatives(
+            subject_empresa,
+            text_empresa,
+            settings.DEFAULT_FROM_EMAIL,
+            [empresa.email_contacto]
+        )
+        email_to_empresa.attach_alternative(html_empresa, "text/html")
+        
+        # Adjuntar CV si existe
+        if postulacion.cv:
+            try:
+                # Abrir el archivo y leerlo
+                cv_file = postulacion.cv.open('rb')
+                email_to_empresa.attach(
+                    f"CV_{postulacion.nombre_completo.replace(' ', '_')}.pdf",
+                    cv_file.read(),
+                    'application/pdf'
+                )
+                cv_file.close()
+            except Exception as e:
+                logger.error(f"Error adjuntando CV al email: {e}")
+
+        email_to_empresa.send()
+
+        # 2. Email para el postulante (Confirmación de recepción)
+        subject_postulante = f"✅ Tu postulación ha sido enviada: {oferta.titulo_puesto}"
+        html_postulante = render_to_string('email/postulacion_confirmacion.html', {
+            'postulacion': postulacion,
+            'oferta': oferta,
+            'empresa': empresa,
+        })
+        text_postulante = strip_tags(html_postulante)
+        
+        email_to_postulante = EmailMultiAlternatives(
+            subject_postulante,
+            text_postulante,
+            settings.DEFAULT_FROM_EMAIL,
+            [postulacion.email]
+        )
+        email_to_postulante.attach_alternative(html_postulante, "text/html")
+        email_to_postulante.send()
+
+        return f"Notificaciones enviadas exitosamente para postulación {postulacion_id}"
+    except PostulacionOferta.DoesNotExist:
+        logger.error(f"Postulación {postulacion_id} no encontrada en la tarea asíncrona.")
+        return "Postulación no encontrada"
+    except Exception as e:
+        logger.error(f"Error general en enviar_email_postulacion: {e}")
+        return str(e)

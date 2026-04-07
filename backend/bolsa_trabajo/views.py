@@ -4,7 +4,7 @@ from rest_framework.throttling import AnonRateThrottle
 from django.utils import timezone
 from django.db import models
 from .models import OfertaLaboral
-from .serializers import OfertaLaboralSerializer, OfertaLaboralCreateSerializer
+from .serializers import OfertaLaboralSerializer, OfertaLaboralCreateSerializer, PostulacionOfertaSerializer
 from api.models import Empresa, Edicion
 
 class OfertaLaboralCreateThrottle(AnonRateThrottle):
@@ -96,3 +96,15 @@ class OfertaLaboralCreateView(generics.CreateAPIView):
             estado=OfertaLaboral.Estado.PENDIENTE,
             fecha_expiracion=fecha_expiracion
         )
+
+class PostulacionOfertaCreateView(generics.CreateAPIView):
+    """
+    Endpoint para que los candidatos se postulen a una vacante.
+    """
+    serializer_class = PostulacionOfertaSerializer
+    
+    def perform_create(self, serializer):
+        postulacion = serializer.save()
+        # Enviar emails de notificación (vía Celery)
+        from .tasks import enviar_email_postulacion
+        enviar_email_postulacion.delay(postulacion.id)

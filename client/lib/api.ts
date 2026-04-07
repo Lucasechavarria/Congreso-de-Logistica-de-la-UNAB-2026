@@ -286,3 +286,9 @@ export async function postularOfertaLaboral(data: any) {
   const res = await postWithCsrf(`${API_BASE}/bolsa-trabajo/ofertas/nueva/`, data);
   return await parseResponse(res);
 }
+
+// Función para que un candidato se postule a una oferta
+export async function postularCandidato(data: FormData) {
+  const res = await postWithCsrf(`${API_BASE}/bolsa-trabajo/ofertas/postular/`, data, true);
+  return await parseResponse(res);
+}

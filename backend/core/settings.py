@@ -325,3 +325,9 @@ FRONTEND_URL = "https://www.congresologistica.unab.edu.ar"
 
 # URL base del servidor (Backend) para enlaces administrativos
 BASE_URL = os.getenv('BASE_URL', FRONTEND_URL)
+
+# =================== LÍMITES DE CARGA DE ARCHIVOS ===================
+# Aumentamos el límite a 10MB para permitir logos y CVs más grandes
+# Por defecto Django usa 2.5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB

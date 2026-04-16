@@ -116,7 +116,13 @@ class Programa(models.Model):
 
 class Empresa(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='empresas')
-    ESTADO_CHOICES = [('PENDIENTE', 'Pendiente'), ('APROBADO', 'Aprobado'), ('RECHAZADO', 'Rechazado')]
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('ENVIO_BC', 'Envío de Bases y Condiciones'),
+        ('PENDIENTE_PAGO', 'Pendiente de Pago'),
+        ('CONFIRMADA', 'Confirmada'),
+        ('RECHAZADA', 'Rechazada'),
+    ]
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', verbose_name="Estado")
     fecha_registro = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de registro")
     # Main Info

@@ -436,7 +436,7 @@ class EmpresaViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         edicion_id = self.request.query_params.get('edicion_id')
         queryset = Empresa.objects.filter(
-            estado='APROBADO', 
+            estado='CONFIRMADA',
             logo__isnull=False
         ).exclude(logo='')
         

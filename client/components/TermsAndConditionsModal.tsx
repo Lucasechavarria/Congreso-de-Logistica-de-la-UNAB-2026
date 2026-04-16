@@ -174,7 +174,24 @@ function StandTerms() {
             <p className="font-bold text-base mt-4">11. Protección de Datos Personales</p>
             <p>Los datos provistos serán tratados con estricta confidencialidad bajo la Ley N° 25.326. La organización utilizará esta información únicamente para fines comunicacionales, logísticos y organizativos vinculados a las actividades del Congreso.</p>
 
-            <p className="font-bold text-base mt-4">12. Aceptación</p>
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="font-bold text-base text-amber-900">12. Costo Operativo de Participación</p>
+                <p className="mt-2 text-amber-800">
+                    Se establece un costo operativo de <strong>$80.000 (pesos ochenta mil)</strong> por cada módulo de stand de 3×3 metros.
+                    Este importe tiene como finalidad cubrir gastos mínimos de organización y montaje.
+                </p>
+                <p className="mt-3 font-semibold text-amber-900">El módulo incluye:</p>
+                <ul className="mt-1 list-disc pl-5 space-y-1 text-amber-800">
+                    <li>Gazebo estructural.</li>
+                    <li>Una (1) mesa.</li>
+                    <li>Dos (2) sillas.</li>
+                    <li>Provisión de electricidad para PC o TV (uso básico, destinado a pequeños consumos).</li>
+                    <li>Cartel personalizado identificatorio para el gazebo.</li>
+                    <li>Credenciales para los expositores.</li>
+                </ul>
+            </div>
+
+            <p className="font-bold text-base mt-4">13. Aceptación</p>
             <p>La participación en el evento implica la aceptación total de las presentes Bases y Condiciones.</p>
         </>
     );

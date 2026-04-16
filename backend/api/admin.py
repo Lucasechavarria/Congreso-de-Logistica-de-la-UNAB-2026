@@ -227,39 +227,75 @@ def broadcast_view(request):
     """
     try:
         if request.method == 'POST':
-            rol = request.POST.get('rol')
+            destinatarios = request.POST.getlist('destinatarios')  # lista multi-valor
             asunto = request.POST.get('asunto')
             mensaje_html = request.POST.get('mensaje')
 
-            emails = set()
-            
-            if rol == 'TODOS' or rol == 'ASISTENTES_TODOS':
-                emails.update(Asistente.objects.values_list('email', flat=True))
-            
-            if rol == 'ASISTENTES_CONFIRMADOS':
-                emails.update(Inscripcion.objects.filter(asistencia_confirmada=True).values_list('asistente__email', flat=True))
-            
-            if rol == 'TODOS' or rol == 'DISERTANTES':
-                emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))
-                
-            if rol == 'TODOS' or rol == 'EMPRESAS':
-                emails.update(Empresa.objects.filter(estado='APROBADO').values_list('email_contacto', flat=True))
-                
-            if rol == 'TODOS' or rol == 'PRENSA':
-                emails.update(InscripcionPrensa.objects.values_list('email', flat=True))
-
-            # Limpiar emails nulos o vacíos
-            emails = [e for e in emails if e]
-
-            if not emails:
-                messages.error(request, "No se encontraron destinatarios para el filtro seleccionado.")
+            if not destinatarios:
+                messages.error(request, "Debés seleccionar al menos un grupo de destinatarios.")
             else:
-                enviados, errores = send_broadcast_batch_email(emails, asunto, mensaje_html)
-                msg = f"Proceso finalizado. Enviados: {enviados}. Errores: {errores}."
-                if errores == 0:
-                    messages.success(request, msg)
+                emails = set()
+
+                # ── Asistentes ──────────────────────────────────────────────
+                if 'ASISTENTES_TODOS' in destinatarios:
+                    emails.update(Asistente.objects.values_list('email', flat=True))
+
+                if 'ASISTENTES_CONFIRMADOS' in destinatarios:
+                    emails.update(
+                        Inscripcion.objects.filter(asistencia_confirmada=True)
+                        .values_list('asistente__email', flat=True)
+                    )
+
+                # ── Disertantes (por estado de postulación) ─────────────────
+                if 'DISERTANTES_PENDIENTE' in destinatarios:
+                    emails.update(PostulacionDisertante.objects.filter(estado='PENDIENTE').values_list('email', flat=True))
+
+                if 'DISERTANTES_APROBADOS' in destinatarios:
+                    emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))
+
+                if 'DISERTANTES_RECHAZADOS' in destinatarios:
+                    emails.update(PostulacionDisertante.objects.filter(estado='RECHAZADO').values_list('email', flat=True))
+
+                # ── Prensa ──────────────────────────────────────────────────
+                if 'PRENSA' in destinatarios:
+                    emails.update(InscripcionPrensa.objects.values_list('email', flat=True))
+
+                # ── Empresas (por estado del workflow) ──────────────────────
+                EMPRESA_ESTADOS = {
+                    'EMPRESAS_PENDIENTE':      'PENDIENTE',
+                    'EMPRESAS_ENVIO_BC':       'ENVIO_BC',
+                    'EMPRESAS_PENDIENTE_PAGO': 'PENDIENTE_PAGO',
+                    'EMPRESAS_CONFIRMADAS':    'CONFIRMADA',
+                    'EMPRESAS_RECHAZADAS':     'RECHAZADA',
+                }
+                for key, estado_val in EMPRESA_ESTADOS.items():
+                    if key in destinatarios:
+                        emails.update(
+                            Empresa.objects.filter(estado=estado_val)
+                            .exclude(email_contacto='').exclude(email_contacto__isnull=True)
+                            .values_list('email_contacto', flat=True)
+                        )
+
+                # Limpiar emails vacíos y deduplicar
+                emails_list = [e for e in emails if e]
+
+                if not emails_list:
+                    messages.error(request, "No se encontraron destinatarios para los grupos seleccionados.")
                 else:
-                    messages.warning(request, msg)
+                    enviados, errores = send_broadcast_batch_email(emails_list, asunto, mensaje_html)
+                    grupos_label = " · ".join(destinatarios)
+                    msg = (
+                        f"✅ Proceso finalizado. "
+                        f"Destinatarios únicos: {len(emails_list)} | "
+                        f"Enviados: {enviados} | Errores: {errores}. "
+                        f"[{grupos_label}]"
+                    )
+                    if errores == 0:
+                        messages.success(request, msg)
+                    else:
+                        messages.warning(request, msg)
+
+
 
         context = {
             **admin.site.each_context(request),
@@ -491,6 +527,7 @@ class InscripcionAdmin(admin.ModelAdmin):
     list_filter = ('edicion', 'fecha_inscripcion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'empresa__razon_social')
     readonly_fields = ('fecha_inscripcion',)
+    ordering = ['-fecha_inscripcion']
 
     def fecha_inscripcion_detalle(self, obj):
         return obj.fecha_inscripcion.strftime("%d/%m/%Y %H:%M:%S") if obj.fecha_inscripcion else "-"
@@ -501,6 +538,7 @@ class AsistenteAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'email', 'dni', 'get_ediciones', 'get_asistencia_actual', 'fecha_registro_detalle')
     list_filter = (DNIFilter, 'inscripciones__asistencia_confirmada', 'inscripciones__edicion', 'fecha_registro')
     search_fields = ('first_name', 'last_name', 'email', 'dni')
+    ordering = ['-fecha_registro']
 
     def fecha_registro_detalle(self, obj):
         return obj.fecha_registro.strftime("%d/%m/%Y %H:%M:%S") if obj.fecha_registro else "-"
@@ -1016,12 +1054,36 @@ class DisertanteAdmin(admin.ModelAdmin):
     list_filter = ('edicion', 'estado')
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
-    list_display = ('nombre_empresa', 'estado', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro')
+    list_display = ('nombre_empresa', 'estado_badge', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro_detalle')
     list_filter = ('estado', 'edicion', 'participo_edicion_anterior')
     search_fields = ('nombre_empresa', 'cuit', 'email_contacto', 'nombre_contacto')
-    list_editable = ('estado', 'numero_stand', 'cantidad_representantes')
-    actions = ['aprobar_empresas', 'rechazar_empresas']
+    list_editable = ('numero_stand', 'cantidad_representantes')
+    actions = ['confirmar_empresas', 'marcar_envio_bc', 'marcar_pendiente_pago', 'rechazar_empresas']
     readonly_fields = ('fecha_registro', 'fecha_revision', 'revisada_por')
+    ordering = ['-fecha_registro']
+
+    def fecha_registro_detalle(self, obj):
+        return obj.fecha_registro.strftime("%d/%m/%Y %H:%M") if obj.fecha_registro else "-"
+    fecha_registro_detalle.short_description = 'Fecha Inscripción'
+    fecha_registro_detalle.admin_order_field = 'fecha_registro'
+
+    def estado_badge(self, obj):
+        colors = {
+            'PENDIENTE':      ('#78716c', '#fafaf9'),  # Gris
+            'ENVIO_BC':       ('#1d4ed8', '#eff6ff'),  # Azul
+            'PENDIENTE_PAGO': ('#b45309', '#fffbeb'),  # Amarillo-naranja
+            'CONFIRMADA':     ('#15803d', '#f0fdf4'),  # Verde
+            'RECHAZADA':      ('#b91c1c', '#fef2f2'),  # Rojo
+        }
+        bg, fg = colors.get(obj.estado, ('#78716c', '#fafaf9'))
+        label = obj.get_estado_display()
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 10px;border-radius:12px;'
+            'font-weight:600;font-size:12px;white-space:nowrap;">{}</span>',
+            bg, fg, label
+        )
+    estado_badge.short_description = 'Estado'
+    estado_badge.admin_order_field = 'estado'
     fieldsets = (
         ('Identificación', {
             'fields': ('edicion', 'estado', 'nombre_empresa', 'logo', 'cuit', 'descripcion')
@@ -1052,25 +1114,41 @@ class EmpresaAdmin(admin.ModelAdmin):
             obj.revisada_por = request.user
         super().save_model(request, obj, form, change)
 
-    def aprobar_empresas(self, request, queryset):
-        updated = queryset.update(estado='APROBADO', fecha_revision=timezone.now(), revisada_por=request.user)
-        self.message_user(request, f'{updated} empresa(s) aprobada(s).')
-    aprobar_empresas.short_description = 'Aprobar empresas seleccionadas'  # type: ignore
+    def confirmar_empresas(self, request, queryset):
+        updated = queryset.update(estado='CONFIRMADA', fecha_revision=timezone.now(), revisada_por=request.user)
+        self.message_user(request, f'✅ {updated} empresa(s) marcadas como CONFIRMADAS.')
+    confirmar_empresas.short_description = '✅ Confirmar empresas seleccionadas'  # type: ignore
+
+    def marcar_envio_bc(self, request, queryset):
+        updated = queryset.update(estado='ENVIO_BC', fecha_revision=timezone.now(), revisada_por=request.user)
+        self.message_user(request, f'📧 {updated} empresa(s) marcadas como Envío de B&C.')
+    marcar_envio_bc.short_description = '📧 Marcar como Envío de Bases y Condiciones'  # type: ignore
+
+    def marcar_pendiente_pago(self, request, queryset):
+        updated = queryset.update(estado='PENDIENTE_PAGO', fecha_revision=timezone.now(), revisada_por=request.user)
+        self.message_user(request, f'💳 {updated} empresa(s) marcadas como Pendiente de Pago.')
+    marcar_pendiente_pago.short_description = '💳 Marcar como Pendiente de Pago'  # type: ignore
 
     def rechazar_empresas(self, request, queryset):
-        updated = queryset.update(estado='RECHAZADO', fecha_revision=timezone.now(), revisada_por=request.user)
-        self.message_user(request, f'{updated} empresa(s) rechazada(s).')
-    rechazar_empresas.short_description = 'Rechazar empresas seleccionadas'  # type: ignore
+        updated = queryset.update(estado='RECHAZADA', fecha_revision=timezone.now(), revisada_por=request.user)
+        self.message_user(request, f'❌ {updated} empresa(s) rechazada(s).')
+    rechazar_empresas.short_description = '❌ Rechazar empresas seleccionadas'  # type: ignore
 
 
 @admin.register(PostulacionDisertante)
 class PostulacionDisertanteAdmin(admin.ModelAdmin):
-    list_display = ('nombre_apellido', 'email', 'titulo_charla', 'estado', 'edicion', 'fecha_postulacion')
+    list_display = ('nombre_apellido', 'email', 'titulo_charla', 'estado', 'edicion', 'fecha_postulacion_detalle')
     list_filter = ('estado', 'edicion', 'modalidad')
     search_fields = ('nombre_apellido', 'dni', 'email', 'titulo_charla')
     list_editable = ('estado',)
     actions = ['aprobar_postulaciones', 'rechazar_postulaciones']
     readonly_fields = ('fecha_postulacion', 'fecha_revision', 'revisada_por')
+    ordering = ['-fecha_postulacion']
+
+    def fecha_postulacion_detalle(self, obj):
+        return obj.fecha_postulacion.strftime("%d/%m/%Y %H:%M") if obj.fecha_postulacion else "-"
+    fecha_postulacion_detalle.short_description = 'Fecha Postulación'
+    fecha_postulacion_detalle.admin_order_field = 'fecha_postulacion'
     fieldsets = (
         ('Datos personales', {
             'fields': ('edicion', 'nombre_apellido', 'dni', 'email', 'telefono',
@@ -1113,10 +1191,16 @@ class PostulacionDisertanteAdmin(admin.ModelAdmin):
 
 @admin.register(InscripcionPrensa)
 class InscripcionPrensaAdmin(admin.ModelAdmin):
-    list_display = ('nombre_apellido', 'tipo_perfil', 'medio_o_canal', 'edicion', 'fecha_inscripcion', 'link_display')
+    list_display = ('nombre_apellido', 'tipo_perfil', 'medio_o_canal', 'edicion', 'fecha_inscripcion_detalle', 'link_display')
     list_filter = ('tipo_perfil', 'edicion')
     search_fields = ('nombre_apellido', 'dni', 'email', 'medio_o_canal')
     readonly_fields = ('fecha_inscripcion',)
+    ordering = ['-fecha_inscripcion']
+
+    def fecha_inscripcion_detalle(self, obj):
+        return obj.fecha_inscripcion.strftime("%d/%m/%Y %H:%M") if obj.fecha_inscripcion else "-"
+    fecha_inscripcion_detalle.short_description = 'Fecha Inscripción'
+    fecha_inscripcion_detalle.admin_order_field = 'fecha_inscripcion'
     fieldsets = (
         ('Datos personales', {
             'fields': ('edicion', 'nombre_apellido', 'dni', 'email', 'telefono', 'ciudad_provincia')

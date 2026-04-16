@@ -7,7 +7,7 @@
     .broadcast-layout {
         display: flex;
         gap: 20px;
-        max-width: 1200px;
+        max-width: 1350px;
         margin: 20px auto;
     }
     .broadcast-container {
@@ -33,15 +33,173 @@
         margin-bottom: 25px;
         padding-bottom: 10px;
     }
-    .broadcast-header h1 {
+    .broadcast-header h1 { color: #cba6f7; margin: 0; font-size: 24px; }
+
+    /* Quick buttons */
+    .quick-btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 14px;
+    }
+    .quick-btn {
+        padding: 5px 13px;
+        border-radius: 20px;
+        border: 1px solid #45475a;
+        background: #313244;
+        color: #cdd6f4;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .quick-btn:hover { background: #a78bfa; color: #1e1e2e; border-color: #a78bfa; }
+    .quick-btn.danger:hover { background: #f38ba8; color: #1e1e2e; border-color: #f38ba8; }
+
+    /* Summary bar */
+    .summary-bar {
+        background: #181825;
+        border: 1px dashed #45475a;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 13px;
+        color: #9399b2;
+        margin-bottom: 18px;
+        min-height: 38px;
+        line-height: 1.5;
+    }
+    .summary-bar strong { color: #cba6f7; }
+
+    /* Master TODOS */
+    .master-todos {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(167,139,250,0.08);
+        border: 1px solid #a78bfa;
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .master-todos:hover { background: rgba(167,139,250,0.15); }
+    .master-todos input[type="checkbox"] {
+        width: 18px; height: 18px;
+        accent-color: #a78bfa;
+        cursor: pointer;
+    }
+    .master-todos .master-label {
+        font-weight: 700;
+        font-size: 14px;
         color: #cba6f7;
-        margin: 0;
-        font-size: 24px;
     }
-    .form-group {
-        margin-bottom: 20px;
+    .master-todos .master-sub {
+        font-size: 11px;
+        color: #9399b2;
+        margin-left: auto;
     }
-    .form-group label {
+
+    /* Groups grid */
+    .recipient-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+    .recipient-group {
+        background: #252536;
+        border: 1px solid #3a3a55;
+        border-radius: 10px;
+        overflow: hidden;
+        transition: border-color 0.2s;
+    }
+    .recipient-group.full-row { grid-column: 1 / -1; }
+    .recipient-group:hover { border-color: #a78bfa; }
+
+    /* Group header (with group-level checkbox) */
+    .group-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background: #1e1e2e;
+        border-bottom: 1px solid #3a3a55;
+        cursor: pointer;
+        user-select: none;
+    }
+    .group-header input[type="checkbox"] {
+        width: 15px; height: 15px;
+        accent-color: #a78bfa;
+        cursor: pointer;
+    }
+    .group-header .group-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #a78bfa;
+    }
+    .group-header .group-count {
+        margin-left: auto;
+        font-size: 10px;
+        color: #6c7086;
+    }
+
+    /* Group body */
+    .group-body {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .empresa-group .group-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    /* Individual check items */
+    .check-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        background: #313244;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.12s;
+        border: 1px solid transparent;
+        user-select: none;
+        font-size: 13px;
+    }
+    .check-item:hover { background: #3a3a55; border-color: #6c7086; }
+    .check-item.checked { background: rgba(167,139,250,0.12); border-color: #a78bfa; }
+    .check-item input[type="checkbox"] {
+        width: 14px; height: 14px;
+        accent-color: #a78bfa;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .check-item .badge {
+        margin-left: auto;
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .badge-gray    { background:#57534e; color:#fafaf9; }
+    .badge-blue    { background:#1d4ed8; color:#eff6ff; }
+    .badge-orange  { background:#b45309; color:#fffbeb; }
+    .badge-green   { background:#15803d; color:#f0fdf4; }
+    .badge-red     { background:#b91c1c; color:#fef2f2; }
+    .badge-purple  { background:#6d28d9; color:#f5f3ff; }
+    .badge-cyan    { background:#0e7490; color:#ecfeff; }
+
+    /* Form fields */
+    .form-group { margin-bottom: 20px; }
+    .form-group label.field-label {
         display: block;
         margin-bottom: 8px;
         font-weight: bold;
@@ -50,7 +208,8 @@
         font-size: 11px;
         letter-spacing: 1px;
     }
-    .form-group select, .form-group input, .form-group textarea {
+    .form-group input[type="text"],
+    .form-group textarea {
         width: 100%;
         padding: 12px;
         border: 1px solid #45475a;
@@ -59,17 +218,18 @@
         border-radius: 6px;
         font-size: 14px;
         transition: border-color 0.2s;
+        box-sizing: border-box;
     }
-    .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
-        border-color: #a78bfa;
-        outline: none;
-    }
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus { border-color: #a78bfa; outline: none; }
     .form-group textarea {
         min-height: 300px;
-        font-family: 'Fira Code', 'Courier New', Courier, monospace;
+        font-family: 'Fira Code', 'Courier New', monospace;
         line-height: 1.5;
         resize: vertical;
     }
+    .help-text { font-size: 12px; color: #9399b2; margin-top: 6px; font-style: italic; }
+
     .submit-btn {
         background: linear-gradient(45deg, #a78bfa, #818cf8);
         color: #1e1e2e;
@@ -83,51 +243,37 @@
         text-transform: uppercase;
         letter-spacing: 1px;
         transition: transform 0.2s, box-shadow 0.2s;
-        box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
+        box-shadow: 0 4px 15px rgba(167,139,250,0.3);
     }
-    .submit-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(167, 139, 250, 0.5);
-    }
-    .help-text {
-        font-size: 12px;
-        color: #9399b2;
-        margin-top: 8px;
-        font-style: italic;
-    }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(167,139,250,0.5); }
+
+    /* Sidebar */
     .snippet-card {
-        background: #313244;
-        padding: 10px;
-        border-radius: 6px;
-        margin-bottom: 12px;
-        border-left: 3px solid #f9e2af;
+        background: #313244; padding: 10px; border-radius: 6px;
+        margin-bottom: 12px; border-left: 3px solid #f9e2af;
     }
     .snippet-card code {
-        display: block;
-        background: #181825;
-        padding: 5px;
-        border-radius: 4px;
-        margin-top: 5px;
-        color: #b4befe;
-        cursor: pointer;
+        display: block; background: #181825; padding: 5px;
+        border-radius: 4px; margin-top: 5px; color: #b4befe; cursor: pointer;
     }
-    .snippet-card code:hover {
-        background: #45475a;
-    }
-    .alert {
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-weight: 500;
-    }
+    .snippet-card code:hover { background: #45475a; }
+    .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
     .alert-success { background: #a6e3a1; color: #11111b; }
-    .alert-error { background: #f38ba8; color: #11111b; }
+    .alert-error   { background: #f38ba8; color: #11111b; }
     .alert-warning { background: #fab387; color: #11111b; }
+
+    .section-divider {
+        border: none;
+        border-top: 1px solid #313244;
+        margin: 20px 0;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="broadcast-layout">
+
+    <!-- MAIN FORM -->
     <div class="broadcast-container">
         <div class="broadcast-header">
             <h1>Centro de Comunicaciones 🚀</h1>
@@ -135,92 +281,369 @@
 
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {{ message }}
-                </div>
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
             {% endfor %}
         {% endif %}
 
-        <form method="post">
+        <form method="post" id="broadcastForm">
             {% csrf_token %}
-            
-            <div class="form-group">
-                <label for="rol">🎯 Destinatarios</label>
-                <select name="rol" id="rol" required>
-                    <option value="TODOS">--- TODOS (Filtra duplicados automáticamente) ---</option>
-                    <option value="ASISTENTES_TODOS">👥 Asistentes: Todos</option>
-                    <option value="ASISTENTES_CONFIRMADOS">✅ Asistentes: Solo Confirmados</option>
-                    <option value="DISERTANTES">🎤 Disertantes: Solo Aprobados</option>
-                    <option value="EMPRESAS">🏢 Empresas: Solo Aprobadas</option>
-                    <option value="PRENSA">📸 Prensa e Influencers</option>
-                </select>
-            </div>
 
+            <!-- ═══ DESTINATARIOS ═══ -->
             <div class="form-group">
-                <label for="asunto">✉️ Asunto del Email</label>
+                <label class="field-label">🎯 Destinatarios</label>
+
+                <!-- Quick buttons -->
+                <div class="quick-btns">
+                    <button type="button" class="quick-btn" onclick="selectAll()">✅ Todos (incluyendo rechazados)</button>
+                    <button type="button" class="quick-btn" onclick="selectSafe()">🛡️ Todos menos rechazados</button>
+                    <button type="button" class="quick-btn" onclick="selectEmpresasActivas()">🏢 Solo empresas activas</button>
+                    <button type="button" class="quick-btn danger" onclick="selectNone()">❌ Limpiar todo</button>
+                </div>
+
+                <!-- Summary bar -->
+                <div class="summary-bar" id="summaryBar">
+                    Seleccioná uno o más grupos para ver el resumen.
+                </div>
+
+                <!-- ── MASTER: TODOS ── -->
+                <label class="master-todos" onclick="toggleMaster(this)">
+                    <input type="checkbox" id="masterTodos" onchange="onMasterChange(this)">
+                    <span class="master-label">📢 TODOS — Absolutamente todos los registrados</span>
+                    <span class="master-sub">Incluye rechazados · Deduplica automáticamente</span>
+                </label>
+
+                <!-- ── GRID DE GRUPOS ── -->
+                <div class="recipient-grid">
+
+                    <!-- ASISTENTES -->
+                    <div class="recipient-group">
+                        <div class="group-header" onclick="toggleGroup('asistentes')">
+                            <input type="checkbox" id="grp-asistentes" onchange="onGroupChange('asistentes', this.checked)">
+                            <span class="group-title">👥 Asistentes</span>
+                            <span class="group-count" id="cnt-asistentes">0 sel.</span>
+                        </div>
+                        <div class="group-body" id="grp-body-asistentes">
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="ASISTENTES_TODOS" data-group="asistentes">
+                                <span>Todos los inscriptos</span>
+                                <span class="badge badge-cyan">📋</span>
+                            </label>
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="ASISTENTES_CONFIRMADOS" data-group="asistentes">
+                                <span>Solo confirmados (asistencia)</span>
+                                <span class="badge badge-green">✔</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- DISERTANTES -->
+                    <div class="recipient-group">
+                        <div class="group-header" onclick="toggleGroup('disertantes')">
+                            <input type="checkbox" id="grp-disertantes" onchange="onGroupChange('disertantes', this.checked)">
+                            <span class="group-title">🎤 Disertantes</span>
+                            <span class="group-count" id="cnt-disertantes">0 sel.</span>
+                        </div>
+                        <div class="group-body" id="grp-body-disertantes">
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="DISERTANTES_PENDIENTE" data-group="disertantes">
+                                <span>Inscriptos (revisión pendiente)</span>
+                                <span class="badge badge-gray">🕐</span>
+                            </label>
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="DISERTANTES_APROBADOS" data-group="disertantes">
+                                <span>Aprobados / Confirmados</span>
+                                <span class="badge badge-green">✔</span>
+                            </label>
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="DISERTANTES_RECHAZADOS" data-group="disertantes">
+                                <span>Rechazados</span>
+                                <span class="badge badge-red">✗</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- PRENSA -->
+                    <div class="recipient-group">
+                        <div class="group-header" onclick="toggleGroup('prensa')">
+                            <input type="checkbox" id="grp-prensa" onchange="onGroupChange('prensa', this.checked)">
+                            <span class="group-title">📸 Prensa e Influencers</span>
+                            <span class="group-count" id="cnt-prensa">0 sel.</span>
+                        </div>
+                        <div class="group-body" id="grp-body-prensa">
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="PRENSA" data-group="prensa">
+                                <span>Todos los acreditados</span>
+                                <span class="badge badge-blue">📸</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- PLACEHOLDER para alinear grid -->
+                    <div></div>
+
+                    <!-- EMPRESAS (fila completa) -->
+                    <div class="recipient-group empresa-group full-row">
+                        <div class="group-header" onclick="toggleGroup('empresas')">
+                            <input type="checkbox" id="grp-empresas" onchange="onGroupChange('empresas', this.checked)">
+                            <span class="group-title">🏢 Empresas — por estado del workflow</span>
+                            <span class="group-count" id="cnt-empresas">0 sel.</span>
+                        </div>
+                        <div class="group-body" id="grp-body-empresas">
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="EMPRESAS_PENDIENTE" data-group="empresas">
+                                <span>🕐 Pendiente (nuevas inscripciones)</span>
+                                <span class="badge badge-gray">Pendiente</span>
+                            </label>
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="EMPRESAS_ENVIO_BC" data-group="empresas">
+                                <span>📧 Envío de B&amp;C (esperan firmar TYC)</span>
+                                <span class="badge badge-blue">Envío B&amp;C</span>
+                            </label>
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="EMPRESAS_PENDIENTE_PAGO" data-group="empresas">
+                                <span>💳 Pendiente de Pago</span>
+                                <span class="badge badge-orange">Pago pend.</span>
+                            </label>
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="EMPRESAS_CONFIRMADAS" data-group="empresas">
+                                <span>✅ Confirmadas (participación activa)</span>
+                                <span class="badge badge-green">Confirmada</span>
+                            </label>
+                            <label class="check-item" onclick="toggleItem(this)">
+                                <input type="checkbox" name="destinatarios" value="EMPRESAS_RECHAZADAS" data-group="empresas">
+                                <span>❌ Rechazadas</span>
+                                <span class="badge badge-red">Rechazada</span>
+                            </label>
+                        </div>
+                    </div>
+
+                </div><!-- /recipient-grid -->
+            </div><!-- /form-group destinatarios -->
+
+            <hr class="section-divider">
+
+            <!-- ASUNTO -->
+            <div class="form-group">
+                <label class="field-label" for="asunto">✉️ Asunto del Email</label>
                 <input type="text" name="asunto" id="asunto" placeholder="Ej: Información importante sobre el Congreso 2026" required>
             </div>
 
+            <!-- MENSAJE -->
             <div class="form-group">
-                <label for="mensaje">📝 Cuerpo del Mensaje (HTML)</label>
+                <label class="field-label" for="mensaje">📝 Cuerpo del Mensaje (HTML)</label>
                 <textarea name="mensaje" id="mensaje" placeholder="Escribe tu mensaje aquí..." required></textarea>
-                <p class="help-text">💡 Tip: Usa las etiquetas de la derecha para dar formato.</p>
+                <p class="help-text">💡 Tip: Usá las etiquetas de la derecha para dar formato al texto.</p>
             </div>
 
-            <button type="submit" class="submit-btn" onclick="return confirm('¿Estás seguro de enviar este comunicado masivo?')">ENVIAR COMUNICADO</button>
+            <button type="submit" class="submit-btn" onclick="return validateAndConfirm()">
+                📨 ENVIAR COMUNICADO
+            </button>
         </form>
     </div>
 
+    <!-- SIDEBAR -->
     <div class="broadcast-sidebar">
-        <h3 style="color: #f9e2af; margin-top: 0;">📚 Guía de Estilos HTML</h3>
-        <p>Haz clic para copiar y pega en el editor:</p>
-        
+        <h3 style="color:#f9e2af;margin-top:0;">📚 Guía de Estilos HTML</h3>
+        <p style="font-size:12px;">Hacé clic en el código para copiarlo y pegarlo en el editor:</p>
+
         <div class="snippet-card">
             <span><strong>Negrita:</strong></span>
-            <code onclick="copyToClipboard(this.innerText)">&lt;b&gt;texto destacado&lt;/b&gt;</code>
+            <code onclick="copySnippet(this)">&lt;b&gt;texto importante&lt;/b&gt;</code>
         </div>
-        
         <div class="snippet-card">
             <span><strong>Párrafo:</strong></span>
-            <code onclick="copyToClipboard(this.innerText)">&lt;p&gt;Tu mensaje aquí...&lt;/p&gt;</code>
+            <code onclick="copySnippet(this)">&lt;p&gt;Tu párrafo aquí...&lt;/p&gt;</code>
         </div>
-        
         <div class="snippet-card">
-            <span><strong>Enlace (Link):</strong></span>
-            <code onclick="copyToClipboard(this.innerText)">&lt;a href="https://..."&gt;Texto del link&lt;/a&gt;</code>
+            <span><strong>Enlace:</strong></span>
+            <code onclick="copySnippet(this)">&lt;a href="https://..."&gt;Ver más&lt;/a&gt;</code>
         </div>
-        
         <div class="snippet-card">
             <span><strong>Salto de línea:</strong></span>
-            <code onclick="copyToClipboard(this.innerText)">&lt;br&gt;</code>
+            <code onclick="copySnippet(this)">&lt;br&gt;</code>
         </div>
-
         <div class="snippet-card">
             <span><strong>Lista:</strong></span>
-            <code onclick="copyToClipboard(this.innerText)">&lt;ul&gt;
-  &lt;li&gt;Punto 1&lt;/li&gt;
-  &lt;li&gt;Punto 2&lt;/li&gt;
+            <code onclick="copySnippet(this)">&lt;ul&gt;
+  &lt;li&gt;Item 1&lt;/li&gt;
+  &lt;li&gt;Item 2&lt;/li&gt;
 &lt;/ul&gt;</code>
         </div>
+        <div class="snippet-card">
+            <span><strong>Título:</strong></span>
+            <code onclick="copySnippet(this)">&lt;h2&gt;Título de sección&lt;/h2&gt;</code>
+        </div>
 
-        <div style="background: rgba(167, 139, 250, 0.1); padding: 10px; border-radius: 8px; border: 1px dashed #a78bfa;">
-            <p style="margin: 0; color: #a78bfa; font-size: 11px;">
-                <strong>NOTA:</strong> El sistema usará automáticamente la plantilla premium con el logo del congreso.
+        <div style="background:rgba(167,139,250,.1);padding:10px;border-radius:8px;border:1px dashed #a78bfa;margin-top:16px;">
+            <p style="margin:0;color:#a78bfa;font-size:11px;">
+                <strong>NOTA:</strong> El sistema aplica automáticamente la plantilla del Congreso con logo y firma institucional.
             </p>
         </div>
+
+        <div style="background:rgba(249,226,175,.05);padding:10px;border-radius:8px;border:1px dashed #f9e2af;margin-top:10px;">
+            <p style="margin:0;color:#f9e2af;font-size:11px;font-weight:700;">⚠️ Deduplicación automática</p>
+            <p style="margin:6px 0 0;color:#9399b2;font-size:11px;">Si una persona aparece en varios grupos seleccionados, recibirá el email <strong>una sola vez</strong>.</p>
+        </div>
     </div>
+
 </div>
 
 <script>
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text);
-    // Mostrar un aviso simple
-    const originalText = event.target.innerText;
-    event.target.innerText = "¡Copiado!";
-    setTimeout(() => {
-        event.target.innerText = originalText;
-    }, 1000);
+// ── Helpers básicos ──────────────────────────────────────
+function allLeafChecks() {
+    return [...document.querySelectorAll('input[name="destinatarios"]')];
 }
+function groupChecks(group) {
+    return [...document.querySelectorAll(`input[data-group="${group}"]`)];
+}
+
+// ── Actualizar aspecto visual de un check-item ───────────
+function refreshItem(cb) {
+    cb.closest('.check-item')?.classList.toggle('checked', cb.checked);
+}
+
+// ── Actualizar header del grupo ──────────────────────────
+function refreshGroup(group) {
+    const checks = groupChecks(group);
+    const total = checks.length;
+    const sel = checks.filter(c => c.checked).length;
+    const grpCb = document.getElementById(`grp-${group}`);
+    if (grpCb) {
+        grpCb.checked = sel === total && total > 0;
+        grpCb.indeterminate = sel > 0 && sel < total;
+    }
+    const cnt = document.getElementById(`cnt-${group}`);
+    if (cnt) cnt.textContent = `${sel}/${total} sel.`;
+}
+
+// ── Actualizar master ────────────────────────────────────
+function refreshMaster() {
+    const all = allLeafChecks();
+    const sel = all.filter(c => c.checked).length;
+    const master = document.getElementById('masterTodos');
+    master.checked = sel === all.length && all.length > 0;
+    master.indeterminate = sel > 0 && sel < all.length;
+    updateSummary();
+}
+
+// ── Toggle individual item ───────────────────────────────
+function toggleItem(label) {
+    setTimeout(() => {
+        const cb = label.querySelector('input[type="checkbox"]');
+        refreshItem(cb);
+        refreshGroup(cb.dataset.group);
+        refreshMaster();
+    }, 0);
+}
+
+// ── Toggle group header ──────────────────────────────────
+function toggleGroup(group) {
+    // El click viene del div, no del checkbox directamente
+    // Dejamos que el onchange del checkbox maneje la lógica
+}
+function onGroupChange(group, checked) {
+    groupChecks(group).forEach(cb => {
+        cb.checked = checked;
+        refreshItem(cb);
+    });
+    refreshGroup(group);
+    refreshMaster();
+}
+
+// ── Toggle master ────────────────────────────────────────
+function toggleMaster(label) {
+    setTimeout(() => {
+        const cb = label.querySelector('#masterTodos');
+        onMasterChange(cb);
+    }, 0);
+}
+function onMasterChange(masterCb) {
+    const checked = masterCb.checked;
+    allLeafChecks().forEach(cb => {
+        cb.checked = checked;
+        refreshItem(cb);
+    });
+    ['asistentes','disertantes','prensa','empresas'].forEach(g => refreshGroup(g));
+    updateSummary();
+}
+
+// ── Quick select buttons ─────────────────────────────────
+function selectAll() {
+    allLeafChecks().forEach(cb => { cb.checked = true; refreshItem(cb); });
+    ['asistentes','disertantes','prensa','empresas'].forEach(g => refreshGroup(g));
+    refreshMaster();
+}
+
+function selectNone() {
+    allLeafChecks().forEach(cb => { cb.checked = false; refreshItem(cb); });
+    ['asistentes','disertantes','prensa','empresas'].forEach(g => refreshGroup(g));
+    refreshMaster();
+}
+
+function selectSafe() {
+    // Todos MENOS rechazados
+    selectNone();
+    allLeafChecks().forEach(cb => {
+        if (!cb.value.includes('RECHAZADO') && !cb.value.includes('RECHAZADAS')) {
+            cb.checked = true; refreshItem(cb);
+        }
+    });
+    ['asistentes','disertantes','prensa','empresas'].forEach(g => refreshGroup(g));
+    refreshMaster();
+}
+
+function selectEmpresasActivas() {
+    selectNone();
+    ['EMPRESAS_ENVIO_BC','EMPRESAS_PENDIENTE_PAGO','EMPRESAS_CONFIRMADAS'].forEach(val => {
+        const cb = document.querySelector(`input[value="${val}"]`);
+        if (cb) { cb.checked = true; refreshItem(cb); }
+    });
+    refreshGroup('empresas');
+    refreshMaster();
+}
+
+// ── Summary bar ──────────────────────────────────────────
+function updateSummary() {
+    const selected = allLeafChecks().filter(c => c.checked);
+    const bar = document.getElementById('summaryBar');
+    if (selected.length === 0) {
+        bar.innerHTML = 'Seleccioná uno o más grupos para ver el resumen.';
+        return;
+    }
+    const labels = selected.map(cb => {
+        const span = cb.closest('.check-item')?.querySelector('span:first-of-type');
+        return span ? span.innerText.trim() : cb.value;
+    });
+    bar.innerHTML = `<strong>${selected.length} grupo(s):</strong> ${labels.join(' &nbsp;·&nbsp; ')}`;
+}
+
+// ── Validación al enviar ─────────────────────────────────
+function validateAndConfirm() {
+    const selected = allLeafChecks().filter(c => c.checked);
+    if (selected.length === 0) {
+        alert('⚠️ Debés seleccionar al menos un grupo de destinatarios.');
+        return false;
+    }
+    const labels = selected.map(cb => {
+        const span = cb.closest('.check-item')?.querySelector('span:first-of-type');
+        return span ? span.innerText.trim() : cb.value;
+    });
+    return confirm(
+        `¿Confirmás el envío masivo a los siguientes grupos?\n\n` +
+        labels.map(l => `→ ${l}`).join('\n') +
+        `\n\nEsta acción no se puede deshacer.`
+    );
+}
+
+// ── Copy snippet ─────────────────────────────────────────
+function copySnippet(el) {
+    navigator.clipboard.writeText(el.innerText);
+    const orig = el.innerText;
+    el.innerText = '¡Copiado!';
+    setTimeout(() => el.innerText = orig, 1000);
+}
+
+// Init counters
+['asistentes','disertantes','prensa','empresas'].forEach(g => refreshGroup(g));
 </script>
 {% endblock %}
-

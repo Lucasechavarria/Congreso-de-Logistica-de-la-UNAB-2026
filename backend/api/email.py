@@ -33,28 +33,8 @@ def get_tyc_path(pdf_type='asistente'):
     elif pdf_type == 'disertante':
         filename = 'Bases_Disertantes_2026.pdf'
         
-    # Rutas candidatas para buscar el archivo
-    candidates = [
-        os.path.join(settings.MEDIA_ROOT, 'static', filename),
-        os.path.join(settings.BASE_DIR, 'media', 'static', filename),
-        os.path.join(settings.BASE_DIR, '..', 'backend', 'media', 'static', filename),
-    ]
-    
-    # Registrar intento de búsqueda en un archivo accesible para depuración
-    diag_path = os.path.join(settings.BASE_DIR, 'static', 'diag.txt')
-    try:
-        with open(diag_path, 'a') as diag:
-            diag.write(f"\n--- Buscando TyC {pdf_type} ({timezone.now()}) ---\n")
-            for c in candidates:
-                exists = os.path.exists(c)
-                diag.write(f"Prueba: {c} -> {'EXISTE' if exists else 'NO EXISTE'}\n")
-                if exists:
-                    return c
-    except:
-        pass
-
-    # Fallback al primero por defecto
-    return candidates[0]
+    # Nueva ruta infalible dentro de la aplicación
+    return os.path.join(settings.BASE_DIR, 'api', 'resources', 'tyc', filename)
 
 def attach_tyc(email, pdf_type='asistente'):
     tyc_path = get_tyc_path(pdf_type)

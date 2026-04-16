@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -38,12 +38,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { postularCandidato } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_FILE_TYPES = ["application/pdf"];
+
 const postulacionSchema = z.object({
   nombre_completo: z.string().min(3, "Nombre muy corto"),
   email: z.string().email("Email inválido"),
   telefono: z.string().min(8, "Teléfono inválido"),
   mensaje: z.string().optional(),
-  cv: z.any().refine((file) => file && file.length > 0, "El CV es obligatorio"),
+  cv: z.any()
+    .refine((files) => files && files.length > 0, "El CV es obligatorio")
+    .refine((files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE, `El archivo es demasiado grande (máx. 5MB). Por favor use un archivo más ligero o envíelo por email a congresologisticaytransporte@unab.edu.ar.`)
+    .refine((files) => !files || files.length === 0 || ACCEPTED_FILE_TYPES.includes(files[0].type), "Solo se aceptan archivos PDF"),
   es_estudiante: z.enum(["si", "no"], {
     required_error: "Debes seleccionar una opción",
   }),
@@ -75,6 +81,7 @@ export default function PostulacionModal({ ofertaId, ofertaTitulo, empresaNombre
 
   const form = useForm<PostulacionValues>({
     resolver: zodResolver(postulacionSchema),
+    mode: "onChange",
     defaultValues: {
       nombre_completo: "",
       email: "",
@@ -84,6 +91,19 @@ export default function PostulacionModal({ ofertaId, ofertaTitulo, empresaNombre
       institucion: "",
     },
   });
+
+  const { errors } = form.formState;
+
+  // Alerta inmediata para el CV
+  React.useEffect(() => {
+    if (errors.cv && errors.cv.message) {
+      toast({
+        title: "⚠️ Archivo no permitido",
+        description: String(errors.cv.message),
+        variant: "destructive",
+      });
+    }
+  }, [errors.cv, toast]);
 
   const esEstudiante = form.watch("es_estudiante");
 

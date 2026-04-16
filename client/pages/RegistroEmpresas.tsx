@@ -24,6 +24,9 @@ import { registrarEmpresa, verificarEmpresa } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { TermsAndConditionsModal } from "@/components/TermsAndConditionsModal";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
 const companyRegistrationSchema = z.object({
   companyName: z.string().min(1, "El nombre de la empresa es requerido"),
   companyEmail: z.string().email("Debe ser un correo electrónico válido"),
@@ -31,7 +34,16 @@ const companyRegistrationSchema = z.object({
   contactPersonEmail: z.string().email("Debe ser un correo electrónico válido"),
   contactPersonPhone: z.string().min(1, "El teléfono de la persona de contacto es requerido"),
   cargoContacto: z.string().min(1, "El cargo en la empresa es requerido"),
-  logo: z.any().optional(),
+  logo: z.any()
+    .optional()
+    .refine(
+      (files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE,
+      `El archivo es demasiado grande (máx. 5MB). Si supera este límite, puede enviarlo por email a congresologisticaytransporte@unab.edu.ar para su colocación en la web.`
+    )
+    .refine(
+      (files) => !files || files.length === 0 || ACCEPTED_IMAGE_TYPES.includes(files[0].type),
+      "Solo se aceptan formatos de imagen .jpg, .jpeg, .png y .webp"
+    ),
   participationOptions: z.array(z.string()).optional(),
   companyDescription: z.string().optional(),
   website: z.string().optional(),
@@ -71,8 +83,10 @@ const RegistroEmpresas: React.FC = () => {
     reset,
     setValue,
     watch,
+    trigger,
   } = useForm<CompanyRegistrationFormData>({
     resolver: zodResolver(companyRegistrationSchema),
+    mode: "onChange", // Habilitar validación en tiempo real para alertas inmediatas
   });
 
   const watchedEmail = watch("companyEmail");
@@ -155,6 +169,18 @@ const RegistroEmpresas: React.FC = () => {
 
     return () => clearTimeout(timeoutId);
   }, [watchedEmail, reset, toast]);
+
+  // Alerta inmediata cuando se selecciona un archivo inválido
+  const logoError = errors.logo;
+  React.useEffect(() => {
+    if (logoError && logoError.message) {
+      toast({
+        title: "⚠️ Archivo no permitido",
+        description: String(logoError.message),
+        variant: "destructive",
+      });
+    }
+  }, [logoError, toast]);
 
   const onSubmit = async (data: CompanyRegistrationFormData) => {
     try {
@@ -388,7 +414,7 @@ const RegistroEmpresas: React.FC = () => {
                   label="Logo de la Empresa (Opcional)"
                   {...register("logo")}
                   accept="image/*"
-                  helperText="Formatos soportados: JPG, PNG. Máx 2MB."
+                  helperText="Formatos: JPG, PNG, WEBP. Máx 5MB. Si es más pesado, puede adjuntarlo por email."
                 />
               </div>
             </FormSection>

@@ -42,9 +42,12 @@ def attach_tyc(email, pdf_type='asistente'):
             display_name = os.path.basename(tyc_path).replace('_', ' ')
             with open(tyc_path, 'rb') as f:
                 email.attach(display_name, f.read(), 'application/pdf')
+            print(f"[INFO] TyC adjuntado exitosamente: {display_name} desde {tyc_path}")
             return True
         except Exception as e:
-            print(f"[ERROR] No se pudo adjuntar TyC ({pdf_type}): {e}")
+            print(f"[ERROR] No se pudo adjuntar TyC ({pdf_type}) desde {tyc_path}: {e}")
+    else:
+        print(f"[WARNING] El archivo TyC no existe en la ruta: {tyc_path}")
     return False
     
 def _generar_excel_miembros(representante):
@@ -141,7 +144,9 @@ def send_empresa_confirmation_email(empresa_instance):
         email.attach_alternative(html_content, "text/html")
         
         # Adjuntar TyC específico para Empresas
-        attach_tyc(email, 'empresa')
+        attached = attach_tyc(email, 'empresa')
+        if not attached:
+            print(f"[CRITICAL] No se pudo adjuntar el PDF de Bases y Condiciones a {empresa_instance.email_contacto}")
 
         if os.path.exists(logo_path):
             with open(logo_path, 'rb') as f:

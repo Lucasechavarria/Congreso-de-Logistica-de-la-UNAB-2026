@@ -132,7 +132,8 @@ class Empresa(models.Model):
     telefono_empresa = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono de la empresa")
     email_empresa = models.EmailField(blank=True, null=True, verbose_name="Email corporativo de la empresa")
     sitio_web = models.URLField(blank=True, null=True, verbose_name="Sitio web de la empresa")
-    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción de la empresa")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="¿Quiénes son y a qué se dedican?")
+    difusion_redes = models.TextField(blank=True, null=True, verbose_name="¿Qué les gustaría que contemos en nuestras redes de ustedes?")
     logo = models.FileField(upload_to='logos_empresas/', blank=True, null=True, verbose_name="Logo de la empresa")
 
     # Contact Person

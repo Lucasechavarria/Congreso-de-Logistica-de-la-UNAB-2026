@@ -34,18 +34,19 @@ const companyRegistrationSchema = z.object({
   contactPersonEmail: z.string().email("Debe ser un correo electrónico válido"),
   contactPersonPhone: z.string().min(1, "El teléfono de la persona de contacto es requerido"),
   cargoContacto: z.string().min(1, "El cargo en la empresa es requerido"),
-  logo: z.any()
+  logo: z.custom<FileList>()
     .optional()
     .refine(
-      (files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE,
+      (files) => !files || files.length === 0 || (files[0] instanceof File && files[0].size <= MAX_FILE_SIZE),
       `El archivo es demasiado grande (máx. 5MB). Si supera este límite, puede enviarlo por email a congresologisticaytransporte@unab.edu.ar para su colocación en la web.`
     )
     .refine(
-      (files) => !files || files.length === 0 || ACCEPTED_IMAGE_TYPES.includes(files[0].type),
+      (files) => !files || files.length === 0 || (files[0] instanceof File && ACCEPTED_IMAGE_TYPES.includes(files[0].type)),
       "Solo se aceptan formatos de imagen .jpg, .jpeg, .png y .webp"
     ),
   participationOptions: z.array(z.string()).optional(),
   companyDescription: z.string().optional(),
+  difusionRedes: z.string().optional(),
   website: z.string().optional(),
 
   // Campos Logísticos
@@ -114,6 +115,7 @@ const RegistroEmpresas: React.FC = () => {
               companyEmail: e.email_empresa || watchedEmail,
               website: e.sitio_web || "",
               companyDescription: e.descripcion || "",
+              difusionRedes: e.difusion_redes || "",
               contactPersonName: e.nombre_contacto || "",
               contactPersonEmail: e.email_contacto || "",
               contactPersonPhone: e.celular_contacto || "",
@@ -189,6 +191,7 @@ const RegistroEmpresas: React.FC = () => {
       formData.append("email_empresa", data.companyEmail);
       formData.append("sitio_web", data.website || "");
       formData.append("descripcion", data.companyDescription || "");
+      formData.append("difusion_redes", data.difusionRedes || "");
       formData.append("nombre_contacto", data.contactPersonName);
       formData.append("email_contacto", data.contactPersonEmail);
       formData.append("celular_contacto", data.contactPersonPhone);
@@ -230,11 +233,12 @@ const RegistroEmpresas: React.FC = () => {
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error en registro:", error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo completar el registro. Por favor, revisa los datos e intenta nuevamente.";
       toast({
         title: "❌ Error en el registro",
-        description: error.message || "No se pudo completar el registro. Por favor, revisa los datos e intenta nuevamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -304,10 +308,17 @@ const RegistroEmpresas: React.FC = () => {
               />
 
               <FormTextArea
-                label="Descripción"
-                placeholder="Breve descripción..."
+                label="¿Quiénes son y a qué se dedican? (Opcional)"
+                placeholder="Breve descripción de la empresa o institución..."
                 {...register("companyDescription")}
                 error={errors.companyDescription?.message}
+              />
+
+              <FormTextArea
+                label="¿Qué les gustaría que contemos de ustedes en redes? (Opcional)"
+                placeholder="Datos de interés, novedades, perfiles a etiquetar, etc."
+                {...register("difusionRedes")}
+                error={errors.difusionRedes?.message}
               />
 
               <FormInput

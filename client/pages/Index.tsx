@@ -19,8 +19,8 @@ import {
   FiAward,
 } from "react-icons/fi";
 import { FaTrain, FaCar } from "react-icons/fa";
-import LogoCarouselsSection from "@/components/LogoCarouselsSection";
 import CountdownTimer from "@/components/CountdownTimer";
+import EmpresasCarousel2026 from "@/components/EmpresasCarousel2026";
 import PreviousCongressSection from "@/components/PreviousCongressSection";
 import FloatingParticles from "@/components/FloatingParticles";
 import {
@@ -378,8 +378,7 @@ export default function Index() {
         </div>
       </section>
 
-      <LogoCarouselsSection />
-
+      <EmpresasCarousel2026 />
 
       <PreviousCongressSection />
 

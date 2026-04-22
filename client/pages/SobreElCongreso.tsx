@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import LogoCarouselsSection from "@/components/LogoCarouselsSection";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -140,8 +141,10 @@ export default function SobreElCongreso() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
-    <section className="py-20 bg-slate-50 relative overflow-hidden min-h-screen">
-      <FloatingParticles count={20} color="rgba(37, 99, 235, 0.1)" />
+    <>
+      <LogoCarouselsSection />
+      <section className="py-20 bg-slate-50 relative overflow-hidden min-h-screen">
+        <FloatingParticles count={20} color="rgba(37, 99, 235, 0.1)" />
 
       {/* Lightbox */}
       {lightboxIndex !== null && (
@@ -324,5 +327,6 @@ export default function SobreElCongreso() {
         </motion.div>
       </div>
     </section>
+    </>
   );
 }

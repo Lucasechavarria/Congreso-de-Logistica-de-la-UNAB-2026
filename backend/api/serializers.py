@@ -328,6 +328,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
             'email_empresa',
             'sitio_web',
             'descripcion',
+            'difusion_redes',
             'logo',
             'nombre_contacto',
             'email_contacto',

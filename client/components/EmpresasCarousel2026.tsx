@@ -1,9 +1,10 @@
 import * as React from "react";
 import LogoMarquee from "@/components/LogoMarquee";
-import { useEmpresas } from "@/hooks/use-empresas";
+import { useEmpresas, EmpresaAPI } from "@/hooks/use-empresas";
 import { chunk } from "@/components/data/logos";
 import SkeletonLoader from "./SkeletonLoader";
 import { motion, Variants, AnimatePresence } from "framer-motion";
+import { EmpresaModal } from "./EmpresaModal";
 
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -16,7 +17,7 @@ const scaleIn: Variants = {
 };
 
 export default function EmpresasCarousel2026() {
-  const { logosForCarousel, loading } = useEmpresas(null); // Fetch current (no edition id forces current)
+  const { empresas, logosForCarousel, loading } = useEmpresas(null); // Fetch current (no edition id forces current)
 
   if (loading) {
     return (
@@ -67,6 +68,23 @@ export default function EmpresasCarousel2026() {
       </section>
     );
   }
+
+  const [selectedEmpresa, setSelectedEmpresa] = React.useState<EmpresaAPI | null>(null);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+
+  const handleLogoClick = (src: string) => {
+    const empresa = empresas.find(e => {
+      // Intentar machear por el logo (limpiando paths relativos)
+      const cleanLogo = e.logo.split('/').pop();
+      const cleanSrc = src.split('/').pop();
+      return cleanLogo === cleanSrc;
+    });
+    
+    if (empresa) {
+      setSelectedEmpresa(empresa);
+      setIsModalOpen(true);
+    }
+  };
 
   const isFewCompanies = logosForCarousel.length <= 6;
 
@@ -137,7 +155,8 @@ export default function EmpresasCarousel2026() {
                   whileInView="visible"
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}
-                  className="bg-white rounded-xl shadow-md border border-slate-100 p-6 flex items-center justify-center hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-w-[160px] h-[120px]"
+                  onClick={() => handleLogoClick(logo.src)}
+                  className="bg-white rounded-xl shadow-md border border-slate-100 p-6 flex items-center justify-center hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-w-[160px] h-[120px] cursor-pointer"
                 >
                   <img
                     src={logo.src}
@@ -159,31 +178,58 @@ export default function EmpresasCarousel2026() {
               {firstCarouselLogos.length > 0 && (
                 <LogoMarquee
                   direction="rtl"
-                  logos={firstCarouselLogos}
-                  startDelaySec={0}
-                  durationSec={35.5}
+                  items={firstCarouselLogos}
+                  durationSec={35}
+                  renderItem={(logo) => (
+                    <img
+                      src={logo.src}
+                      alt={logo.alt}
+                      onClick={() => handleLogoClick(logo.src)}
+                      className="h-20 w-auto object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300 cursor-pointer hover:scale-110 transform"
+                    />
+                  )}
                 />
               )}
               {secondCarouselLogos.length > 0 && (
                 <LogoMarquee
                   direction="ltr"
-                  logos={secondCarouselLogos}
-                  startDelaySec={1.5}
-                  durationSec={27.2}
+                  items={secondCarouselLogos}
+                  durationSec={27}
+                  renderItem={(logo) => (
+                    <img
+                      src={logo.src}
+                      alt={logo.alt}
+                      onClick={() => handleLogoClick(logo.src)}
+                      className="h-20 w-auto object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300 cursor-pointer hover:scale-110 transform"
+                    />
+                  )}
                 />
               )}
               {thirdCarouselLogos.length > 0 && (
                 <LogoMarquee
                   direction="rtl"
-                  logos={thirdCarouselLogos}
-                  startDelaySec={2.8}
-                  durationSec={21.8}
+                  items={thirdCarouselLogos}
+                  durationSec={22}
+                  renderItem={(logo) => (
+                    <img
+                      src={logo.src}
+                      alt={logo.alt}
+                      onClick={() => handleLogoClick(logo.src)}
+                      className="h-20 w-auto object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300 cursor-pointer hover:scale-110 transform"
+                    />
+                  )}
                 />
               )}
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
+
+      <EmpresaModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        empresa={selectedEmpresa}
+      />
     </section>
   );
 }

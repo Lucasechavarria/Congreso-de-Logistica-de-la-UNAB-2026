@@ -294,8 +294,9 @@ export async function getOfertaLaboral(id: string | number) {
 }
 
 // Función para obtener lista de empresas (para filtros)
-export async function getEmpresas() {
-  const res = await fetch(`${API_BASE}/empresas/`, {
+export async function getEmpresas(params: Record<string, string> = {}) {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`${API_BASE}/empresas/${query ? `?${query}` : ''}`, {
     method: 'GET',
     headers: { 'Accept': 'application/json' },
   });

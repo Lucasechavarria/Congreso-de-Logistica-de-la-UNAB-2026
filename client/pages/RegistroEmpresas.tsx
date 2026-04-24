@@ -48,6 +48,8 @@ const companyRegistrationSchema = z.object({
   companyDescription: z.string().optional(),
   difusionRedes: z.string().optional(),
   website: z.string().optional(),
+  youtubeVideoUrl: z.string().optional(),
+  esSponsor: z.boolean().default(false),
 
   // Campos Logísticos
   participoEdicionAnterior: z.boolean().default(false),
@@ -128,6 +130,8 @@ const RegistroEmpresas: React.FC = () => {
               gazeboPropio: e.gazebo_propio || false,
               estructuraAdicional: e.estructura_adicional || "",
               accionesStand: e.acciones_stand || "",
+              youtubeVideoUrl: e.youtube_video_url || "",
+              esSponsor: e.es_sponsor || false,
               aceptaTyC: true
             });
 
@@ -208,6 +212,8 @@ const RegistroEmpresas: React.FC = () => {
       formData.append("gazebo_propio", String(data.gazeboPropio));
       formData.append("estructura_adicional", data.estructuraAdicional || "");
       formData.append("acciones_stand", data.accionesStand || "");
+      formData.append("youtube_video_url", data.youtubeVideoUrl || "");
+      formData.append("es_sponsor", String(data.esSponsor));
       formData.append("acepta_tyc", String(data.aceptaTyC));
       formData.append("participacion_opciones", JSON.stringify([participationType || "stand"]));
 
@@ -325,6 +331,24 @@ const RegistroEmpresas: React.FC = () => {
                 {...register("difusionRedes")}
                 error={errors.difusionRedes?.message}
               />
+
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Presencia Digital y Patrocinio</h4>
+                <FormCheckbox
+                  label="Deseo ser Sponsor oficial del Congreso"
+                  {...register("esSponsor")}
+                  helperText="Los sponsors aparecen en el carrusel principal de marcas y tienen beneficios de difusión adicionales."
+                />
+                
+                <FormInput
+                  label="Video de Presentación (YouTube URL)"
+                  icon={<Globe className="h-4 w-4" />}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  {...register("youtubeVideoUrl")}
+                  error={errors.youtubeVideoUrl?.message}
+                  helperText="Este video se mostrará en el perfil de su empresa al hacer clic en su logo."
+                />
+              </div>
 
               <FormInput
                 label="Rubro"

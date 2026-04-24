@@ -135,6 +135,10 @@ class Empresa(models.Model):
     descripcion = models.TextField(blank=True, null=True, verbose_name="¿Quiénes son y a qué se dedican?")
     difusion_redes = models.TextField(blank=True, null=True, verbose_name="¿Qué les gustaría que contemos en nuestras redes de ustedes?")
     logo = models.FileField(upload_to='logos_empresas/', blank=True, null=True, verbose_name="Logo de la empresa")
+    
+    # Sponsor fields
+    es_sponsor = models.BooleanField(default=False, verbose_name="¿Es Patrocinador?")
+    youtube_video_url = models.URLField(blank=True, null=True, verbose_name="URL Video de YouTube")
 
     # Contact Person
     nombre_contacto = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nombre completo de la persona de contacto")

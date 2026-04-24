@@ -316,6 +316,16 @@ class EmpresaSerializer(serializers.ModelSerializer):
             
         return value
 
+    def validate_youtube_video_url(self, value):
+        """Normaliza la URL de YouTube."""
+        if not value or (isinstance(value, str) and not value.strip()):
+            return None
+        
+        if value and '://' not in value:
+            return f'https://{value}'
+            
+        return value
+
     def to_representation(self, instance):
         import json
         ret = super().to_representation(instance)
@@ -361,6 +371,8 @@ class EmpresaSerializer(serializers.ModelSerializer):
             'estructura_adicional',
             'acciones_stand',
             'acepta_tyc',
+            'es_sponsor',
+            'youtube_video_url',
             'edicion',
             'estado'
         ]
@@ -448,7 +460,7 @@ class EmpresaLogoSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Empresa
-        fields = ['id', 'nombre_empresa', 'logo', 'sitio_web', 'descripcion']
+        fields = ['id', 'nombre_empresa', 'logo', 'sitio_web', 'descripcion', 'es_sponsor', 'youtube_video_url', 'numero_stand']
 
 class MiembroGrupoSerializer(serializers.ModelSerializer):
     class Meta:

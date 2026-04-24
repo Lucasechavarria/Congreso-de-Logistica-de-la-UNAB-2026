@@ -18,7 +18,8 @@ from django.utils.decorators import method_decorator
 from django.middleware.csrf import get_token
 from .email import (
     send_confirmation_email, send_bulk_confirmation_email, 
-    send_certificate_email, send_admin_postulation_alert
+    send_certificate_email, send_admin_postulation_alert,
+    send_broadcast_batch_email
 )
 import pandas as pd
 import re
@@ -406,7 +407,7 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
             
             # Crear certificado de asistencia
             certificado, created = Certificado.objects.get_or_create(
-                asistente=asistente,
+                asistente=inscripcion.asistente,
                 tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
             )
             
@@ -435,11 +436,16 @@ class EmpresaViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         edicion_id = self.request.query_params.get('edicion_id')
+        es_sponsor = self.request.query_params.get('es_sponsor')
+        
         queryset = Empresa.objects.filter(
             estado='CONFIRMADA',
             logo__isnull=False
         ).exclude(logo='')
         
+        if es_sponsor is not None:
+            queryset = queryset.filter(es_sponsor=es_sponsor.lower() == 'true')
+            
         if edicion_id:
             queryset = queryset.filter(edicion_id=edicion_id)
         else:

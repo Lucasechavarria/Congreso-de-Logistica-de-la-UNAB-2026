@@ -189,7 +189,11 @@ const RegistroEmpresas: React.FC = () => {
       const formData = new FormData();
       formData.append("nombre_empresa", data.companyName);
       formData.append("email_empresa", data.companyEmail);
-      formData.append("sitio_web", data.website || "");
+      let websiteUrl = data.website || "";
+      if (websiteUrl && !/^https?:\/\//i.test(websiteUrl)) {
+        websiteUrl = `http://${websiteUrl}`;
+      }
+      formData.append("sitio_web", websiteUrl);
       formData.append("descripcion", data.companyDescription || "");
       formData.append("difusion_redes", data.difusionRedes || "");
       formData.append("nombre_contacto", data.contactPersonName);
@@ -302,9 +306,10 @@ const RegistroEmpresas: React.FC = () => {
               <FormInput
                 label="Sitio Web (Opcional)"
                 icon={<Globe className="h-4 w-4" />}
-                placeholder="www.empresa.com"
+                placeholder="https://www.empresa.com"
                 {...register("website")}
                 error={errors.website?.message}
+                helperText="Ej: https://www.tuempresa.com"
               />
 
               <FormTextArea

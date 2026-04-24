@@ -23,7 +23,14 @@ class InscripcionPrensaSerializer(serializers.ModelSerializer):
     def validate(self, data):
         url_red = data.get('url_perfil_red')
         url_medio = data.get('url_sitio_medio')
-        if not url_red and not url_medio:
+        
+        # Normalizar URLs si existen
+        if url_red and '://' not in url_red:
+            data['url_perfil_red'] = f'http://{url_red}'
+        if url_medio and '://' not in url_medio:
+            data['url_sitio_medio'] = f'http://{url_medio}'
+            
+        if not data.get('url_perfil_red') and not data.get('url_sitio_medio'):
             raise serializers.ValidationError(
                 'Debe proporcionar al menos un link (perfil de red social o sitio web del medio).'
             )
@@ -121,9 +128,13 @@ class PostulacionDisertanteSerializer(serializers.ModelSerializer):
         return ret
 
     def validate_linkedin(self, value):
-        """Permite que linkedin sea opcional aceptando cadenas vacías o None."""
+        """Normaliza la URL de LinkedIn añadiendo http:// si falta el protocolo."""
         if not value or (isinstance(value, str) and not value.strip()):
             return None
+        
+        if value and '://' not in value:
+            return f'https://{value}' # Preferimos https para linkedin
+            
         return value
 
     class Meta:
@@ -295,9 +306,14 @@ class EmpresaSerializer(serializers.ModelSerializer):
         return ret
 
     def validate_sitio_web(self, value):
-        """Permite que el sitio web sea opcional aceptando cadenas vacías o None."""
+        """Normaliza la URL añadiendo http:// si falta el protocolo."""
         if not value or (isinstance(value, str) and not value.strip()):
             return None
+        
+        # Si no tiene protocolo, agregamos http:// para que pase la validación de URLField
+        if value and '://' not in value:
+            return f'http://{value}'
+            
         return value
 
     def to_representation(self, instance):

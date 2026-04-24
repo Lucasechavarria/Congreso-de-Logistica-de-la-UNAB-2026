@@ -18,6 +18,8 @@ const scaleIn: Variants = {
 
 export default function EmpresasCarousel2026() {
   const { empresas, logosForCarousel, loading } = useEmpresas(null); // Fetch current (no edition id forces current)
+  const [selectedEmpresa, setSelectedEmpresa] = React.useState<EmpresaAPI | null>(null);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   if (loading) {
     return (
@@ -68,9 +70,6 @@ export default function EmpresasCarousel2026() {
       </section>
     );
   }
-
-  const [selectedEmpresa, setSelectedEmpresa] = React.useState<EmpresaAPI | null>(null);
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   const handleLogoClick = (src: string) => {
     const empresa = empresas.find(e => {

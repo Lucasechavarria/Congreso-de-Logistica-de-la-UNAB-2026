@@ -216,11 +216,7 @@ const RegistroDisertante: React.FC = () => {
         };
 
         if (data.linkedin && data.linkedin.trim()) {
-            let linkedinUrl = data.linkedin.trim();
-            if (!/^https?:\/\//i.test(linkedinUrl)) {
-                linkedinUrl = `https://${linkedinUrl}`;
-            }
-            dataToSend.linkedin = linkedinUrl;
+            dataToSend.linkedin = data.linkedin.trim();
         }
 
         try {

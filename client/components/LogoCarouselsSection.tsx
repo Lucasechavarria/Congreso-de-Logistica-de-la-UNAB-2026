@@ -65,25 +65,43 @@ export default function LogoCarouselsSection() {
           {firstCarouselLogos.length > 0 && (
             <LogoMarquee
               direction="rtl"
-              logos={firstCarouselLogos}
-              startDelaySec={0}
-              durationSec={32.76}
+              items={firstCarouselLogos}
+              durationSec={32}
+              renderItem={(logo) => (
+                <img
+                  src={logo.src}
+                  alt={logo.alt}
+                  className="h-20 w-auto object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                />
+              )}
             />
           )}
           {secondCarouselLogos.length > 0 && (
             <LogoMarquee
               direction="ltr"
-              logos={secondCarouselLogos}
-              startDelaySec={1.2}
-              durationSec={28.275}
+              items={secondCarouselLogos}
+              durationSec={28}
+              renderItem={(logo) => (
+                <img
+                  src={logo.src}
+                  alt={logo.alt}
+                  className="h-20 w-auto object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                />
+              )}
             />
           )}
           {thirdCarouselLogos.length > 0 && (
             <LogoMarquee
               direction="rtl"
-              logos={thirdCarouselLogos}
-              startDelaySec={2.4}
-              durationSec={23.4}
+              items={thirdCarouselLogos}
+              durationSec={24}
+              renderItem={(logo) => (
+                <img
+                  src={logo.src}
+                  alt={logo.alt}
+                  className="h-20 w-auto object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                />
+              )}
             />
           )}
         </div>

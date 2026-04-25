@@ -48,6 +48,8 @@ const companyRegistrationSchema = z.object({
   companyDescription: z.string().optional(),
   difusionRedes: z.string().optional(),
   website: z.string().optional(),
+  youtubeVideoUrl: z.string().optional(),
+  esSponsor: z.boolean().default(false),
 
   // Campos Logísticos
   participoEdicionAnterior: z.boolean().default(false),
@@ -128,6 +130,8 @@ const RegistroEmpresas: React.FC = () => {
               gazeboPropio: e.gazebo_propio || false,
               estructuraAdicional: e.estructura_adicional || "",
               accionesStand: e.acciones_stand || "",
+              youtubeVideoUrl: e.youtube_video_url || "",
+              esSponsor: e.es_sponsor || false,
               aceptaTyC: true
             });
 
@@ -189,11 +193,7 @@ const RegistroEmpresas: React.FC = () => {
       const formData = new FormData();
       formData.append("nombre_empresa", data.companyName);
       formData.append("email_empresa", data.companyEmail);
-      let websiteUrl = data.website || "";
-      if (websiteUrl && !/^https?:\/\//i.test(websiteUrl)) {
-        websiteUrl = `http://${websiteUrl}`;
-      }
-      formData.append("sitio_web", websiteUrl);
+      formData.append("sitio_web", data.website?.trim() || "");
       formData.append("descripcion", data.companyDescription || "");
       formData.append("difusion_redes", data.difusionRedes || "");
       formData.append("nombre_contacto", data.contactPersonName);
@@ -208,6 +208,8 @@ const RegistroEmpresas: React.FC = () => {
       formData.append("gazebo_propio", String(data.gazeboPropio));
       formData.append("estructura_adicional", data.estructuraAdicional || "");
       formData.append("acciones_stand", data.accionesStand || "");
+      formData.append("youtube_video_url", data.youtubeVideoUrl || "");
+      formData.append("es_sponsor", String(data.esSponsor));
       formData.append("acepta_tyc", String(data.aceptaTyC));
       formData.append("participacion_opciones", JSON.stringify([participationType || "stand"]));
 
@@ -325,6 +327,26 @@ const RegistroEmpresas: React.FC = () => {
                 {...register("difusionRedes")}
                 error={errors.difusionRedes?.message}
               />
+
+{/* 
+235:               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+236:                 <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Presencia Digital y Patrocinio</h4>
+237:                 <FormCheckbox
+238:                   label="Deseo ser Sponsor oficial del Congreso"
+239:                   {...register("esSponsor")}
+240:                   helperText="Los sponsors aparecen en el carrusel principal de marcas y tienen beneficios de difusión adicionales."
+241:                 />
+242:                 
+243:                 <FormInput
+244:                   label="Video de Presentación (YouTube URL)"
+245:                   icon={<Globe className="h-4 w-4" />}
+246:                   placeholder="https://www.youtube.com/watch?v=..."
+247:                   {...register("youtubeVideoUrl")}
+248:                   error={errors.youtubeVideoUrl?.message}
+249:                   helperText="Este video se mostrará en el perfil de su empresa al hacer clic en su logo."
+250:                 />
+251:               </div>
+*/}
 
               <FormInput
                 label="Rubro"

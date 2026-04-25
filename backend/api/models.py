@@ -19,7 +19,7 @@ class Disertante(models.Model):
     bio = models.TextField(verbose_name="Biografía")
     foto_url = models.CharField(max_length=300, blank=True, verbose_name="URL de la Foto")
     foto = models.ImageField(upload_to='ponencias/', blank=True, null=True, verbose_name="Foto (subida)")
-    linkedin = models.URLField(blank=True, null=True, verbose_name="Perfil de LinkedIn")
+    linkedin = models.CharField(max_length=500, blank=True, null=True, verbose_name='Perfil de LinkedIn')
     tema_presentacion = models.CharField(max_length=255, verbose_name="Título de la Presentación")
 
     def __str__(self):
@@ -38,7 +38,7 @@ class PostulacionDisertante(models.Model):
     ciudad_provincia = models.CharField(max_length=255, verbose_name="Ciudad y Provincia")
     profesion_cargo = models.CharField(max_length=255, verbose_name="Profesión / Cargo actual")
     empresa_institucion = models.CharField(max_length=255, verbose_name="Empresa / Institución a la que pertenece")
-    linkedin = models.URLField(blank=True, null=True, verbose_name="LinkedIn u otra red profesional")
+    linkedin = models.CharField(max_length=500, blank=True, null=True, verbose_name="LinkedIn u otra red profesional")
     
     # Propuesta de Charla
     titulo_charla = models.CharField(max_length=255, verbose_name="Título de la exposición")
@@ -131,10 +131,14 @@ class Empresa(models.Model):
     direccion = models.CharField(max_length=500, blank=True, null=True, verbose_name="Dirección de la empresa")
     telefono_empresa = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono de la empresa")
     email_empresa = models.EmailField(blank=True, null=True, verbose_name="Email corporativo de la empresa")
-    sitio_web = models.URLField(blank=True, null=True, verbose_name="Sitio web de la empresa")
+    sitio_web = models.CharField(max_length=500, blank=True, null=True, verbose_name="Sitio Web de la empresa")
     descripcion = models.TextField(blank=True, null=True, verbose_name="¿Quiénes son y a qué se dedican?")
     difusion_redes = models.TextField(blank=True, null=True, verbose_name="¿Qué les gustaría que contemos en nuestras redes de ustedes?")
     logo = models.FileField(upload_to='logos_empresas/', blank=True, null=True, verbose_name="Logo de la empresa")
+    
+    # Sponsor fields
+    es_sponsor = models.BooleanField(default=False, verbose_name="¿Es Patrocinador?")
+    youtube_video_url = models.CharField(max_length=500, blank=True, null=True, verbose_name="URL del Video de YouTube")
 
     # Contact Person
     nombre_contacto = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nombre completo de la persona de contacto")
@@ -453,8 +457,8 @@ class InscripcionPrensa(models.Model):
     tipo_perfil = models.CharField(max_length=20, choices=TIPO_CHOICES, verbose_name="Tipo de perfil")
     medio_o_canal = models.CharField(max_length=255, verbose_name="Medio o canal")
     # Links (al menos uno obligatorio, validado en clean())
-    url_perfil_red = models.URLField(null=True, blank=True, verbose_name="URL perfil red social (Instagram, YouTube, TikTok, etc.)")
-    url_sitio_medio = models.URLField(null=True, blank=True, verbose_name="URL sitio web del medio")
+    url_perfil_red = models.CharField(max_length=500, null=True, blank=True, verbose_name="URL perfil red social (Instagram, YouTube, TikTok, etc.)")
+    url_sitio_medio = models.CharField(max_length=500, null=True, blank=True, verbose_name="URL sitio web del medio")
     seguidores_aprox = models.IntegerField(null=True, blank=True, verbose_name="Seguidores aproximados (solo influencers)")
     # Admin
     notas_admin = models.TextField(null=True, blank=True, verbose_name="Notas internas (solo admin)")

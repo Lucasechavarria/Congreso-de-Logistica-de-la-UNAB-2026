@@ -7,6 +7,9 @@ export interface EmpresaAPI {
   logo: string;
   sitio_web?: string;
   descripcion?: string;
+  es_sponsor?: boolean;
+  youtube_video_url?: string;
+  numero_stand?: string | number;
 }
 
 export interface LogoItem {

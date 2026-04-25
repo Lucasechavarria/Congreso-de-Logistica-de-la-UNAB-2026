@@ -1054,8 +1054,8 @@ class DisertanteAdmin(admin.ModelAdmin):
     list_filter = ('edicion', 'estado')
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
-    list_display = ('nombre_empresa', 'estado_badge', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro_detalle')
-    list_filter = ('estado', 'edicion', 'participo_edicion_anterior')
+    list_display = ('nombre_empresa', 'estado_badge', 'es_sponsor', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro_detalle')
+    list_filter = ('estado', 'es_sponsor', 'edicion', 'participo_edicion_anterior')
     search_fields = ('nombre_empresa', 'cuit', 'email_contacto', 'nombre_contacto')
     list_editable = ('numero_stand', 'cantidad_representantes')
     actions = ['confirmar_empresas', 'marcar_envio_bc', 'marcar_pendiente_pago', 'rechazar_empresas']
@@ -1086,7 +1086,7 @@ class EmpresaAdmin(admin.ModelAdmin):
     estado_badge.admin_order_field = 'estado'
     fieldsets = (
         ('Identificación', {
-            'fields': ('edicion', 'estado', 'nombre_empresa', 'logo', 'cuit', 'descripcion')
+            'fields': ('edicion', 'estado', 'es_sponsor', 'nombre_empresa', 'logo', 'cuit', 'descripcion', 'youtube_video_url')
         }),
         ('Contacto', {
             'fields': ('nombre_contacto', 'email_contacto', 'celular_contacto', 'cargo_contacto',

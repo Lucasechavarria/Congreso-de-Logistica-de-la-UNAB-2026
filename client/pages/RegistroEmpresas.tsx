@@ -332,23 +332,25 @@ const RegistroEmpresas: React.FC = () => {
                 error={errors.difusionRedes?.message}
               />
 
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Presencia Digital y Patrocinio</h4>
-                <FormCheckbox
-                  label="Deseo ser Sponsor oficial del Congreso"
-                  {...register("esSponsor")}
-                  helperText="Los sponsors aparecen en el carrusel principal de marcas y tienen beneficios de difusión adicionales."
-                />
-                
-                <FormInput
-                  label="Video de Presentación (YouTube URL)"
-                  icon={<Globe className="h-4 w-4" />}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  {...register("youtubeVideoUrl")}
-                  error={errors.youtubeVideoUrl?.message}
-                  helperText="Este video se mostrará en el perfil de su empresa al hacer clic en su logo."
-                />
-              </div>
+{/* 
+235:               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+236:                 <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Presencia Digital y Patrocinio</h4>
+237:                 <FormCheckbox
+238:                   label="Deseo ser Sponsor oficial del Congreso"
+239:                   {...register("esSponsor")}
+240:                   helperText="Los sponsors aparecen en el carrusel principal de marcas y tienen beneficios de difusión adicionales."
+241:                 />
+242:                 
+243:                 <FormInput
+244:                   label="Video de Presentación (YouTube URL)"
+245:                   icon={<Globe className="h-4 w-4" />}
+246:                   placeholder="https://www.youtube.com/watch?v=..."
+247:                   {...register("youtubeVideoUrl")}
+248:                   error={errors.youtubeVideoUrl?.message}
+249:                   helperText="Este video se mostrará en el perfil de su empresa al hacer clic en su logo."
+250:                 />
+251:               </div>
+*/}
 
               <FormInput
                 label="Rubro"

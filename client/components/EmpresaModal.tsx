@@ -116,18 +116,32 @@ export const EmpresaModal: React.FC<EmpresaModalProps> = ({ isOpen, onClose, emp
                   </p>
                 </div>
 
-                <div className="mt-auto space-y-4">
-                  {empresa.sitio_web && (
-                    <a
-                      href={empresa.sitio_web}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-congress-blue font-semibold hover:underline group"
-                    >
-                      <ExternalLink className="w-5 h-5" />
-                      Visitar Sitio Web
-                    </a>
-                  )}
+                <div className="mt-auto space-y-6">
+                  <div className="flex flex-wrap gap-4">
+                    {empresa.sitio_web && (
+                      <a
+                        href={empresa.sitio_web}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 min-w-[200px] inline-flex items-center justify-center gap-2 px-6 py-3 bg-congress-blue text-white font-bold rounded-xl hover:bg-congress-blue/90 hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+                      >
+                        <ExternalLink className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                        Visitar Sitio Web
+                      </a>
+                    )}
+                    
+                    {empresa.youtube_video_url && !embedUrl && (
+                      <a
+                        href={empresa.youtube_video_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 min-w-[200px] inline-flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+                      >
+                        <Video className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                        Ver Video en YouTube
+                      </a>
+                    )}
+                  </div>
                   
                   <div className="pt-6 border-t border-slate-100 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">

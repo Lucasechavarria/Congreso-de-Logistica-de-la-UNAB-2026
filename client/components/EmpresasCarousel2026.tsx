@@ -1,7 +1,7 @@
 import * as React from "react";
 import LogoMarquee from "@/components/LogoMarquee";
 import { useEmpresas, EmpresaAPI } from "@/hooks/use-empresas";
-import { chunk } from "@/components/data/logos";
+import { ALL_LOGOS, chunk } from "@/components/data/logos";
 import SkeletonLoader from "./SkeletonLoader";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import { EmpresaModal } from "./EmpresaModal";
@@ -17,9 +17,12 @@ const scaleIn: Variants = {
 };
 
 export default function EmpresasCarousel2026() {
-  const { empresas, logosForCarousel, loading } = useEmpresas(null); // Fetch current (no edition id forces current)
+  const { empresas, loading } = useEmpresas(null);
   const [selectedEmpresa, setSelectedEmpresa] = React.useState<EmpresaAPI | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+
+  // Volvemos a los logos estáticos para este carrusel como estaba antes
+  const logosForCarousel = ALL_LOGOS;
 
   if (loading) {
     return (
@@ -40,40 +43,9 @@ export default function EmpresasCarousel2026() {
     );
   }
 
-  // Si aún no hay ninguna empresa confirmada
-  if (!loading && logosForCarousel.length === 0) {
-    return (
-      <section className="bg-lavender-subtle py-16 relative overflow-hidden border-y border-slate-100 shadow-[inset_0_4px_20px_rgba(0,0,0,0.02)]">
-        <div className="w-full px-4 relative z-10 text-center">
-          <h2 className="text-3xl md:text-5xl font-extrabold text-[#3b1066] mb-4 tracking-tight">
-            Empresas e Instituciones Participantes
-          </h2>
-          <div className="w-16 h-1 bg-[#8b5cf6] mx-auto mb-8 rounded-full"></div>
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeInUp}
-            className="max-w-2xl mx-auto bg-white/50 backdrop-blur-sm border border-violet-100 rounded-2xl p-8 shadow-sm"
-          >
-            <div className="w-16 h-16 mx-auto mb-4 bg-violet-100 rounded-full flex items-center justify-center text-violet-600">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-violet-900 mb-2">Próximamente</h3>
-            <p className="text-slate-600">
-              Estamos sumando a las empresas líderes del sector que formarán parte de esta nueva edición. ¡Mantenete atento a las novedades!
-            </p>
-          </motion.div>
-        </div>
-      </section>
-    );
-  }
-
   const handleLogoClick = (src: string) => {
+    // Intentar encontrar los datos dinámicos si el logo coincide
     const empresa = empresas.find(e => {
-      // Intentar machear por el logo (limpiando paths relativos)
       const cleanLogo = e.logo.split('/').pop();
       const cleanSrc = src.split('/').pop();
       return cleanLogo === cleanSrc;
@@ -93,20 +65,11 @@ export default function EmpresasCarousel2026() {
   let thirdCarouselLogos = [];
 
   if (!isFewCompanies) {
-    if (logosForCarousel.length <= 12) {
-      // Dos líneas
-      const chunkSize = Math.ceil(logosForCarousel.length / 2);
-      const logoGroups = chunk(logosForCarousel, chunkSize);
-      firstCarouselLogos = logoGroups[0] || [];
-      secondCarouselLogos = logoGroups[1] || [];
-    } else {
-      // Tres líneas
-      const chunkSize = Math.ceil(logosForCarousel.length / 3);
-      const logoGroups = chunk(logosForCarousel, chunkSize);
-      firstCarouselLogos = logoGroups[0] || [];
-      secondCarouselLogos = logoGroups[1] || [];
-      thirdCarouselLogos = logoGroups[2] || [];
-    }
+    const chunkSize = Math.ceil(logosForCarousel.length / 3);
+    const logoGroups = chunk(logosForCarousel, chunkSize);
+    firstCarouselLogos = logoGroups[0] || [];
+    secondCarouselLogos = logoGroups[1] || [];
+    thirdCarouselLogos = logoGroups[2] || [];
   }
 
   return (
@@ -138,7 +101,6 @@ export default function EmpresasCarousel2026() {
 
         <AnimatePresence mode="wait">
           {isFewCompanies ? (
-            // Modo Grid/Flex para pocas empresas
             <motion.div
               key="few-companies"
               initial={{ opacity: 0 }}
@@ -166,7 +128,6 @@ export default function EmpresasCarousel2026() {
               ))}
             </motion.div>
           ) : (
-            // Modo Marquee para muchas empresas
             <motion.div
               key="many-companies"
               initial={{ opacity: 0 }}

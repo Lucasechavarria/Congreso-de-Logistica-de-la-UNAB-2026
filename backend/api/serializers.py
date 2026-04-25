@@ -6,6 +6,31 @@ from .models import (
 from django.db import transaction
 from .email import send_group_confirmation_emails, send_individual_confirmation_email
 import re
+import json
+
+def normalize_url(url, default_protocol='https'):
+    """
+    Limpia espacios y asegura que la URL tenga un protocolo si parece ser un dominio.
+    Si es texto plano (ej: "no tengo"), lo deja como está.
+    """
+    if not url or not isinstance(url, str):
+        return url
+    
+    url = url.strip()
+    if not url:
+        return None
+        
+    # Si ya tiene protocolo, no hacemos nada
+    if '://' in url:
+        return url
+        
+    # Intentamos detectar si parece una URL: 
+    # Tiene al menos un punto y no tiene espacios internos
+    if '.' in url and ' ' not in url:
+        return f"{default_protocol}://{url}"
+        
+    return url
+
 
 
 class EdicionSerializer(serializers.ModelSerializer):
@@ -21,14 +46,11 @@ class InscripcionPrensaSerializer(serializers.ModelSerializer):
         read_only_fields = ['edicion', 'fecha_inscripcion']
 
     def validate(self, data):
-        url_red = data.get('url_perfil_red')
-        url_medio = data.get('url_sitio_medio')
-        
-        # Normalizar URLs si existen
-        if url_red and '://' not in url_red:
-            data['url_perfil_red'] = f'http://{url_red}'
-        if url_medio and '://' not in url_medio:
-            data['url_sitio_medio'] = f'http://{url_medio}'
+        # Normalizar URLs usando la función centralizada
+        if 'url_perfil_red' in data:
+            data['url_perfil_red'] = normalize_url(data.get('url_perfil_red'))
+        if 'url_sitio_medio' in data:
+            data['url_sitio_medio'] = normalize_url(data.get('url_sitio_medio'), 'http')
             
         if not data.get('url_perfil_red') and not data.get('url_sitio_medio'):
             raise serializers.ValidationError(
@@ -128,14 +150,7 @@ class PostulacionDisertanteSerializer(serializers.ModelSerializer):
         return ret
 
     def validate_linkedin(self, value):
-        """Normaliza la URL de LinkedIn añadiendo http:// si falta el protocolo."""
-        if not value or (isinstance(value, str) and not value.strip()):
-            return None
-        
-        if value and '://' not in value:
-            return f'https://{value}' # Preferimos https para linkedin
-            
-        return value
+        return normalize_url(value, 'https')
 
     class Meta:
         model = PostulacionDisertante
@@ -306,25 +321,10 @@ class EmpresaSerializer(serializers.ModelSerializer):
         return ret
 
     def validate_sitio_web(self, value):
-        """Normaliza la URL añadiendo http:// si falta el protocolo."""
-        if not value or (isinstance(value, str) and not value.strip()):
-            return None
-        
-        # Si no tiene protocolo, agregamos http:// para que pase la validación de URLField
-        if value and '://' not in value:
-            return f'http://{value}'
-            
-        return value
+        return normalize_url(value, 'http')
 
     def validate_youtube_video_url(self, value):
-        """Normaliza la URL de YouTube."""
-        if not value or (isinstance(value, str) and not value.strip()):
-            return None
-        
-        if value and '://' not in value:
-            return f'https://{value}'
-            
-        return value
+        return normalize_url(value, 'https')
 
     def to_representation(self, instance):
         import json

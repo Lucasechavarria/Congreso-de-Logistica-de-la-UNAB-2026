@@ -193,11 +193,7 @@ const RegistroEmpresas: React.FC = () => {
       const formData = new FormData();
       formData.append("nombre_empresa", data.companyName);
       formData.append("email_empresa", data.companyEmail);
-      let websiteUrl = data.website || "";
-      if (websiteUrl && !/^https?:\/\//i.test(websiteUrl)) {
-        websiteUrl = `http://${websiteUrl}`;
-      }
-      formData.append("sitio_web", websiteUrl);
+      formData.append("sitio_web", data.website?.trim() || "");
       formData.append("descripcion", data.companyDescription || "");
       formData.append("difusion_redes", data.difusionRedes || "");
       formData.append("nombre_contacto", data.contactPersonName);

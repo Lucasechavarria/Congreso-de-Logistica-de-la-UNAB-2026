@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -45,6 +46,24 @@ jobs:
     needs: build
     runs-on: self-hosted
     steps:
+      - name: Emergency Disk Cleanup
+        run: |
+          echo "Iniciando limpieza de emergencia para liberar espacio..."
+          # 1. Limpiar logs de sistema de más de 1 día
+          sudo journalctl --vacuum-time=1d || true
+          # 2. Limpiar caché de paquetes de Linux
+          sudo apt-get clean || true
+          # 3. Borrar archivos temporales del sistema
+          sudo rm -rf /tmp/* || true
+          # 4. Limpiar caché de pip y archivos __pycache__ huérfanos
+          find /var/www/congreso/ -name "__pycache__" -type d -exec rm -rf {} + || true
+          # 5. Si Docker está instalado, limpiar imágenes/contenedores colgados
+          if command -v docker &> /dev/null; then
+            docker system prune -f || true
+          fi
+          echo "Limpieza completada. Espacio disponible actual:"
+          df -h /
+
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:

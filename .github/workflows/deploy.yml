@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - error-de-url
+  workflow_dispatch:
 
 jobs:
   build:
@@ -40,9 +42,28 @@ jobs:
             package.json
             pnpm-lock.yaml
 
+  # ESTE JOB ES LA LLAVE: Limpia el servidor sin descargar ninguna acción externa
+  prune_server:
+    name: Prune Server Disk (Emergency)
+    runs-on: self-hosted
+    steps:
+      - name: Free Space with native commands
+        run: |
+          echo "Liberando espacio crítico..."
+          sudo journalctl --vacuum-time=1d || true
+          sudo apt-get clean || true
+          sudo rm -rf /tmp/* || true
+          # Limpiar carpetas de trabajo antiguas del propio runner
+          # (Ajustamos la ruta al estándar de actions-runner si es posible)
+          find ../../_work/ -name "__pycache__" -type d -exec rm -rf {} + || true
+          if command -v docker &> /dev/null; then
+            docker system prune -af || true
+          fi
+          df -h
+
   deploy:
     name: Deploy to Server
-    needs: build
+    needs: [build, prune_server]
     runs-on: self-hosted
     steps:
       - name: Download Build Artifacts
@@ -52,12 +73,8 @@ jobs:
 
       - name: Prepare Directories
         run: |
-          # 1. Asegurar directorios base
           mkdir -p /var/www/congreso/client/dist
           mkdir -p /var/www/congreso/backend/static
-          
-          # 2. Reclamar propiedad de las carpetas antes de cualquier operación de escritura/borrado
-          # Esto es CRÍTICO para que rsync y rm funcionen sin Permission Denied
           sudo chown -R $(whoami):$(whoami) /var/www/congreso/
 
       - name: Deploy Frontend
@@ -67,15 +84,11 @@ jobs:
 
       - name: Clean Python Cache
         run: |
-          # Eliminar archivos .pyc compilados para ahorrar espacio antes de sincronizar
           find backend/ -type d -name "__pycache__" -exec rm -rf {} + || true
           find backend/ -name "*.pyc" -delete || true
 
       - name: Sync Backend
         run: |
-          # Usamos --no-perms --no-owner --no-group para evitar errores de rsync al intentar
-          # establecer dueños que no corresponden al usuario del runner.
-          # Excluimos archivos temporales y sockets para evitar fallos de unlink.
           rsync -av --delete \
             --no-perms --no-owner --no-group \
             --exclude='.env' \
@@ -91,14 +104,10 @@ jobs:
 
       - name: Ensure Python Environment (venv)
         run: |
-
-          # Asegurar venv existe y está limpio para evitar errores 203/EXEC
-          echo "Saneando entorno virtual en /venv/..."
           python3 -m venv /var/www/congreso/backend/venv
 
       - name: Install Python Dependencies
         run: |
-          # Usar 'python -m pip' es más robusto ante rutas movidas
           /var/www/congreso/backend/venv/bin/python -m pip install --upgrade pip
           /var/www/congreso/backend/venv/bin/python -m pip install -r /var/www/congreso/backend/requirements.txt
 
@@ -108,62 +117,35 @@ jobs:
 
       - name: Validate Python Syntax (Pre-restart)
         run: |
-          # Verificar errores de sintaxis antes de reiniciar para evitar downtime
           /var/www/congreso/backend/venv/bin/python -m compileall -q /var/www/congreso/backend/
-          # Asegurar permisos de ejecución para scripts de mantenimiento
           chmod +x /var/www/congreso/backend/scripts/*.sh || true
 
       - name: Restart Services
         run: |
-          # 1. Matar procesos huérfanos y limpiar sockets para evitar 502 Bad Gateway
-          echo "Saneando procesos de Gunicorn antiguos..."
           sudo pkill -9 gunicorn || true
           sudo rm -f /var/www/congreso/backend/congreso.sock || true
-          
-          # 2. Reinicio forzado para asegurar que se cargue el nuevo código
           sudo systemctl restart congreso
           sudo systemctl restart nginx
-          
-          # 3. Asegurar permisos del socket para Nginx (www-data)
-          # Esperar un segundo a que Gunicorn cree el socket
           sleep 2
           sudo chown :www-data /var/www/congreso/backend/congreso.sock || true
           sudo chmod 660 /var/www/congreso/backend/congreso.sock || true
-          
-          echo "Verificando estado de servicios..."
           sudo systemctl status congreso --no-pager
-          echo "Deploy complete. Memory freed and services restarted."
 
       - name: Health Check (Verify Site is UP)
         run: |
-          # Esperar unos segundos a que Gunicorn levante el socket
           sleep 5
-          # Verificar si el sitio responde (Ignorar SSL y seguir redirecciones)
-          # Buscamos un código 200 o 302
           STATUS_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L -k https://www.congresologistica.unab.edu.ar/ || echo "000")
-          echo "Status Code: $STATUS_CODE"
           if [[ "$STATUS_CODE" != "200" && "$STATUS_CODE" != "302" ]]; then
-            echo "::error::El sitio no está respondiendo correctamente (Status: $STATUS_CODE)"
             exit 1
           fi
 
       - name: Update Diagnostic File
         run: |
-          # 1. Asegurar permisos antes de escribir el archivo final
           sudo chown $(whoami):$(whoami) /var/www/congreso/backend/static/diag.txt || true
-          
-          # 2. Generar reporte (se añade || true al grep para evitar fallos si no hay procesos listados)
           {
             echo "=== Post-deploy Diagnostic ==="
             echo "Time: $(date)"
             echo "Revision: ${{ github.sha }}"
             echo "Status: SUCCESS"
-            echo "Health: OK"
-            echo "Gunicorn processes:"
-            ps aux | grep gunicorn | grep -v grep || echo "No active gunicorn processes found in ps (expected if using socket service)."
           } > /var/www/congreso/backend/static/diag.txt
-          
-          # 3. Restaurar permisos para que Nginx pueda servirlo
           sudo chmod 644 /var/www/congreso/backend/static/diag.txt
-
-# v12 - Optimized deploy: single venv, cache cleanup, strict sudo reload.

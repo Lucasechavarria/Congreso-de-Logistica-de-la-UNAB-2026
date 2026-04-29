@@ -17,12 +17,12 @@ const scaleIn: Variants = {
 };
 
 export default function EmpresasCarousel2026() {
-  const { empresas, loading } = useEmpresas(null);
+  const { empresas, logosForCarousel: dynamicLogos, loading } = useEmpresas(null);
   const [selectedEmpresa, setSelectedEmpresa] = React.useState<EmpresaAPI | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
-  // Volvemos a los logos estáticos para este carrusel como estaba antes
-  const logosForCarousel = ALL_LOGOS;
+  // Usamos los logos dinámicos provenientes del backend (solo confirmados y de la edición actual)
+  const logosForCarousel = dynamicLogos;
 
   if (loading) {
     return (
@@ -139,7 +139,7 @@ export default function EmpresasCarousel2026() {
                 <LogoMarquee
                   direction="rtl"
                   items={firstCarouselLogos}
-                  durationSec={35}
+                  durationSec={Math.max(20, firstCarouselLogos.length * 3)}
                   renderItem={(logo) => (
                     <img
                       src={logo.src}
@@ -154,7 +154,7 @@ export default function EmpresasCarousel2026() {
                 <LogoMarquee
                   direction="ltr"
                   items={secondCarouselLogos}
-                  durationSec={27}
+                  durationSec={Math.max(20, secondCarouselLogos.length * 3.2)}
                   renderItem={(logo) => (
                     <img
                       src={logo.src}
@@ -169,7 +169,7 @@ export default function EmpresasCarousel2026() {
                 <LogoMarquee
                   direction="rtl"
                   items={thirdCarouselLogos}
-                  durationSec={22}
+                  durationSec={Math.max(20, thirdCarouselLogos.length * 3.5)}
                   renderItem={(logo) => (
                     <img
                       src={logo.src}

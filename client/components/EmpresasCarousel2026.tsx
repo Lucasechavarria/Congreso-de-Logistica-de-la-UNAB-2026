@@ -65,7 +65,8 @@ export default function EmpresasCarousel2026() {
   let thirdCarouselLogos = [];
 
   if (!isFewCompanies) {
-    const chunkSize = Math.ceil(logosForCarousel.length / 3);
+    const numRows = logosForCarousel.length > 20 ? 3 : 2;
+    const chunkSize = Math.ceil(logosForCarousel.length / numRows);
     const logoGroups = chunk(logosForCarousel, chunkSize);
     firstCarouselLogos = logoGroups[0] || [];
     secondCarouselLogos = logoGroups[1] || [];
@@ -139,7 +140,7 @@ export default function EmpresasCarousel2026() {
                 <LogoMarquee
                   direction="rtl"
                   items={firstCarouselLogos}
-                  durationSec={Math.max(20, firstCarouselLogos.length * 3)}
+                  durationSec={Math.max(12, firstCarouselLogos.length * 1.4)}
                   renderItem={(logo) => (
                     <img
                       src={logo.src}
@@ -154,7 +155,7 @@ export default function EmpresasCarousel2026() {
                 <LogoMarquee
                   direction="ltr"
                   items={secondCarouselLogos}
-                  durationSec={Math.max(20, secondCarouselLogos.length * 3.2)}
+                  durationSec={Math.max(12, secondCarouselLogos.length * 1.6)}
                   renderItem={(logo) => (
                     <img
                       src={logo.src}
@@ -169,7 +170,7 @@ export default function EmpresasCarousel2026() {
                 <LogoMarquee
                   direction="rtl"
                   items={thirdCarouselLogos}
-                  durationSec={Math.max(20, thirdCarouselLogos.length * 3.5)}
+                  durationSec={Math.max(12, thirdCarouselLogos.length * 1.8)}
                   renderItem={(logo) => (
                     <img
                       src={logo.src}

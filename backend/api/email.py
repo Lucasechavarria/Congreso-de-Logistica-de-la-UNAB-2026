@@ -766,17 +766,14 @@ def send_admin_postulation_alert(instance, tipo):
 def send_broadcast_batch_email(recipient_list, subject, body_html):
     """
     Envía un email masivo en lotes para evitar saturar el servidor SMTP.
+    Reemplaza dinámicamente las variables de asistente para cada destinatario de forma personalizada.
     """
     import os
     import time
     from email.mime.image import MIMEImage
+    from api.models import Asistente
     
     logo_path = get_logo_path()
-    
-    # Preparar el contenido HTML usando la plantilla base
-    context = {'body': body_html}
-    full_html = render_to_string('api/email/broadcast_base.html', context)
-    text_content = strip_tags(body_html)
     
     enviados = 0
     errores = 0
@@ -786,6 +783,43 @@ def send_broadcast_batch_email(recipient_list, subject, body_html):
         batch = recipient_list[i:i + BATCH_SIZE]
         for email_address in batch:
             try:
+                # Buscar asistente correspondiente para personalización
+                asistente = Asistente.objects.filter(email__iexact=email_address).first()
+                personalized_body = body_html
+                
+                if asistente:
+                    replacements = {
+                        '{{ asistente.first_name }} {{ asistente.last_name }}': asistente.nombre_completo,
+                        '{{ asistente.first_name }}': asistente.first_name,
+                        '{{ asistente.last_name }}': asistente.last_name,
+                        '{{ asistente.email }}': asistente.email,
+                        '{{ asistente.perfil }}': asistente.get_profile_type_display(),
+                        '{{ asistente.dni }}': asistente.dni or '',
+                        '{{ asistente.phone }}': asistente.phone or '',
+                        '{{ asistente.fecha_registro }}': asistente.fecha_registro.strftime('%d/%m/%Y') if asistente.fecha_registro else '',
+                    }
+                    for key, val in replacements.items():
+                        personalized_body = personalized_body.replace(key, str(val))
+                else:
+                    # Fallbacks elegantes para correos de prueba o no registrados
+                    replacements = {
+                        '{{ asistente.first_name }} {{ asistente.last_name }}': 'Estimado/a Participante',
+                        '{{ asistente.first_name }}': 'Participante',
+                        '{{ asistente.last_name }}': '',
+                        '{{ asistente.email }}': email_address,
+                        '{{ asistente.perfil }}': 'Asistente',
+                        '{{ asistente.dni }}': 'S/D',
+                        '{{ asistente.phone }}': '',
+                        '{{ asistente.fecha_registro }}': '',
+                    }
+                    for key, val in replacements.items():
+                        personalized_body = personalized_body.replace(key, str(val))
+
+                # Preparar el contenido HTML usando la plantilla base
+                context = {'body': personalized_body}
+                full_html = render_to_string('api/email/broadcast_base.html', context)
+                text_content = strip_tags(personalized_body)
+                
                 msg = EmailMultiAlternatives(
                     subject=subject,
                     body=text_content,

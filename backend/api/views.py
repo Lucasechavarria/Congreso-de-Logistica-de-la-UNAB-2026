@@ -5,7 +5,7 @@ from .security import DNIVerificationThrottle, FormRegistrationThrottle, sanitiz
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.db import transaction
-from .models import Disertante, Inscripcion, Programa, Certificado, Asistente, Empresa, MiembroGrupo, PostulacionDisertante, Edicion, InscripcionPrensa
+from .models import Disertante, Inscripcion, Programa, Certificado, Asistente, Empresa, MiembroGrupo, PostulacionDisertante, Edicion, InscripcionPrensa, DetalleDocente, DetalleEstudiante
 from .serializers import (
     EdicionSerializer, DisertanteSerializer, EmpresaSerializer, 
     ProgramaSerializer, AsistenteSerializer, InscripcionSerializer,
@@ -274,6 +274,9 @@ class RegistroViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 class VerificarDNIView(views.APIView):
     """
     Vista para verificar si un DNI está registrado y confirmar asistencia.
+    Soporta flujos en dos etapas:
+    1. check_only=True: Devuelve los datos detallados del asistente sin confirmar asistencia.
+    2. confirmar=True (o default): Actualiza datos si se proveen y confirma asistencia.
     """
     permission_classes = [AllowAny]
     throttle_classes = [DNIVerificationThrottle]
@@ -287,7 +290,7 @@ class VerificarDNIView(views.APIView):
         # 1. Capa de Selectores: Buscar la información requerida
         edicion_activa = selectors.get_active_edition()
         if not edicion_activa:
-            return Response({'status': 'error', 'message': 'No hay una edición activa configurada.'}, status=400)
+            return Response({'status': 'error', 'message': 'No hay una edición activa configurada.'}, status=status.HTTP_400_BAD_REQUEST)
 
         asistente = selectors.get_asistente_by_dni(dni)
         if not asistente:
@@ -298,7 +301,7 @@ class VerificarDNIView(views.APIView):
             return Response({
                 'status': 'error', 
                 'message': f'El asistente está registrado en el sistema pero no tiene inscripción para la edición activa ({edicion_activa.nombre}).'
-            }, status=403)
+            }, status=status.HTTP_403_FORBIDDEN)
             
         if inscripcion.asistencia_confirmada:
             fecha_confirmacion_str = inscripcion.fecha_confirmacion.strftime("%d/%m/%Y a las %H:%M:%S") if inscripcion.fecha_confirmacion else "fecha desconocida"
@@ -306,6 +309,87 @@ class VerificarDNIView(views.APIView):
                 'status': 'error',
                 'message': f'La asistencia ya fue confirmada el {fecha_confirmacion_str}.',
             }, status=status.HTTP_409_CONFLICT)
+
+        # Determinar si solo es chequeo de datos
+        check_only = request.data.get('check_only', False)
+
+        if check_only:
+            # Obtener datos de institución y carrera de los detalles de perfil
+            institution = ""
+            career = ""
+            if asistente.profile_type == Asistente.ProfileType.TEACHER:
+                detalle = getattr(asistente, 'detalle_docente', None)
+                if detalle:
+                    institution = detalle.institution
+                    career = detalle.career_taught
+            else:
+                detalle = getattr(asistente, 'detalle_estudiante', None)
+                if detalle:
+                    institution = detalle.institution
+                    career = detalle.career
+
+            asistente_data = {
+                'id': asistente.id,
+                'first_name': asistente.first_name,
+                'last_name': asistente.last_name,
+                'email': asistente.email,
+                'phone': asistente.phone or "",
+                'dni': asistente.dni,
+                'profile_type': asistente.profile_type,
+                'institution': institution or "",
+                'career': career or "",
+            }
+
+            return Response({
+                'status': 'pending_confirmation',
+                'asistente': asistente_data,
+            }, status=status.HTTP_200_OK)
+
+        # Si es para confirmar, opcionalmente actualizamos datos primero
+        first_name = request.data.get('first_name')
+        last_name = request.data.get('last_name')
+        email = request.data.get('email')
+        phone = request.data.get('phone')
+        institution = request.data.get('institution')
+        career = request.data.get('career')
+
+        if any([first_name, last_name, email, phone, institution, career]):
+            with transaction.atomic():
+                if first_name:
+                    asistente.first_name = " ".join(first_name.strip().split())
+                if last_name:
+                    asistente.last_name = " ".join(last_name.strip().split())
+                if phone:
+                    asistente.phone = phone.strip()
+                
+                if email:
+                    email_limpio = email.strip().lower()
+                    # Reemplazar eñes y tildes comunes
+                    email_limpio = email_limpio.replace("ñ", "n").replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                    if Asistente.objects.filter(email=email_limpio).exclude(id=asistente.id).exists():
+                        return Response({
+                            'status': 'error', 
+                            'message': 'El correo electrónico ya está registrado para otro asistente.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    asistente.email = email_limpio
+                
+                asistente.save()
+
+                # Actualizar detalles del perfil
+                if asistente.profile_type == Asistente.ProfileType.TEACHER:
+                    detalle, _ = DetalleDocente.objects.get_or_create(asistente=asistente)
+                    if institution is not None:
+                        detalle.institution = institution.strip()
+                    if career is not None:
+                        detalle.career_taught = career.strip()
+                    detalle.save()
+                elif asistente.profile_type == Asistente.ProfileType.STUDENT:
+                    detalle, _ = DetalleEstudiante.objects.get_or_create(asistente=asistente)
+                    if institution is not None:
+                        detalle.institution = institution.strip()
+                    if career is not None:
+                        detalle.career = career.strip()
+                    detalle.save()
 
         # 2. Capa de Servicios: Confirmación transaccional y generación/envío de certificado
         certificado, email_success = services.confirm_asistencia(inscripcion)

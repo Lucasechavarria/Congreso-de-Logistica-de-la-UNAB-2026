@@ -1,0 +1,24 @@
+name: Architectural Linter (Clean Code Guardrails)
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  check-architecture:
+    name: Verify SOLID, Clean Code and TS Safety
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Run Architecture & Safety Linter
+        run: |
+          python scripts/check_architecture.py

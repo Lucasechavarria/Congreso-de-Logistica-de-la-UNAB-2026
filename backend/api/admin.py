@@ -766,24 +766,187 @@ class AsistenteAdmin(admin.ModelAdmin):
         try:
             import pandas as pd
         except ImportError:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                return JsonResponse({'status': 'error', 'message': "Error Crítico: El servidor no tiene instalada la librería 'pandas'."})
             messages.error(request, "Error Crítico: El servidor no tiene instalada la librería 'pandas'. Por favor, contacta a soporte.")
             return render(request, 'admin/import_asistentes.html', {**self.admin_site.each_context(request), 'title': 'Carga Masiva (Error)'})
 
-        if request.method == 'POST' and request.FILES.get('excel_file'):
-            excel_file = request.FILES['excel_file']
-            send_emails = request.POST.get('send_emails') == 'yes'
-            
+        # 1. Manejo de POST AJAX para Procesamiento Fila por Fila (JSON)
+        if request.method == 'POST' and request.content_type == 'application/json':
             try:
-                # Leer archivo con pandas
+                import json
+                data = json.loads(request.body)
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': f"JSON inválido: {str(e)}"})
+
+            action = data.get('action')
+            if action == 'import_row':
+                edicion_activa = Edicion.objects.filter(activa=True).first()
+                if not edicion_activa:
+                    return JsonResponse({'status': 'error', 'message': "No hay una edición activa configurada para vincular los registros."})
+
+                row_data = data.get('row', {})
+                dni = str(row_data.get('dni', '')).strip().split('.')[0]
+                email = str(row_data.get('email', '')).strip().lower()
+                nombre = str(row_data.get('nombre', '')).strip()
+                apellido = str(row_data.get('apellido', '')).strip()
+                telefono = str(row_data.get('telefono', '')).strip()
+                profile_type = str(row_data.get('perfil', 'VISITOR')).upper().strip()
+                institucion = str(row_data.get('institucion', '')).strip()
+                carrera_cargo = str(row_data.get('carrera', '')).strip()
+                comision_excel = str(row_data.get('comision', '')).strip()
+                send_emails = data.get('send_emails', False)
+
+                if not dni or not email or not nombre or not apellido:
+                    missing = []
+                    if not dni: missing.append("DNI")
+                    if not email: missing.append("Email")
+                    if not nombre: missing.append("Nombre")
+                    if not apellido: missing.append("Apellido")
+                    return JsonResponse({'status': 'error', 'message': f"Datos básicos faltantes: {', '.join(missing)}"})
+
+                if profile_type not in [t[0] for t in Asistente.ProfileType.choices]:
+                    profile_type = Asistente.ProfileType.VISITOR
+
+                try:
+                    with transaction.atomic():
+                        asistente, created = Asistente.objects.update_or_create(
+                            dni=dni,
+                            defaults={
+                                'first_name': nombre,
+                                'last_name': apellido,
+                                'email': email,
+                                'phone': telefono,
+                                'profile_type': profile_type,
+                                'terminos_aceptados': True
+                            }
+                        )
+
+                        action_taken = "created" if created else "updated"
+
+                        # Vincular a edición activa
+                        Inscripcion.objects.get_or_create(
+                            asistente=asistente,
+                            edicion=edicion_activa
+                        )
+
+                        # Datos extra (Detalles)
+                        if comision_excel:
+                            asistente.comision = comision_excel
+                            asistente.save()
+                        
+                        if institucion or carrera_cargo:
+                            from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional
+                            if profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO]:
+                                DetalleEstudiante.objects.update_or_create(asistente=asistente, defaults={'institution': institucion, 'career': carrera_cargo})
+                            elif profile_type == Asistente.ProfileType.TEACHER:
+                                DetalleDocente.objects.update_or_create(asistente=asistente, defaults={'institution': institucion, 'career_taught': carrera_cargo})
+                            elif profile_type in [Asistente.ProfileType.PROFESSIONAL, Asistente.ProfileType.OTRO]:
+                                work_area = institucion if profile_type == Asistente.ProfileType.PROFESSIONAL else "Otro"
+                                DetalleProfesional.objects.update_or_create(asistente=asistente, defaults={'work_area': work_area, 'occupation': carrera_cargo})
+
+                        # Enviar Email si se solicitó
+                        email_status = "not_requested"
+                        if send_emails:
+                            try:
+                                from .email import send_individual_confirmation_email
+                                send_individual_confirmation_email(asistente)
+                                email_status = "sent"
+                            except Exception as email_err:
+                                email_status = f"failed: {str(email_err)}"
+
+                        return JsonResponse({
+                            'status': 'success',
+                            'action': action_taken,
+                            'email_status': email_status,
+                            'asistente': {
+                                'first_name': asistente.first_name,
+                                'last_name': asistente.last_name,
+                                'email': asistente.email,
+                                'dni': asistente.dni
+                            }
+                        })
+                except Exception as db_err:
+                    return JsonResponse({'status': 'error', 'message': str(db_err)})
+
+        # 2. Manejo de POST AJAX para Analizar el archivo (Form Data)
+        if request.method == 'POST' and request.POST.get('action') == 'parse' and request.FILES.get('excel_file'):
+            excel_file = request.FILES['excel_file']
+            try:
                 if excel_file.name.endswith('.csv'):
                     df = pd.read_csv(excel_file)
                 else:
                     df = pd.read_excel(excel_file)
                 
-                # Normalizar nombres de columnas a minúsculas
                 df.columns = [str(c).lower().strip() for c in df.columns]
                 
                 # Columnas requeridas
+                required = ['nombre', 'apellido', 'email', 'dni']
+                missing = [c for c in required if c not in df.columns]
+                
+                if missing:
+                    return JsonResponse({'status': 'error', 'message': f"Faltan columnas obligatorias: {', '.join(missing)}"})
+                
+                edicion_activa = Edicion.objects.filter(activa=True).first()
+                if not edicion_activa:
+                    return JsonResponse({'status': 'error', 'message': "No hay una edición activa configurada."})
+
+                rows = []
+                for index, row in df.iterrows():
+                    # Ignorar filas totalmente vacías
+                    if pd.isna(row.get('nombre')) and pd.isna(row.get('apellido')) and pd.isna(row.get('dni')) and pd.isna(row.get('email')):
+                        continue
+
+                    dni_val = str(row.get('dni', '')).strip().split('.')[0]
+                    email_val = str(row.get('email', '')).strip().lower()
+                    nombre_val = str(row.get('nombre', '')).strip()
+                    apellido_val = str(row.get('apellido', '')).strip()
+                    telefono_val = str(row.get('telefono', '')).strip()
+                    perfil_val = str(row.get('perfil', 'VISITOR')).upper().strip()
+                    institucion_val = str(row.get('institucion', row.get('institución', ''))).strip()
+                    carrera_val = str(row.get('carrera', '')).strip()
+                    comision_val = str(row.get('comision', row.get('comisión', row.get('curso', '')))).strip()
+
+                    # Convertir NaN a vacíos
+                    if pd.isna(row.get('dni')): dni_val = ''
+                    if pd.isna(row.get('email')): email_val = ''
+                    if pd.isna(row.get('nombre')): nombre_val = ''
+                    if pd.isna(row.get('apellido')): apellido_val = ''
+                    if pd.isna(row.get('telefono')): telefono_val = ''
+                    if pd.isna(row.get('perfil')): perfil_val = 'VISITOR'
+                    if pd.isna(row.get('institucion')) and pd.isna(row.get('institución')): institucion_val = ''
+                    if pd.isna(row.get('carrera')): carrera_val = ''
+                    if pd.isna(row.get('comision')) and pd.isna(row.get('comisión')) and pd.isna(row.get('curso')): comision_val = ''
+
+                    rows.append({
+                        'index': index + 2,
+                        'dni': dni_val,
+                        'email': email_val,
+                        'nombre': nombre_val,
+                        'apellido': apellido_val,
+                        'telefono': telefono_val,
+                        'perfil': perfil_val,
+                        'institucion': institucion_val,
+                        'carrera': carrera_val,
+                        'comision': comision_val
+                    })
+                return JsonResponse({'status': 'success', 'rows': rows, 'total': len(rows)})
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': f"Error al leer el archivo: {str(e)}"})
+
+        # 3. Procesamiento tradicional (POST síncrono - fallback por compatibilidad)
+        if request.method == 'POST' and request.FILES.get('excel_file'):
+            excel_file = request.FILES['excel_file']
+            send_emails = request.POST.get('send_emails') == 'yes'
+            
+            try:
+                if excel_file.name.endswith('.csv'):
+                    df = pd.read_csv(excel_file)
+                else:
+                    df = pd.read_excel(excel_file)
+                
+                df.columns = [str(c).lower().strip() for c in df.columns]
+                
                 required = ['nombre', 'apellido', 'email', 'dni']
                 missing = [c for c in required if c not in df.columns]
                 
@@ -797,25 +960,27 @@ class AsistenteAdmin(admin.ModelAdmin):
                         stats = {'total': 0, 'created': 0, 'updated': 0, 'errors': 0, 'error_details': []}
                         
                         for index, row in df.iterrows():
+                            # Ignorar vacías
+                            if pd.isna(row.get('nombre')) and pd.isna(row.get('apellido')) and pd.isna(row.get('dni')) and pd.isna(row.get('email')):
+                                continue
+                            
                             stats['total'] += 1
                             try:
                                 with transaction.atomic():
-                                    dni = str(row.get('dni')).strip().split('.')[0] # Limpiar .0 de excels
+                                    dni = str(row.get('dni')).strip().split('.')[0]
                                     email = str(row.get('email')).strip().lower()
                                     nombre = str(row.get('nombre', '')).strip()
                                     apellido = str(row.get('apellido', '')).strip()
                                     
                                     if not dni or not email or not nombre or not apellido:
-                                        missing = []
-                                        if not dni: missing.append("DNI")
-                                        if not email: missing.append("Email")
-                                        if not nombre: missing.append("Nombre")
-                                        if not apellido: missing.append("Apellido")
-                                        raise ValueError(f"Datos básicos faltantes: {', '.join(missing)}")
+                                        missing_fields = []
+                                        if not dni: missing_fields.append("DNI")
+                                        if not email: missing_fields.append("Email")
+                                        if not nombre: missing_fields.append("Nombre")
+                                        if not apellido: missing_fields.append("Apellido")
+                                        raise ValueError(f"Datos básicos faltantes: {', '.join(missing_fields)}")
 
-                                    # 1. Crear/Actualizar Asistente
                                     profile_type = str(row.get('perfil', 'VISITOR')).upper().strip()
-                                    # Mapear perfiles válidos
                                     if profile_type not in [t[0] for t in Asistente.ProfileType.choices]:
                                         profile_type = Asistente.ProfileType.VISITOR
 
@@ -834,13 +999,11 @@ class AsistenteAdmin(admin.ModelAdmin):
                                     if created: stats['created'] += 1
                                     else: stats['updated'] += 1
 
-                                    # 2. Vincular a Edición 2026 (Inscripcion)
                                     Inscripcion.objects.get_or_create(
                                         asistente=asistente,
                                         edicion=edicion_activa
                                     )
 
-                                    # 3. Datos extra (Detalles)
                                     institucion = str(row.get('institucion', row.get('institución', ''))).strip()
                                     carrera_cargo = str(row.get('carrera', '')).strip()
                                     comision_excel = str(row.get('comision', row.get('comisión', row.get('curso', '')))).strip()
@@ -859,13 +1022,11 @@ class AsistenteAdmin(admin.ModelAdmin):
                                             work_area = institucion if profile_type == Asistente.ProfileType.PROFESSIONAL else "Otro"
                                             DetalleProfesional.objects.update_or_create(asistente=asistente, defaults={'work_area': work_area, 'occupation': carrera_cargo})
 
-                                    # 4. Enviar Email si se solicitó
                                     if send_emails:
                                         try:
                                             from .email import send_individual_confirmation_email
                                             send_individual_confirmation_email(asistente)
                                         except Exception as e:
-                                            # No cuenta como error de registro, pero lo logueamos
                                             stats['error_details'].append({'row': index + 2, 'msg': f"Registro OK, pero email falló: {str(e)}"})
                             
                             except Exception as e:

@@ -23,7 +23,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * para permitir cualquier payload (objeto JSON, FormData, etc.) y headers clave-valor simples.
  */
 export interface SecureRequestConfig extends Omit<RequestInit, "body" | "headers">, RequestOptions {
-  body?: any;
+  body?: unknown;
 }
 
 /**
@@ -62,7 +62,7 @@ async function executeRequest<T>(
     method,
     headers,
     credentials: config.credentials || "include",
-    body: isFormData ? config.body : (config.body ? JSON.stringify(config.body) : undefined),
+    body: isFormData ? (config.body as FormData) : (config.body ? JSON.stringify(config.body) : undefined),
   };
 
   let attempt = 0;

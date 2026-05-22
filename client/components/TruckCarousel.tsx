@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import * as React from "react";
-import { chunk, type LogoItem } from "./data/logos";
+import { chunk, type LogoItem } from "@/data/logos";
 import { useEmpresas } from "@/hooks/use-empresas";
 
 type Direction = "ltr" | "rtl";

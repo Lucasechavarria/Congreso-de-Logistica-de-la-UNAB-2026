@@ -1,6 +1,6 @@
 import * as React from "react";
 import LogoMarquee from "@/components/LogoMarquee";
-import { chunk, ALL_LOGOS } from "@/components/data/logos";
+import { chunk, ALL_LOGOS } from "@/data/logos";
 import { motion, Variants } from "framer-motion";
 
 const fadeInUp: Variants = {

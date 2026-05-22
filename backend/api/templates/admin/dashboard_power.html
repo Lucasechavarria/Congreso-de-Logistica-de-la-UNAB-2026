@@ -1,23 +1,30 @@
 {% extends "admin/base_site.html" %} 
 {% load static %} 
+
 {% block extrastyle %} 
 {{ block.super }}
+<!-- Cargar Tema de Diseño Oscuro Global Compartido -->
+<link rel="stylesheet" href="{% static 'admin/css/admin_dark_theme.css' %}">
+<!-- Tipografía Premium de Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
 <style>
+    /* Sobrescribir variables locales enlazándolas al Tema Oscuro Premium */
     :root {
-        --bg: #070310;
-        --card: rgba(18, 8, 38, 0.7);
-        --card-glow: rgba(43, 20, 84, 0.9);
-        --p: #a78bfa;
-        --b: rgba(167, 139, 250, 0.15);
-        --txt: #f8fafc;
-        --neon-cyan: #06b6d4;
-        --neon-magenta: #f43f5e;
+        --bg: var(--dark-bg);
+        --card: var(--dark-card);
+        --card-glow: var(--dark-card-glow);
+        --p: var(--color-primary);
+        --b: var(--border-soft);
+        --txt: var(--text-primary);
+        --neon-cyan: var(--color-secondary);
+        --neon-magenta: var(--color-accent);
     }
 
     body {
         background: var(--bg) !important;
         color: var(--txt) !important;
-        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
 
     #content {
@@ -25,31 +32,35 @@
         padding: 25px !important;
     }
 
-    /* Glassmorphism Header & Controls */
+    /* Cabecera y Controles Estilo Glassmorphism Premium */
     .ds-header {
         margin-bottom: 25px;
     }
 
     .ds-header h1 {
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 2px;
         color: #fff;
-        text-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
+        text-shadow: 0 0 15px rgba(167, 139, 250, 0.4);
         margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
     .f-panel {
         background: var(--card);
-        backdrop-filter: blur(12px);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         padding: 20px;
         border-radius: 16px;
         border: 1px solid var(--b);
         display: flex;
         flex-direction: column;
         gap: 15px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(167, 139, 250, 0.05);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(167, 139, 250, 0.03);
     }
 
     .f-row {
@@ -63,14 +74,14 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        background: rgba(0, 0, 0, 0.3);
-        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.35);
+        padding: 8px 14px;
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .f-group label {
-        font-size: 12px;
+        font-size: 11px;
         color: var(--p);
         text-transform: uppercase;
         font-weight: bold;
@@ -85,12 +96,12 @@
         border: none;
         outline: none;
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
         cursor: pointer;
     }
 
     select option {
-        background: #120826;
+        background: #0d061c;
         color: #fff;
     }
 
@@ -100,26 +111,26 @@
     }
 
     .btn-apply {
-        background: linear-gradient(45deg, var(--neon-cyan), #3b82f6);
+        background: linear-gradient(135deg, var(--neon-cyan), #2563eb);
         color: #fff;
         border: none;
-        padding: 8px 20px;
+        padding: 10px 24px;
         border-radius: 8px;
-        font-weight: bold;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         text-transform: uppercase;
         letter-spacing: 1px;
-        font-size: 13px;
-        box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        font-size: 12px;
+        box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
     }
 
     .btn-apply:hover {
         transform: translateY(-2px);
-        box-shadow: 0 0 25px rgba(6, 182, 212, 0.7);
+        box-shadow: 0 0 25px rgba(6, 182, 212, 0.65);
     }
 
-    /* Premium KPIs */
+    /* KPIs Oscuros Premium */
     .k-row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -129,18 +140,20 @@
 
     .k-card {
         background: linear-gradient(135deg, var(--card), var(--card-glow));
-        padding: 20px;
+        padding: 22px;
         border-radius: 16px;
         border: 1px solid var(--b);
         text-align: center;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        transition: transform 0.3s;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .k-card:hover {
         transform: translateY(-5px);
+        border-color: rgba(167, 139, 250, 0.35);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
     }
 
     .k-card::before {
@@ -155,19 +168,21 @@
 
     .k-card span {
         display: block;
-        font-size: 12px;
+        font-size: 11px;
         color: var(--p);
         text-transform: uppercase;
         letter-spacing: 1.5px;
+        font-weight: 700;
         opacity: 0.8;
         margin-bottom: 10px;
     }
 
-    .k-card div {
-        font-size: 36px;
-        font-weight: 900;
+    .k-card div.kpi-val {
+        font-size: 38px;
+        font-weight: 800;
         color: #fff;
-        text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        text-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+        transition: transform 0.3s ease;
     }
 
     .c-grid {
@@ -176,30 +191,89 @@
         gap: 30px;
     }
 
+    /* Tarjetas de Gráficos */
     .c-card {
         background: var(--card);
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         padding: 25px;
         border-radius: 16px;
         border: 1px solid var(--b);
         height: 450px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .c-card:hover {
+        border-color: rgba(167, 139, 250, 0.25);
+    }
+
+    /* Botón Flotante para Descargar Gráfico */
+    .btn-chart-export {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-secondary);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
+
+    .btn-chart-export:hover {
+        background: var(--color-secondary);
+        color: #fff;
+        border-color: var(--color-secondary);
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        transform: scale(1.08);
+    }
+
+    /* Filtros Frontend de Perfil */
+    .filter-pills {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .filter-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--b);
+        color: var(--text-secondary);
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-pill:hover, .filter-pill.active {
+        background: rgba(167, 139, 250, 0.15);
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 8px rgba(167, 139, 250, 0.25);
     }
 
     @media (max-width: 1100px) {
-        .c-grid {
-            grid-template-columns: 1fr;
-        }
-
         .c-card {
-            height: 300px;
+            height: 350px;
         }
     }
 </style>
 {% endblock %} 
 
 {% block content %} 
-<div class="ds-container">
+<div class="ds-container dark-theme-container">
     <div class="ds-header">
         <h1>ANALYTICS HUB 🚀</h1>
 
@@ -208,7 +282,7 @@
             <div class="f-row">
                 <div class="f-group">
                     <label>Edición</label>
-                    <select name="edicion">
+                    <select name="edicion" class="premium-select">
                         {% for e in todas_ediciones %} 
                         {% if e.id in selected_id_list %}<option value="{{e.id}}" selected>{{e.anio}}</option> 
                         {% else %}<option value="{{e.id}}">{{e.anio}}</option>{% endif %} 
@@ -218,7 +292,7 @@
 
                 <div class="f-group">
                     <label>Entidad</label>
-                    <select name="entidad">
+                    <select name="entidad" class="premium-select">
                         {% if 'inscripciones' in selected_entidad_list %}<option value="inscripciones" selected> 
                             Inscritos</option>{% else %}<option value="inscripciones">Inscritos</option>{% endif %} 
                         {% if 'disertantes' in selected_entidad_list %}<option value="disertantes" selected>Ponentes 
@@ -230,7 +304,7 @@
 
                 <div class="f-group">
                     <label>Agrupar por</label>
-                    <select name="periodo">
+                    <select name="periodo" class="premium-select">
                         {% if 'diario' in selected_periodo_list %}<option value="diario" selected>Día</option>{% else %} 
                         <option value="diario">Día</option>{% endif %} 
                         {% if 'semanal' in selected_periodo_list %}<option value="semanal" selected>Semanal</option>{%                          else %}<option value="semanal">Semanal</option>{% endif %} 
@@ -240,11 +314,11 @@
 
                 <div class="f-group">
                     <label>Desde</label>
-                    <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+                    <input type="date" name="fecha_desde" value="{{ fecha_desde }}" class="premium-input">
                 </div>
                 <div class="f-group">
                     <label>Hasta</label>
-                    <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+                    <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" class="premium-input">
                 </div>
             </div>
 
@@ -253,7 +327,7 @@
                 <div class="f-row">
                     <div class="f-group">
                         <label>Gráfico Evolutivo</label>
-                        <select name="chart_type">
+                        <select name="chart_type" class="premium-select">
                             {% if 'mix' in selected_chart_type_list %}<option value="mix" selected>Acumulado + Barras 
                             </option>{% else %}<option value="mix">Acumulado + Barras</option>{% endif %} 
                             {% if 'line' in selected_chart_type_list %}<option value="line" selected>Línea Clásica 
@@ -269,7 +343,7 @@
                     </div>
                     <div class="f-group">
                         <label>Gráfico de Proporción</label>
-                        <select name="chart_type_dist">
+                        <select name="chart_type_dist" class="premium-select">
                             {% if 'doughnut' in selected_chart_dist_list %}<option value="doughnut" selected>Donita 
                             </option>{% else %}<option value="doughnut">Donita</option>{% endif %} 
                             {% if 'pie' in selected_chart_dist_list %}<option value="pie" selected>Segmentos (Torta) 
@@ -287,38 +361,82 @@
         </form>
     </div>
 
-    <div class="k-row">
-        <div class="k-card"><span>Inscritos (Total)</span>
-            <div>{{kpis.total_inscritos}}</div>
+    <!-- WIDGET INTERACTIVO DE META DEL CONGRESO -->
+    <div class="glass-panel" style="padding: 20px; margin-bottom: 25px; border-left: 4px solid var(--neon-cyan); background: var(--dark-card);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+                <h4 style="margin: 0; font-size: 14px; text-transform: uppercase; color: var(--p); letter-spacing: 1.2px; font-weight: 700;">Objetivo del Congreso 🎯</h4>
+                <span style="font-size: 12px; color: var(--text-secondary);">Progreso global en base a inscripciones de la edición activa</span>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 22px; font-weight: 800; color: #fff;"><span id="meta-actual">0</span> / <span id="meta-total">1000</span></span>
+                <span style="font-size: 11px; color: var(--neon-cyan); display: block; font-weight: 700; margin-top: 2px;" id="meta-porcentaje">0%</span>
+            </div>
         </div>
-        <div class="k-card" style="border-top-color: var(--neon-cyan);"><span>Últimas 24h</span>
-            <div style="color: var(--neon-cyan);">+{{kpis.registros_24h}}</div>
-        </div>
-        <div class="k-card"><span>Ponentes</span>
-            <div>{{kpis.total_disertantes}}</div>
-        </div>
-        <div class="k-card"><span>Empresas</span>
-            <div>{{kpis.total_empresas}}</div>
-        </div>
-        <div class="k-card" style="border-top-color: var(--neon-magenta);"><span>Fidelidad (Vuelven)</span>
-            <div>{{kpis.asistentes_recurrentes}}</div>
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
+            <div id="meta-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--neon-cyan), var(--p)); border-radius: 4px; transition: width 1.8s cubic-bezier(0.34, 1.56, 0.64, 1);"></div>
         </div>
     </div>
 
+    <!-- TARJETAS DE KPIS CON ODÓMETROS -->
+    <div class="k-row">
+        <div class="k-card">
+            <span>Inscritos (Total)</span>
+            <div class="kpi-val" id="kpi-inscritos" data-value="{{kpis.total_inscritos}}">0</div>
+        </div>
+        <div class="k-card" style="border-top-color: var(--neon-cyan);">
+            <span>Últimas 24h</span>
+            <div class="kpi-val" id="kpi-24h" data-value="{{kpis.registros_24h}}" style="color: var(--neon-cyan);">0</div>
+        </div>
+        <div class="k-card">
+            <span>Ponentes</span>
+            <div class="kpi-val" id="kpi-ponentes" data-value="{{kpis.total_disertantes}}">0</div>
+        </div>
+        <div class="k-card">
+            <span>Empresas</span>
+            <div class="kpi-val" id="kpi-empresas" data-value="{{kpis.total_empresas}}">0</div>
+        </div>
+        <div class="k-card" style="border-top-color: var(--neon-magenta);">
+            <span>Fidelidad (Vuelven)</span>
+            <div class="kpi-val" id="kpi-fidelidad" data-value="{{kpis.asistentes_recurrentes}}">0</div>
+        </div>
+    </div>
+
+    <!-- GRID DE GRÁFICOS -->
     <div class="c-grid">
+        <!-- Gráfico Evolutivo -->
         <div class="c-card">
-            <h3 style="color: var(--p); margin-bottom: 15px; font-size: 14px; text-transform: uppercase;">Tendencia Temporal (Evolutivo)</h3>
-            <canvas id="c1"></canvas>
+            <div class="btn-chart-export" title="Descargar como Imagen" onclick="downloadChart('c1', 'tendencia_temporal')">📥</div>
+            <h3 style="color: var(--p); margin-bottom: 20px; font-size: 14px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Tendencia Temporal (Evolutivo)</h3>
+            <div style="flex:1; width:100%; height: 350px; position:relative;">
+                <canvas id="c1"></canvas>
+            </div>
         </div>
-        <div class="c-card" style="display:flex; flex-direction: column; justify-content:center; align-items:center;">
-             <h3 style="color: var(--p); margin-bottom: 15px; font-size: 14px; text-transform: uppercase; width: 100%;">Distribución de Perfiles / Estados</h3>
-             <div style="flex:1; width:100%; position:relative;">
+        
+        <!-- Gráfico Proporcional con Filtros Rápidos en Frontend -->
+        <div class="c-card" style="display:flex; flex-direction: column;">
+            <div class="btn-chart-export" title="Descargar como Imagen" onclick="downloadChart('c2', 'distribucion_perfiles')">📥</div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                <h3 style="color: var(--p); margin: 0; font-size: 14px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Distribución de Perfiles / Estados</h3>
+                <!-- Filtros rápidos sin recarga -->
+                <div class="filter-pills">
+                    <button class="filter-pill active" onclick="filterPerfiles('TODOS', this)">Todos</button>
+                    <button class="filter-pill" onclick="filterPerfiles('ASISTENTES', this)">Asistentes</button>
+                    <button class="filter-pill" onclick="filterPerfiles('PONENTES/EMPRESAS', this)">Ponentes/Empresas</button>
+                </div>
+            </div>
+            <div style="flex:1; width:100%; position:relative; min-height: 0;">
                 <canvas id="c2"></canvas>
-             </div>
+            </div>
         </div>
+
+        <!-- Gráfico Comparativo -->
         <div class="c-card">
-            <h3 style="color: var(--p); margin-bottom: 15px; font-size: 14px; text-transform: uppercase;">Comparativa entre Ediciones</h3>
-            <canvas id="c3"></canvas>
+            <div class="btn-chart-export" title="Descargar como Imagen" onclick="downloadChart('c3', 'comparativa_ediciones')">📥</div>
+            <h3 style="color: var(--p); margin-bottom: 20px; font-size: 14px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Comparativa entre Ediciones</h3>
+            <div style="flex:1; width:100%; height: 350px; position:relative;">
+                <canvas id="c3"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -327,83 +445,237 @@
 <script>
     Chart.defaults.color = '#e2e8f0';
     Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
-    Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+    Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
 
+    // ── DATA INYECTADA DESDE DJANGO ──────────────────────────
     const d1 = JSON.parse('{{ daily_stats_json|safe|escapejs }}');
-    const d2 = JSON.parse('{{ distribution_stats_json|safe|escapejs }}');
+    const d2_original = JSON.parse('{{ distribution_stats_json|safe|escapejs }}');
+    let d2 = [...d2_original]; // Copia de trabajo para filtros rápidos en vivo
 
-    // Configuración Evolutiva (Izquierda)
-    const ct = '{{ chart_type_seleccionado }}';
-    let baseType = ct === 'horizontalBar' ? 'bar' : (ct === 'scatter' ? 'scatter' : (ct === 'mix' ? 'bar' : ct));
-    let c1Datasets = [];
+    // Instancias de Chart.js globales para poder modificarlas interactiva o de exportación
+    const chartInstances = {};
 
-    // Soporte para Gráfico Mixto (Barras + Línea Acumulada)
-    if (ct === 'mix' && d1.length > 0 && d1[0].cumulative !== undefined) {
-        c1Datasets.push({ type: 'bar', label: 'Nuevos Registros (Periodo)', data: d1.map(x => x.count), backgroundColor: 'rgba(6, 182, 212, 0.4)', borderColor: '#06b6d4', borderWidth: 1, borderRadius: 4 });
-        c1Datasets.push({ type: 'line', label: 'Total Acumulado (Histórico filtrado)', data: d1.map(x => x.cumulative), borderColor: '#facc15', backgroundColor: 'transparent', tension: 0.4, borderWidth: 3, pointBackgroundColor: '#facc15' });
-    } else if (ct === 'scatter') {
-        c1Datasets.push({ label: 'Densidad', data: d1.map((x, i) => ({ x: i, y: x.count })), backgroundColor: '#f43f5e', pointRadius: 6, pointHoverRadius: 8 });
-    } else {
-        c1Datasets.push({ label: 'Cantidad', data: d1.map(x => x.count), borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.4)', tension: 0.4, borderWidth: 2, fill: true, borderRadius: 4 });
+    // ── ODÓMETRO (KPI COUNT UP ANIMATION) ────────────────────
+    function initOdomenter(elementId, targetVal, prefix = '') {
+        const obj = document.getElementById(elementId);
+        if (!obj) return;
+        
+        let startVal = 0;
+        let duration = 1500; // 1.5 Segundos
+        let startTime = null;
+
+        function animate(currentTime) {
+            if (!startTime) startTime = currentTime;
+            const progress = Math.min((currentTime - startTime) / duration, 1);
+            // Función de easing out cuadrática
+            const easeProgress = progress * (2 - progress);
+            const currentNum = Math.floor(easeProgress * targetVal);
+            
+            obj.innerText = prefix + currentNum.toLocaleString();
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                obj.innerText = prefix + targetVal.toLocaleString();
+                // Destello/rebote final
+                obj.classList.add('kpi-animating');
+                setTimeout(() => obj.classList.remove('kpi-animating'), 300);
+            }
+        }
+        requestAnimationFrame(animate);
     }
 
-    new Chart(document.getElementById('c1'), {
-        type: baseType,
-        data: { labels: d1.map(x => x.label), datasets: c1Datasets },
-        options: {
-            indexAxis: ct === 'horizontalBar' ? 'y' : 'x',
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' } }
+    // ── WIDGET DE META DEL CONGRESO INTERACTIVO ────────────────
+    function updateCongressMeta(actualVal) {
+        const metaTotal = 1000;
+        const progressFill = document.getElementById('meta-progress-bar');
+        const metaActualEl = document.getElementById('meta-actual');
+        const percentageEl = document.getElementById('meta-porcentaje');
+
+        // Animar el número del widget
+        let startVal = 0;
+        let duration = 1500;
+        let startTime = null;
+
+        function animateMeta(currentTime) {
+            if (!startTime) startTime = currentTime;
+            const progress = Math.min((currentTime - startTime) / duration, 1);
+            const easeProgress = progress * (2 - progress);
+            const currentNum = Math.floor(easeProgress * actualVal);
+            
+            metaActualEl.innerText = currentNum.toLocaleString();
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateMeta);
+            } else {
+                metaActualEl.innerText = actualVal.toLocaleString();
+            }
         }
-    });
+        requestAnimationFrame(animateMeta);
 
-    // Configuración Proporcional (Derecha)
-    const ct_dist = '{{ chart_type_dist_seleccionado }}';
-    const c2Colors = ['#0ea5e9', '#10b981', '#f43f5e', '#facc15', '#a855f7', '#06b6d4'];
+        // Barra de progreso y cálculo
+        const percentage = Math.min(100, Math.floor((actualVal / metaTotal) * 100));
+        setTimeout(() => {
+            progressFill.style.width = percentage + '%';
+            percentageEl.innerText = percentage + '% COMPLETADO';
+        }, 150);
+    }
 
-    new Chart(document.getElementById('c2'), {
-        type: ct_dist,
-        data: {
-            labels: d2.map(x => x.name),
-            datasets: [{
-                label: 'Distribución',
-                data: d2.map(x => x.value),
-                backgroundColor: ct_dist === "radar" ? 'rgba(16, 185, 129, 0.3)' : c2Colors,
-                borderColor: ct_dist === "radar" ? '#10b981' : (ct_dist === "polarArea" ? 'transparent' : '#070310'),
-                borderWidth: ct_dist === "radar" ? 2 : 1
-            }]
-        },
-        options: {
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right'
+    // ── EXPORTACIÓN DE GRÁFICOS A PNG ───────────────────────
+    function downloadChart(chartId, fileNamePrefix) {
+        const canvas = document.getElementById(chartId);
+        if (!canvas) return;
+
+        // Crear elemento temporal para disparar descarga
+        const link = document.createElement('a');
+        link.download = `${fileNamePrefix}_${new Date().toISOString().slice(0,10)}.png`;
+        link.href = canvas.toDataURL('image/png', 1.0);
+        link.click();
+    }
+
+    // ── FILTROS INTERACTIVOS SIN RECARGAR PÁGINA (FRONTEND) ─
+    function filterPerfiles(mode, btnElement) {
+        // Actualizar visual de las pastillas de filtro (active)
+        document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
+        btnElement.classList.add('active');
+
+        // Filtrar datos locales
+        if (mode === 'TODOS') {
+            d2 = [...d2_original];
+        } else if (mode === 'ASISTENTES') {
+            // Filtrar perfiles asociados a asistentes
+            const asistentesKeywords = ['Estudiante', 'Docente', 'Profesional', 'Particular', 'Asistente', 'Prensa', 'Visitor', 'Graduado'];
+            d2 = d2_original.filter(x => asistentesKeywords.some(keyword => x.name.toLowerCase().includes(keyword.toLowerCase())));
+        } else if (mode === 'PONENTES/EMPRESAS') {
+            // Filtrar ponentes y empresas
+            const ponentesKeywords = ['Ponente', 'Disertante', 'Empresa', 'Aprobado', 'Rechazado', 'Pendiente'];
+            d2 = d2_original.filter(x => ponentesKeywords.some(keyword => x.name.toLowerCase().includes(keyword.toLowerCase())));
+        }
+
+        // Actualizar datos de la instancia del gráfico c2
+        if (chartInstances['c2']) {
+            chartInstances['c2'].data.labels = d2.map(x => x.name);
+            chartInstances['c2'].data.datasets[0].data = d2.map(x => x.value);
+            chartInstances['c2'].update('active'); // Animación suave al redibujar
+        }
+    }
+
+    // ── CONFIGURACIÓN Y INICIALIZACIÓN DE GRÁFICOS ───────────
+    document.addEventListener("DOMContentLoaded", () => {
+        // Obtener valores inyectados de Django para los odómetros
+        const valInscritos = parseInt(document.getElementById('kpi-inscritos').dataset.value) || 0;
+        const val24h = parseInt(document.getElementById('kpi-24h').dataset.value) || 0;
+        const valPonentes = parseInt(document.getElementById('kpi-ponentes').dataset.value) || 0;
+        const valEmpresas = parseInt(document.getElementById('kpi-empresas').dataset.value) || 0;
+        const valFidelidad = parseInt(document.getElementById('kpi-fidelidad').dataset.value) || 0;
+
+        // Disparar Odómetros
+        initOdomenter('kpi-inscritos', valInscritos);
+        initOdomenter('kpi-24h', val24h, '+');
+        initOdomenter('kpi-ponentes', valPonentes);
+        initOdomenter('kpi-empresas', valEmpresas);
+        initOdomenter('kpi-fidelidad', valFidelidad);
+
+        // Disparar Widget de Meta
+        updateCongressMeta(valInscritos);
+
+        // Configuración Evolutiva (Izquierda) - Chart 1
+        const ct = '{{ chart_type_seleccionado }}';
+        let baseType = ct === 'horizontalBar' ? 'bar' : (ct === 'scatter' ? 'scatter' : (ct === 'mix' ? 'bar' : ct));
+        let c1Datasets = [];
+
+        // Tooltips Estilizados Oscuros
+        const darkTooltipConfig = {
+            backgroundColor: '#0f0724',
+            titleColor: '#a78bfa',
+            bodyColor: '#f8fafc',
+            borderColor: 'rgba(167, 139, 250, 0.25)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 8,
+            titleFont: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold' },
+            bodyFont: { family: "'Plus Jakarta Sans', sans-serif" }
+        };
+
+        if (ct === 'mix' && d1.length > 0 && d1[0].cumulative !== undefined) {
+            c1Datasets.push({ type: 'bar', label: 'Nuevos Registros (Periodo)', data: d1.map(x => x.count), backgroundColor: 'rgba(6, 182, 212, 0.45)', borderColor: '#06b6d4', borderWidth: 1.5, borderRadius: 6 });
+            c1Datasets.push({ type: 'line', label: 'Total Acumulado (Histórico)', data: d1.map(x => x.cumulative), borderColor: '#facc15', backgroundColor: 'transparent', tension: 0.45, borderWidth: 3.5, pointBackgroundColor: '#facc15', pointRadius: 4 });
+        } else if (ct === 'scatter') {
+            c1Datasets.push({ label: 'Densidad', data: d1.map((x, i) => ({ x: i, y: x.count })), backgroundColor: '#f43f5e', pointRadius: 7, pointHoverRadius: 9 });
+        } else {
+            c1Datasets.push({ label: 'Cantidad', data: d1.map(x => x.count), borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.15)', tension: 0.4, borderWidth: 2.5, fill: true, borderRadius: 6 });
+        }
+
+        chartInstances['c1'] = new Chart(document.getElementById('c1'), {
+            type: baseType,
+            data: { labels: d1.map(x => x.label), datasets: c1Datasets },
+            options: {
+                indexAxis: ct === 'horizontalBar' ? 'y' : 'x',
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'top' },
+                    tooltip: darkTooltipConfig
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true }
                 }
             }
-        }
-    });
+        });
 
-    // Configuración Comparativa (Abajo)
-    const d3 = JSON.parse('{{ comparative_stats_json|safe|escapejs }}');
-    new Chart(document.getElementById('c3'), {
-        type: 'bar',
-        data: {
-            labels: d3.map(x => x.name),
-            datasets: [
-                { label: 'Inscritos', data: d3.map(x => x.total_inscritos), backgroundColor: '#0ea5e9' },
-                { label: 'Disertantes', data: d3.map(x => x.total_disertantes), backgroundColor: '#10b981' },
-                { label: 'Empresas', data: d3.map(x => x.total_empresas), backgroundColor: '#facc15' }
-            ]
-        },
-        options: {
-            maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true }
+        // Configuración Proporcional (Centro) - Chart 2
+        const ct_dist = '{{ chart_type_dist_seleccionado }}';
+        const c2Colors = ['#a78bfa', '#06b6d4', '#f43f5e', '#10b981', '#fbbf24', '#3b82f6'];
+
+        chartInstances['c2'] = new Chart(document.getElementById('c2'), {
+            type: ct_dist,
+            data: {
+                labels: d2.map(x => x.name),
+                datasets: [{
+                    label: 'Distribución',
+                    data: d2.map(x => x.value),
+                    backgroundColor: ct_dist === "radar" ? 'rgba(167, 139, 250, 0.25)' : c2Colors,
+                    borderColor: ct_dist === "radar" ? '#a78bfa' : (ct_dist === "polarArea" ? 'transparent' : '#070310'),
+                    borderWidth: ct_dist === "radar" ? 2.5 : 1.5,
+                    hoverOffset: 15
+                }]
             },
-            plugins: {
-                legend: { position: 'top' }
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { boxWidth: 15, padding: 15 }
+                    },
+                    tooltip: darkTooltipConfig
+                }
             }
-        }
+        });
+
+        // Configuración Comparativa (Abajo) - Chart 3
+        const d3 = JSON.parse('{{ comparative_stats_json|safe|escapejs }}');
+        chartInstances['c3'] = new Chart(document.getElementById('c3'), {
+            type: 'bar',
+            data: {
+                labels: d3.map(x => x.name),
+                datasets: [
+                    { label: 'Inscritos', data: d3.map(x => x.total_inscritos), backgroundColor: '#06b6d4', borderRadius: 4 },
+                    { label: 'Disertantes', data: d3.map(x => x.total_disertantes), backgroundColor: '#10b981', borderRadius: 4 },
+                    { label: 'Empresas', data: d3.map(x => x.total_empresas), backgroundColor: '#a78bfa', borderRadius: 4 }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: darkTooltipConfig
+                }
+            }
+        });
     });
 </script>
 {% endblock %}

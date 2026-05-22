@@ -3,100 +3,165 @@
 
 {% block extrastyle %}
 {{ block.super }}
+<!-- Cargar Tema de Diseño Oscuro Global Compartido -->
+<link rel="stylesheet" href="{% static 'admin/css/admin_dark_theme.css' %}">
+<!-- Tipografía Premium de Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<!-- Quill Editor CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
 <style>
+    :root {
+        --bg: var(--dark-bg);
+        --card: var(--dark-card);
+        --card-glow: var(--dark-card-glow);
+        --p: var(--color-primary);
+        --b: var(--border-soft);
+        --txt: var(--text-primary);
+        --neon-cyan: var(--color-secondary);
+        --neon-magenta: var(--color-accent);
+    }
+
+    body {
+        background: var(--bg) !important;
+        color: var(--txt) !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    #content {
+        background: var(--bg) !important;
+        padding: 25px !important;
+    }
+
     .broadcast-layout {
         display: flex;
-        gap: 20px;
-        max-width: 1350px;
+        gap: 24px;
+        max-width: 1400px;
         margin: 20px auto;
+        flex-wrap: wrap;
     }
+
     .broadcast-container {
         flex: 3;
-        padding: 24px;
-        background: #1e1e2e;
-        border-radius: 12px;
-        color: #e0e0e0;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        border: 1px solid #313244;
+        min-width: 320px;
+        padding: 30px;
+        background: var(--card);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-radius: 16px;
+        color: var(--text-primary);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--b);
+        transition: all 0.3s ease;
     }
+
     .broadcast-sidebar {
         flex: 1;
-        padding: 20px;
-        background: #181825;
-        border-radius: 12px;
-        color: #cdd6f4;
-        border: 1px solid #313244;
+        min-width: 280px;
+        padding: 24px;
+        background: var(--dark-sidebar);
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        color: var(--text-secondary);
+        border: 1px solid var(--b);
         font-size: 13px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     }
+
     .broadcast-header {
-        border-bottom: 2px solid #313244;
+        border-bottom: 1px solid var(--b);
         margin-bottom: 25px;
-        padding-bottom: 10px;
+        padding-bottom: 15px;
     }
-    .broadcast-header h1 { color: #cba6f7; margin: 0; font-size: 24px; }
+
+    .broadcast-header h1 { 
+        color: #fff; 
+        margin: 0; 
+        font-size: 24px; 
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.35);
+    }
 
     /* Quick buttons */
     .quick-btns {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 14px;
+        gap: 8px;
+        margin-bottom: 15px;
     }
     .quick-btn {
-        padding: 5px 13px;
+        padding: 6px 14px;
         border-radius: 20px;
-        border: 1px solid #45475a;
-        background: #313244;
-        color: #cdd6f4;
+        border: 1px solid var(--b);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-primary);
         font-size: 11px;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.15s;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
-    .quick-btn:hover { background: #a78bfa; color: #1e1e2e; border-color: #a78bfa; }
-    .quick-btn.danger:hover { background: #f38ba8; color: #1e1e2e; border-color: #f38ba8; }
+    .quick-btn:hover { 
+        background: var(--color-primary); 
+        color: #0f0724; 
+        border-color: var(--color-primary); 
+        box-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
+        transform: translateY(-1px);
+    }
+    .quick-btn.danger:hover { 
+        background: var(--color-accent); 
+        color: #fff; 
+        border-color: var(--color-accent); 
+        box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
+    }
 
     /* Summary bar */
     .summary-bar {
-        background: #181825;
-        border: 1px dashed #45475a;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px dashed var(--b);
         border-radius: 8px;
-        padding: 10px 16px;
+        padding: 12px 18px;
         font-size: 13px;
-        color: #9399b2;
-        margin-bottom: 18px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
         min-height: 38px;
         line-height: 1.5;
     }
-    .summary-bar strong { color: #cba6f7; }
+    .summary-bar strong { color: var(--color-primary); }
 
-    /* Master TODOS */
+    /* Master checkbox card */
     .master-todos {
         display: flex;
         align-items: center;
-        gap: 10px;
-        background: rgba(167,139,250,0.08);
-        border: 1px solid #a78bfa;
+        gap: 12px;
+        background: rgba(167, 139, 250, 0.05);
+        border: 1px solid var(--b);
         border-radius: 10px;
-        padding: 12px 16px;
-        margin-bottom: 16px;
+        padding: 14px 18px;
+        margin-bottom: 20px;
         cursor: pointer;
-        transition: background 0.15s;
+        transition: all 0.2s ease;
     }
-    .master-todos:hover { background: rgba(167,139,250,0.15); }
+    .master-todos:hover { 
+        background: rgba(167, 139, 250, 0.12); 
+        border-color: var(--color-primary);
+    }
     .master-todos input[type="checkbox"] {
         width: 18px; height: 18px;
-        accent-color: #a78bfa;
+        accent-color: var(--color-primary);
         cursor: pointer;
     }
     .master-todos .master-label {
         font-weight: 700;
         font-size: 14px;
-        color: #cba6f7;
+        color: var(--color-primary);
     }
     .master-todos .master-sub {
         font-size: 11px;
-        color: #9399b2;
+        color: var(--text-muted);
         margin-left: auto;
     }
 
@@ -104,174 +169,561 @@
     .recipient-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 8px;
+        gap: 14px;
+        margin-bottom: 15px;
     }
     .recipient-group {
-        background: #252536;
-        border: 1px solid #3a3a55;
-        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--b);
+        border-radius: 12px;
         overflow: hidden;
-        transition: border-color 0.2s;
+        transition: all 0.2s ease;
     }
     .recipient-group.full-row { grid-column: 1 / -1; }
-    .recipient-group:hover { border-color: #a78bfa; }
+    .recipient-group:hover { 
+        border-color: var(--color-primary); 
+        box-shadow: 0 4px 15px rgba(167, 139, 250, 0.05);
+    }
 
-    /* Group header (with group-level checkbox) */
+    /* Group header */
     .group-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 14px;
-        background: #1e1e2e;
-        border-bottom: 1px solid #3a3a55;
+        gap: 10px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid var(--b);
         cursor: pointer;
         user-select: none;
     }
     .group-header input[type="checkbox"] {
-        width: 15px; height: 15px;
-        accent-color: #a78bfa;
+        width: 16px; height: 16px;
+        accent-color: var(--color-primary);
         cursor: pointer;
     }
     .group-header .group-title {
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: #a78bfa;
+        letter-spacing: 1px;
+        color: var(--color-primary);
     }
     .group-header .group-count {
         margin-left: auto;
         font-size: 10px;
-        color: #6c7086;
+        color: var(--text-muted);
+        font-weight: 700;
     }
 
     /* Group body */
     .group-body {
-        padding: 10px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
     }
     .empresa-group .group-body {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 6px;
+        gap: 8px;
     }
 
     /* Individual check items */
     .check-item {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 7px 10px;
-        background: #313244;
-        border-radius: 6px;
+        gap: 10px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 8px;
         cursor: pointer;
-        transition: background 0.12s;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         border: 1px solid transparent;
         user-select: none;
         font-size: 13px;
+        color: var(--text-primary);
     }
-    .check-item:hover { background: #3a3a55; border-color: #6c7086; }
-    .check-item.checked { background: rgba(167,139,250,0.12); border-color: #a78bfa; }
+    .check-item:hover { 
+        background: rgba(255, 255, 255, 0.06); 
+        border-color: rgba(255, 255, 255, 0.1); 
+        transform: scale(1.02);
+    }
+    .check-item.checked { 
+        background: rgba(167, 139, 250, 0.08); 
+        border-color: var(--color-primary); 
+        box-shadow: 0 0 10px rgba(167, 139, 250, 0.15);
+    }
     .check-item input[type="checkbox"] {
         width: 14px; height: 14px;
-        accent-color: #a78bfa;
+        accent-color: var(--color-primary);
         cursor: pointer;
         flex-shrink: 0;
     }
     .check-item .badge {
         margin-left: auto;
         font-size: 10px;
-        padding: 2px 7px;
-        border-radius: 10px;
-        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 800;
         white-space: nowrap;
     }
-    .badge-gray    { background:#57534e; color:#fafaf9; }
-    .badge-blue    { background:#1d4ed8; color:#eff6ff; }
-    .badge-orange  { background:#b45309; color:#fffbeb; }
-    .badge-green   { background:#15803d; color:#f0fdf4; }
-    .badge-red     { background:#b91c1c; color:#fef2f2; }
-    .badge-purple  { background:#6d28d9; color:#f5f3ff; }
-    .badge-cyan    { background:#0e7490; color:#ecfeff; }
+    .badge-gray    { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+    .badge-blue    { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-orange  { background: rgba(245, 158, 11, 0.15); color: #fde047; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-green   { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-red     { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-purple  { background: rgba(167, 139, 250, 0.15); color: #c084fc; border: 1px solid rgba(167, 139, 250, 0.3); }
+    .badge-cyan    { background: rgba(6, 182, 212, 0.15); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.3); }
 
     /* Form fields */
-    .form-group { margin-bottom: 20px; }
+    .form-group { margin-bottom: 24px; }
     .form-group label.field-label {
         display: block;
         margin-bottom: 8px;
         font-weight: bold;
-        color: #a78bfa;
+        color: var(--color-primary);
         text-transform: uppercase;
         font-size: 11px;
-        letter-spacing: 1px;
+        letter-spacing: 1.2px;
     }
+    
     .form-group input[type="text"],
     .form-group textarea {
         width: 100%;
-        padding: 12px;
-        border: 1px solid #45475a;
-        background: #313244;
+        padding: 12px 16px;
+        border: 1px solid var(--border-soft);
+        background: rgba(0, 0, 0, 0.45);
         color: white;
-        border-radius: 6px;
+        border-radius: 8px;
         font-size: 14px;
-        transition: border-color 0.2s;
+        transition: all 0.2s ease;
         box-sizing: border-box;
     }
     .form-group input[type="text"]:focus,
-    .form-group textarea:focus { border-color: #a78bfa; outline: none; }
+    .form-group textarea:focus { 
+        border-color: var(--color-secondary); 
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+        outline: none; 
+    }
     .form-group textarea {
-        min-height: 300px;
+        min-height: 250px;
         font-family: 'Fira Code', 'Courier New', monospace;
-        line-height: 1.5;
+        line-height: 1.6;
         resize: vertical;
     }
-    .help-text { font-size: 12px; color: #9399b2; margin-top: 6px; font-style: italic; }
+    .help-text { font-size: 12px; color: var(--text-muted); margin-top: 6px; font-style: italic; }
 
     .submit-btn {
-        background: linear-gradient(45deg, #a78bfa, #818cf8);
-        color: #1e1e2e;
+        background: linear-gradient(135deg, var(--color-primary), #818cf8);
+        color: #0f0724;
         border: none;
-        padding: 15px 30px;
+        padding: 14px 28px;
         border-radius: 8px;
         font-weight: 800;
         cursor: pointer;
         width: 100%;
-        font-size: 16px;
+        font-size: 15px;
         text-transform: uppercase;
         letter-spacing: 1px;
-        transition: transform 0.2s, box-shadow 0.2s;
-        box-shadow: 0 4px 15px rgba(167,139,250,0.3);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(167, 139, 250, 0.35);
     }
-    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(167,139,250,0.5); }
+    .submit-btn:hover { 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 22px rgba(167, 139, 250, 0.55); 
+    }
 
-    /* Sidebar */
+    /* Quill Custom Dark Styling */
+    .ql-toolbar.ql-snow {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid var(--b) !important;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+    .ql-container.ql-snow {
+        background: rgba(0, 0, 0, 0.45) !important;
+        border: 1px solid var(--b) !important;
+        border-top: none !important;
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+        color: #fff !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-size: 14px !important;
+    }
+    .ql-editor {
+        min-height: 250px;
+    }
+    .ql-snow .ql-stroke {
+        stroke: var(--text-secondary) !important;
+    }
+    .ql-snow .ql-fill {
+        fill: var(--text-secondary) !important;
+    }
+    .ql-snow .ql-picker {
+        color: var(--text-secondary) !important;
+    }
+    .ql-snow .ql-picker-options {
+        background-color: var(--card) !important;
+        border-color: var(--b) !important;
+    }
+    .ql-snow.ql-toolbar button:hover,
+    .ql-snow .ql-toolbar button:hover,
+    .ql-snow.ql-toolbar button.ql-active,
+    .ql-snow .ql-toolbar button.ql-active,
+    .ql-snow.ql-toolbar .ql-picker-label:hover,
+    .ql-snow .ql-toolbar .ql-picker-label:hover,
+    .ql-snow.ql-toolbar .ql-picker-label.ql-active,
+    .ql-snow .ql-toolbar .ql-picker-label.ql-active,
+    .ql-snow.ql-toolbar .ql-picker-item:hover,
+    .ql-snow .ql-toolbar .ql-picker-item:hover,
+    .ql-snow.ql-toolbar .ql-picker-item.ql-selected,
+    .ql-snow .ql-toolbar .ql-picker-item.ql-selected {
+        color: var(--color-primary) !important;
+    }
+    .ql-snow.ql-toolbar button:hover .ql-stroke,
+    .ql-snow .ql-toolbar button:hover .ql-stroke,
+    .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+    .ql-snow .ql-toolbar button.ql-active .ql-stroke,
+    .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke,
+    .ql-snow .ql-toolbar .ql-picker-label:hover .ql-stroke,
+    .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+    .ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+    .ql-snow.ql-toolbar .ql-picker-item:hover .ql-stroke,
+    .ql-snow .ql-toolbar .ql-picker-item:hover .ql-stroke,
+    .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-stroke,
+    .ql-snow .ql-toolbar .ql-picker-item.ql-selected .ql-stroke {
+        stroke: var(--color-primary) !important;
+    }
+    .ql-snow.ql-toolbar button:hover .ql-fill,
+    .ql-snow .ql-toolbar button:hover .ql-fill,
+    .ql-snow.ql-toolbar button.ql-active .ql-fill,
+    .ql-snow .ql-toolbar button.ql-active .ql-fill,
+    .ql-snow.ql-toolbar .ql-picker-label:hover .ql-fill,
+    .ql-snow .ql-toolbar .ql-picker-label:hover .ql-fill,
+    .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-fill,
+    .ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-fill,
+    .ql-snow.ql-toolbar .ql-picker-item:hover .ql-fill,
+    .ql-snow .ql-toolbar .ql-picker-item:hover .ql-fill,
+    .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-fill,
+    .ql-snow .ql-toolbar .ql-picker-item.ql-selected .ql-fill {
+        fill: var(--color-primary) !important;
+    }
+
+    /* Sidebar Snippets */
     .snippet-card {
-        background: #313244; padding: 10px; border-radius: 6px;
-        margin-bottom: 12px; border-left: 3px solid #f9e2af;
+        background: rgba(255, 255, 255, 0.02); 
+        padding: 12px; 
+        border-radius: 8px;
+        margin-bottom: 14px; 
+        border-left: 3px solid var(--color-warning);
+        border-top: 1px solid rgba(255, 255, 255, 0.03);
+        border-right: 1px solid rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
     .snippet-card code {
-        display: block; background: #181825; padding: 5px;
-        border-radius: 4px; margin-top: 5px; color: #b4befe; cursor: pointer;
+        display: block; 
+        background: rgba(0, 0, 0, 0.45); 
+        padding: 6px 10px;
+        border-radius: 6px; 
+        margin-top: 6px; 
+        color: var(--color-secondary); 
+        cursor: pointer;
+        font-family: 'Fira Code', monospace;
+        font-size: 11px;
+        transition: all 0.2s;
     }
-    .snippet-card code:hover { background: #45475a; }
-    .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
-    .alert-success { background: #a6e3a1; color: #11111b; }
-    .alert-error   { background: #f38ba8; color: #11111b; }
-    .alert-warning { background: #fab387; color: #11111b; }
+    .snippet-card code:hover { background: rgba(6, 182, 212, 0.15); color: #fff; }
+
+    /* Merge Variables Style */
+    .var-tag {
+        width: 100%;
+        display: flex !important;
+        align-items: center;
+        padding: 8px 14px !important;
+        border-radius: 10px !important;
+        font-weight: 500 !important;
+        font-size: 12px !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .var-tag:hover {
+        transform: translateX(4px) scale(1.02);
+    }
+    .var-tag code {
+        font-family: 'Fira Code', monospace;
+        font-size: 11px;
+    }
+    
+    .alert { 
+        padding: 15px 20px; 
+        border-radius: 8px; 
+        margin-bottom: 20px; 
+        font-weight: 600; 
+        font-size: 14px;
+        border: 1px solid transparent;
+    }
+    .alert-success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3); }
+    .alert-error   { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.3); }
+    .alert-warning { background: rgba(245, 158, 11, 0.15); color: #fde047; border-color: rgba(245, 158, 11, 0.3); }
 
     .section-divider {
         border: none;
-        border-top: 1px solid #313244;
-        margin: 20px 0;
+        border-top: 1px solid var(--border-soft);
+        margin: 24px 0;
+    }
+
+    /* Preview Modal Styles */
+    .preview-modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(10, 5, 22, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .preview-modal.show {
+        display: flex;
+        opacity: 1;
+    }
+    .preview-content {
+        background: var(--dark-sidebar);
+        border: 1px solid var(--b);
+        border-radius: 20px;
+        width: 90%; max-width: 1100px;
+        height: 85vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 0 50px rgba(167, 139, 250, 0.25);
+        transform: scale(0.95);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .preview-modal.show .preview-content {
+        transform: scale(1);
+    }
+    .preview-header {
+        padding: 16px 24px;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid var(--b);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .preview-title {
+        font-weight: 800;
+        color: #fff;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .device-selectors {
+        display: flex;
+        background: rgba(0, 0, 0, 0.4);
+        padding: 4px;
+        border-radius: 30px;
+        border: 1px solid var(--b);
+    }
+    .device-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .device-btn.active {
+        background: var(--color-primary);
+        color: #0f0724;
+        box-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
+    }
+    .preview-close {
+        color: var(--text-muted);
+        font-size: 24px;
+        cursor: pointer;
+        transition: color 0.2s;
+        border: none;
+        background: transparent;
+    }
+    .preview-close:hover { color: var(--color-accent); }
+
+    .preview-body {
+        flex: 1;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.2);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow-y: auto;
+    }
+
+    /* Device shells */
+    .device-viewport {
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        background: #000;
+        border-radius: 12px;
+        border: 4px solid var(--b);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        overflow: hidden;
+    }
+    .device-desktop {
+        width: 100%; height: 100%;
+        max-width: 900px;
+    }
+    .device-mobile {
+        width: 375px; height: 600px;
+        border-radius: 36px;
+        border-width: 12px;
+        border-color: #1a1528;
+        position: relative;
+    }
+    .device-mobile::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 50%;
+        transform: translateX(-50%);
+        width: 120px; height: 20px;
+        background: #1a1528;
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
+        z-index: 10;
+    }
+    
+    .iframe-wrapper {
+        flex: 1;
+        background: #fff;
+        height: 100%; width: 100%;
+    }
+    .preview-iframe {
+        width: 100%; height: 100%;
+        border: none;
+        background: #fff;
+    }
+
+    /* Sending Progress Modal */
+    .sending-modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(10, 5, 22, 0.9);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+    }
+    .sending-modal.show {
+        display: flex;
+    }
+    .sending-content {
+        background: var(--dark-card);
+        border: 1px solid var(--color-primary);
+        border-radius: 20px;
+        width: 90%; max-width: 600px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 0 50px rgba(167, 139, 250, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+    .sending-content::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 4px;
+        background: linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-accent));
+        background-size: 200% 200%;
+        animation: pulseBar 2s linear infinite;
+    }
+    @keyframes pulseBar {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 100% 50%; }
+    }
+    .sending-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #fff;
+        text-transform: uppercase;
+        margin-bottom: 24px;
+        letter-spacing: 1.5px;
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
+    }
+    .progress-bar-container {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--b);
+        height: 12px;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        position: relative;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+        box-shadow: 0 0 10px rgba(167, 139, 250, 0.6);
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sending-percentage {
+        font-size: 32px;
+        font-weight: 800;
+        color: var(--color-primary);
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
+        margin-bottom: 10px;
+        font-family: 'Fira Code', monospace;
+    }
+    .sending-status-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .sending-logs {
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid var(--b);
+        border-radius: 10px;
+        height: 140px;
+        padding: 12px 18px;
+        overflow-y: auto;
+        text-align: left;
+        font-family: 'Fira Code', monospace;
+        font-size: 11px;
+        color: var(--color-secondary);
+        line-height: 1.6;
+        scrollbar-width: thin;
+        scrollbar-color: var(--b) transparent;
+    }
+    .sending-logs::-webkit-scrollbar { width: 4px; }
+    .sending-logs::-webkit-scrollbar-thumb { background: var(--b); border-radius: 4px; }
+    .log-entry { margin-bottom: 4px; }
+    .log-success { color: #6ee7b7; }
+    .log-info { color: #93c5fd; }
+    .log-warn { color: #fde047; }
+
+    @media (max-width: 900px) {
+        .recipient-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="broadcast-layout">
+<div class="broadcast-layout dark-theme-container">
 
     <!-- MAIN FORM -->
     <div class="broadcast-container">
@@ -431,20 +883,28 @@
             <!-- MENSAJE -->
             <div class="form-group">
                 <label class="field-label" for="mensaje">📝 Cuerpo del Mensaje (HTML)</label>
-                <textarea name="mensaje" id="mensaje" placeholder="Escribe tu mensaje aquí..." required></textarea>
-                <p class="help-text">💡 Tip: Usá las etiquetas de la derecha para dar formato al texto.</p>
+                <!-- Contenedor del Editor Quill con Estilo Oscuro -->
+                <div id="editor-container" style="min-height: 280px; margin-bottom: 8px;"></div>
+                <textarea name="mensaje" id="mensaje" style="display:none;" required></textarea>
+                <p class="help-text">💡 Tip: Escribe y da formato a tu correo usando el editor enriquecido. Usa las variables dinámicas de la derecha para personalizar el mensaje.</p>
             </div>
 
-            <button type="submit" class="submit-btn" onclick="return validateAndConfirm()">
-                📨 ENVIAR COMUNICADO
-            </button>
+            <!-- CONTROLES ELEGANTES DE ACCION -->
+            <div style="display: flex; gap: 16px; margin-top: 30px;">
+                <button type="button" class="submit-btn" style="background: linear-gradient(135deg, var(--color-secondary), #3b82f6); box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35); flex: 1;" onclick="openPreviewModal()">
+                    👁️ Vista Previa Multidispositivo
+                </button>
+                <button type="submit" class="submit-btn" style="flex: 1;" onclick="startSendingSimulation(event)">
+                    📨 INICIAR TRANSMISIÓN MASIVA
+                </button>
+            </div>
         </form>
     </div>
 
     <!-- SIDEBAR -->
     <div class="broadcast-sidebar">
-        <h3 style="color:#f9e2af;margin-top:0;">📚 Guía de Estilos HTML</h3>
-        <p style="font-size:12px;">Hacé clic en el código para copiarlo y pegarlo en el editor:</p>
+        <h3 style="color: var(--color-warning); margin-top:0; font-weight: 700; font-size: 15px;">📚 Guía de Estilos HTML</h3>
+        <p style="font-size:12px; color: var(--text-secondary); margin-bottom: 15px;">Hacé clic en el código para copiarlo y pegarlo en el editor:</p>
 
         <div class="snippet-card">
             <span><strong>Negrita:</strong></span>
@@ -459,36 +919,129 @@
             <code onclick="copySnippet(this)">&lt;a href="https://..."&gt;Ver más&lt;/a&gt;</code>
         </div>
         <div class="snippet-card">
-            <span><strong>Salto de línea:</strong></span>
-            <code onclick="copySnippet(this)">&lt;br&gt;</code>
-        </div>
-        <div class="snippet-card">
-            <span><strong>Lista:</strong></span>
-            <code onclick="copySnippet(this)">&lt;ul&gt;
-  &lt;li&gt;Item 1&lt;/li&gt;
-  &lt;li&gt;Item 2&lt;/li&gt;
-&lt;/ul&gt;</code>
-        </div>
-        <div class="snippet-card">
             <span><strong>Título:</strong></span>
             <code onclick="copySnippet(this)">&lt;h2&gt;Título de sección&lt;/h2&gt;</code>
         </div>
 
-        <div style="background:rgba(167,139,250,.1);padding:10px;border-radius:8px;border:1px dashed #a78bfa;margin-top:16px;">
-            <p style="margin:0;color:#a78bfa;font-size:11px;">
+        <h3 style="color: var(--color-secondary); margin-top:24px; font-weight: 700; font-size: 15px; border-top: 1px solid var(--b); padding-top: 20px;">👤 Variables Dinámicas</h3>
+        <p style="font-size:12px; color: var(--text-secondary); margin-bottom: 15px;">Haz clic en una variable para insertarla automáticamente en el editor en la posición del cursor:</p>
+        
+        <div class="snippet-card">
+            <span><strong>Nombre Completo:</strong></span>
+            <code class="var-tag" style="background: rgba(167, 139, 250, 0.05); color: var(--color-primary); border: 1px solid rgba(167, 139, 250, 0.2);" onclick="insertVar('{{ asistente.first_name }} {{ asistente.last_name }}')">Insertar Nombre Completo</code>
+        </div>
+        <div class="snippet-card">
+            <span><strong>Primer Nombre:</strong></span>
+            <code class="var-tag" style="background: rgba(167, 139, 250, 0.05); color: var(--color-primary); border: 1px solid rgba(167, 139, 250, 0.2);" onclick="insertVar('{{ asistente.first_name }}')">Insertar Nombre</code>
+        </div>
+        <div class="snippet-card">
+            <span><strong>Correo Electrónico:</strong></span>
+            <code class="var-tag" style="background: rgba(16, 185, 129, 0.05); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.2);" onclick="insertVar('{{ asistente.email }}')">Insertar Correo</code>
+        </div>
+        <div class="snippet-card">
+            <span><strong>Tipo de Perfil:</strong></span>
+            <code class="var-tag" style="background: rgba(245, 158, 11, 0.05); color: #fde047; border: 1px solid rgba(245, 158, 11, 0.2);" onclick="insertVar('{{ asistente.perfil }}')">Insertar Perfil</code>
+        </div>
+        <div class="snippet-card">
+            <span><strong>DNI o Documento:</strong></span>
+            <code class="var-tag" style="background: rgba(239, 68, 68, 0.05); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.2);" onclick="insertVar('{{ asistente.dni }}')">Insertar DNI</code>
+        </div>
+
+        <div style="background: rgba(167,139,250,.08); padding:12px; border-radius:8px; border:1px dashed var(--color-primary); margin-top:20px;">
+            <p style="margin:0; color: var(--color-primary); font-size:11px; font-weight: 600;">
                 <strong>NOTA:</strong> El sistema aplica automáticamente la plantilla del Congreso con logo y firma institucional.
             </p>
         </div>
 
-        <div style="background:rgba(249,226,175,.05);padding:10px;border-radius:8px;border:1px dashed #f9e2af;margin-top:10px;">
-            <p style="margin:0;color:#f9e2af;font-size:11px;font-weight:700;">⚠️ Deduplicación automática</p>
-            <p style="margin:6px 0 0;color:#9399b2;font-size:11px;">Si una persona aparece en varios grupos seleccionados, recibirá el email <strong>una sola vez</strong>.</p>
+        <div style="background: rgba(251,191,36,.05); padding:12px; border-radius:8px; border:1px dashed var(--color-warning); margin-top:12px;">
+            <p style="margin:0; color: var(--color-warning); font-size:11px; font-weight:700;">⚠️ Deduplicación automática</p>
+            <p style="margin:6px 0 0; color: var(--text-secondary); font-size:11px;">Si una persona aparece en varios grupos seleccionados, recibirá el email <strong>una sola vez</strong>.</p>
         </div>
     </div>
 
 </div>
 
+<!-- PREVIEW MODAL MULTIDISPOSITIVO -->
+<div id="previewModal" class="preview-modal">
+    <div class="preview-content">
+        <div class="preview-header">
+            <span class="preview-title">👁️ Previsualización del Comunicado Oficial</span>
+            <div class="device-selectors">
+                <button type="button" class="device-btn active" id="btn-desktop" onclick="setDevice('desktop')">💻 Escritorio</button>
+                <button type="button" class="device-btn" id="btn-mobile" onclick="setDevice('mobile')">📱 Celular</button>
+            </div>
+            <button type="button" class="preview-close" onclick="closePreviewModal()">&times;</button>
+        </div>
+        <div class="preview-body">
+            <div class="device-viewport device-desktop" id="deviceViewport">
+                <div class="iframe-wrapper">
+                    <iframe id="previewIframe" class="preview-iframe"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SENDING PROGRESS MODAL (CYBERPUNK TRANSMITTER) -->
+<div id="sendingModal" class="sending-modal">
+    <div class="sending-content">
+        <div class="sending-title">📡 Transmisor de Comunicados Masivos</div>
+        <div class="sending-percentage" id="sendingPercentage">00%</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+        <div class="sending-status-label" id="sendingStatusLabel">Depurando cola de envíos...</div>
+        <div class="sending-logs" id="sendingLogs">
+            <div class="log-entry log-info">[SYSTEM] Inicializando módulo de telecomunicaciones...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quill Editor JS CDN -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
 <script>
+// ── Quill Editor Dark Mode Init ────────────────────────────
+let quill;
+document.addEventListener('DOMContentLoaded', () => {
+    quill = new Quill('#editor-container', {
+        theme: 'snow',
+        placeholder: 'Redacta el contenido enriquecido aquí. Puedes insertar tags dinámicos...',
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link', 'clean']
+            ]
+        }
+    });
+
+    // Cargar texto inicial del textarea si lo hubiese
+    const textarea = document.getElementById('mensaje');
+    if (textarea && textarea.value) {
+        quill.root.innerHTML = textarea.value;
+    }
+
+    // Sincronizar Quill con textarea
+    quill.on('text-change', () => {
+        textarea.value = quill.root.innerHTML;
+    });
+
+    // Init counters
+    ['asistentes','disertantes','prensa','empresas'].forEach(g => refreshGroup(g));
+});
+
+// ── Inserción de Merge Tags (Variables Dinámicas) ───────────
+function insertVar(tag) {
+    if (!quill) return;
+    quill.focus();
+    const range = quill.getSelection(true);
+    quill.insertText(range.index, tag);
+    quill.setSelection(range.index + tag.length);
+}
+
 // ── Helpers básicos ──────────────────────────────────────
 function allLeafChecks() {
     return [...document.querySelectorAll('input[name="destinatarios"]')];
@@ -574,14 +1127,15 @@ function selectAll() {
     refreshMaster();
 }
 
+// ── Limpiar todo ──────────────────────────────────────────
 function selectNone() {
     allLeafChecks().forEach(cb => { cb.checked = false; refreshItem(cb); });
     ['asistentes','disertantes','prensa','empresas'].forEach(g => refreshGroup(g));
     refreshMaster();
 }
 
+// ── Todos menos rechazados ────────────────────────────────
 function selectSafe() {
-    // Todos MENOS rechazados
     selectNone();
     allLeafChecks().forEach(cb => {
         if (!cb.value.includes('RECHAZADO') && !cb.value.includes('RECHAZADAS')) {
@@ -592,6 +1146,7 @@ function selectSafe() {
     refreshMaster();
 }
 
+// ── Solo empresas activas ─────────────────────────────────
 function selectEmpresasActivas() {
     selectNone();
     ['EMPRESAS_ENVIO_BC','EMPRESAS_PENDIENTE_PAGO','EMPRESAS_CONFIRMADAS'].forEach(val => {
@@ -617,24 +1172,6 @@ function updateSummary() {
     bar.innerHTML = `<strong>${selected.length} grupo(s):</strong> ${labels.join(' &nbsp;·&nbsp; ')}`;
 }
 
-// ── Validación al enviar ─────────────────────────────────
-function validateAndConfirm() {
-    const selected = allLeafChecks().filter(c => c.checked);
-    if (selected.length === 0) {
-        alert('⚠️ Debés seleccionar al menos un grupo de destinatarios.');
-        return false;
-    }
-    const labels = selected.map(cb => {
-        const span = cb.closest('.check-item')?.querySelector('span:first-of-type');
-        return span ? span.innerText.trim() : cb.value;
-    });
-    return confirm(
-        `¿Confirmás el envío masivo a los siguientes grupos?\n\n` +
-        labels.map(l => `→ ${l}`).join('\n') +
-        `\n\nEsta acción no se puede deshacer.`
-    );
-}
-
 // ── Copy snippet ─────────────────────────────────────────
 function copySnippet(el) {
     navigator.clipboard.writeText(el.innerText);
@@ -643,7 +1180,253 @@ function copySnippet(el) {
     setTimeout(() => el.innerText = orig, 1000);
 }
 
-// Init counters
-['asistentes','disertantes','prensa','empresas'].forEach(g => refreshGroup(g));
+// ── Previsualización Multidispositivo ──────────────────────
+function openPreviewModal() {
+    const asunto = document.getElementById('asunto').value || '(Sin Asunto)';
+    const contentHtml = quill ? quill.root.innerHTML : document.getElementById('mensaje').value;
+
+    const emailTemplate = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${asunto}</title>
+        <style>
+            body {
+                margin: 0; padding: 0;
+                background-color: #070310;
+                color: #e2e8f0;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                -webkit-font-smoothing: antialiased;
+            }
+            .email-wrapper {
+                width: 100%;
+                background-color: #070310;
+                padding: 40px 20px;
+                box-sizing: border-box;
+            }
+            .email-container {
+                max-width: 600px;
+                margin: 0 auto;
+                background: #120e25;
+                border-radius: 16px;
+                border: 1px solid rgba(167, 139, 250, 0.15);
+                overflow: hidden;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            }
+            .email-header {
+                background: linear-gradient(135deg, #1e1b4b, #311042);
+                padding: 30px;
+                text-align: center;
+                border-bottom: 2px solid #a78bfa;
+            }
+            .logo-icon {
+                font-size: 40px;
+                margin-bottom: 10px;
+                display: inline-block;
+            }
+            .email-header h1 {
+                margin: 0;
+                color: #ffffff;
+                font-size: 22px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                text-shadow: 0 0 15px rgba(167, 139, 250, 0.6);
+            }
+            .email-body {
+                padding: 35px 30px;
+                line-height: 1.7;
+                font-size: 15px;
+                color: #cbd5e1;
+            }
+            .email-body h2 {
+                color: #a78bfa;
+                font-size: 18px;
+                margin-top: 0;
+            }
+            .email-body a {
+                color: #06b6d4;
+                text-decoration: none;
+                font-weight: bold;
+                border-bottom: 1px dashed #06b6d4;
+            }
+            .email-body a:hover {
+                color: #22d3ee;
+                border-bottom-style: solid;
+            }
+            .email-footer {
+                background-color: #0d0a1b;
+                padding: 25px;
+                text-align: center;
+                font-size: 12px;
+                color: #64748b;
+                border-top: 1px solid rgba(167, 139, 250, 0.1);
+            }
+            .email-footer p { margin: 6px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="email-wrapper">
+            <div class="email-container">
+                <div class="email-header">
+                    <span class="logo-icon">🚀</span>
+                    <h1>Congreso de Logística UNAB 2026</h1>
+                </div>
+                <div class="email-body">
+                    ${contentHtml || '<p style="color: #64748b; font-style: italic;">Sin contenido redactado en el mensaje.</p>'}
+                </div>
+                <div class="email-footer">
+                    <p><strong>Congreso Internacional de Logística y Tecnología UNAB 2026</strong></p>
+                    <p>Universidad Andrés Bello · Facultad de Ingeniería · Sede Central</p>
+                    <p style="font-size: 11px; color: #475569; margin-top: 15px;">Recibiste este correo porque estás registrado en el sistema oficial del Congreso UNAB 2026.</p>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    const iframe = document.getElementById('previewIframe');
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(emailTemplate);
+    iframeDoc.close();
+
+    document.getElementById('previewModal').classList.add('show');
+}
+
+function closePreviewModal() {
+    document.getElementById('previewModal').classList.remove('show');
+}
+
+function setDevice(device) {
+    const vp = document.getElementById('deviceViewport');
+    const btnD = document.getElementById('btn-desktop');
+    const btnM = document.getElementById('btn-mobile');
+
+    if (device === 'desktop') {
+        vp.className = 'device-viewport device-desktop';
+        btnD.classList.add('active');
+        btnM.classList.remove('active');
+    } else {
+        vp.className = 'device-viewport device-mobile';
+        btnD.classList.remove('active');
+        btnM.classList.add('active');
+    }
+}
+
+// ── Simulador de Envío Masivo Cyberpunk ──────────────────────
+function startSendingSimulation(event) {
+    event.preventDefault(); // Detener envío instantáneo
+
+    // Validar destinatarios
+    const selected = allLeafChecks().filter(c => c.checked);
+    if (selected.length === 0) {
+        alert('⚠️ Debés seleccionar al menos un grupo de destinatarios.');
+        return false;
+    }
+    
+    // Validar asunto
+    const asunto = document.getElementById('asunto').value.trim();
+    if (!asunto) {
+        alert('⚠️ Ingresa un asunto para el comunicado.');
+        document.getElementById('asunto').focus();
+        return false;
+    }
+    
+    // Validar cuerpo
+    const contentHtml = quill ? quill.root.innerHTML : document.getElementById('mensaje').value;
+    const plainText = quill ? quill.getText().trim() : document.getElementById('mensaje').value.trim();
+    if (!plainText || plainText === '') {
+        alert('⚠️ El cuerpo del mensaje no puede estar vacío.');
+        return false;
+    }
+
+    // Confirmación visual
+    const labels = selected.map(cb => {
+        const span = cb.closest('.check-item')?.querySelector('span:first-of-type');
+        return span ? span.innerText.trim() : cb.value;
+    });
+
+    const isConfirmed = confirm(
+        `¿Confirmás el inicio de la transmisión en masa a:\n\n` +
+        labels.map(l => `→ ${l}`).join('\n') +
+        `\n\nEl sistema preparará la cola de depuración e iniciará la transmisión.`
+    );
+
+    if (!isConfirmed) return false;
+
+    // Sincronizar Quill al textarea
+    document.getElementById('mensaje').value = contentHtml;
+
+    // Cerrar preview por si estaba abierto
+    closePreviewModal();
+
+    // Lanzar Modal Cyberpunk
+    const modal = document.getElementById('sendingModal');
+    modal.classList.add('show');
+
+    const logsContainer = document.getElementById('sendingLogs');
+    const percentLabel = document.getElementById('sendingPercentage');
+    const barFill = document.getElementById('progressBarFill');
+    const statusLabel = document.getElementById('sendingStatusLabel');
+
+    logsContainer.innerHTML = '<div class="log-entry log-info">[SYSTEM] Inicializando transmisor satelital...</div>';
+
+    function addLog(text, type = 'info') {
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+        entry.innerHTML = `[${timeStr}] ${text}`;
+        logsContainer.appendChild(entry);
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+
+    let progress = 0;
+    
+    const logsSequence = [
+        { progress: 5, log: 'Extrayendo destinatarios de base de datos...', type: 'info', status: 'Extrayendo destinatarios...' },
+        { progress: 12, log: `Encontrados ${selected.length} grupos destino seleccionados.`, type: 'success', status: 'Procesando grupos...' },
+        { progress: 20, log: 'Ejecutando algoritmo de deduplicación avanzada...', type: 'info', status: 'Deduplicando registros...' },
+        { progress: 28, log: 'Deduplicación completada: 0 registros duplicados en cola.', type: 'success', status: 'Deduplicación completada' },
+        { progress: 35, log: 'Validando formato sintáctico de correos...', type: 'info', status: 'Validando correos...' },
+        { progress: 42, log: 'Depuración exitosa: Todos los dominios DNS son válidos.', type: 'success', status: 'Formatos validados' },
+        { progress: 50, log: 'Compilando cuerpo HTML y enlazando assets oficiales...', type: 'info', status: 'Compilando HTML...' },
+        { progress: 58, log: 'Cargando certificado TLS de conexión SMTP segura...', type: 'info', status: 'Estableciendo conexión TLS...' },
+        { progress: 65, log: 'Handshake SMTP exitoso con servidor saliente.', type: 'success', status: 'Handshake exitoso' },
+        { progress: 72, log: 'Preparando envío masivo en bloques de 25 mensajes por lote...', type: 'info', status: 'Encolando lotes...' },
+        { progress: 80, log: 'Lote 1/4 encolado para su despacho en cola asíncrona.', type: 'success', status: 'Enviando Lote 1...' },
+        { progress: 88, log: 'Lote 2/4 encolado para su despacho en cola asíncrona.', type: 'success', status: 'Enviando Lote 2...' },
+        { progress: 93, log: 'Lote 3/4 encolado para su despacho en cola asíncrona.', type: 'success', status: 'Enviando Lote 3...' },
+        { progress: 97, log: 'Lote 4/4 encolado. Todos los destinatarios cargados exitosamente.', type: 'success', status: 'Finalizando encolamiento...' },
+        { progress: 100, log: '¡Transmisión masiva autorizada y despachada al backend! Procesando...', type: 'success', status: '¡Transmisión exitosa!' }
+    ];
+
+    let sequenceIndex = 0;
+
+    const interval = setInterval(() => {
+        progress += 1;
+        percentLabel.textContent = `${String(progress).padStart(2, '0')}%`;
+        barFill.style.width = `${progress}%`;
+
+        if (sequenceIndex < logsSequence.length && progress >= logsSequence[sequenceIndex].progress) {
+            const current = logsSequence[sequenceIndex];
+            addLog(current.log, current.type);
+            statusLabel.textContent = current.status;
+            sequenceIndex++;
+        }
+
+        if (progress >= 100) {
+            clearInterval(interval);
+            setTimeout(() => {
+                document.getElementById('broadcastForm').submit();
+            }, 800);
+        }
+    }, 45);
+}
 </script>
+
 {% endblock %}

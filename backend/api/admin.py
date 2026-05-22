@@ -458,8 +458,8 @@ def process_certificate_batch_api(request):
     
     for cert in certificados:
         try:
-            # send_certificate_email ya se encarga de actualizar el estado en el modelo
-            success = send_certificate_email(cert)
+            result = send_certificate_email(cert)
+            success = result[0] if isinstance(result, tuple) else result
             if success:
                 logs.append(f"Enviado con éxito a {cert.asistente.email}")
                 processed += 1
@@ -494,6 +494,7 @@ def patch_admin_urls():
             path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
             path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
             path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
+            path('asistentes-search/', admin.site.admin_view(asistentes_search_api), name='admin-asistentes-search'),
         ]
         return custom_urls + urls
     
@@ -659,6 +660,37 @@ class MiembroGrupoInline(admin.TabularInline):
     model = MiembroGrupo
     extra = 0
     readonly_fields = ('fecha_registro',)
+
+def asistentes_search_api(request):
+    """
+    Endpoint AJAX para buscar asistentes por nombre, apellido, email o DNI.
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+        
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+        
+    asistentes = Asistente.objects.filter(
+        models.Q(first_name__icontains=q) |
+        models.Q(last_name__icontains=q) |
+        models.Q(email__icontains=q) |
+        models.Q(dni__icontains=q)
+    ).distinct()[:15]
+    
+    results = []
+    for a in asistentes:
+        results.append({
+            'id': a.id,
+            'nombre': f"{a.first_name} {a.last_name}".strip(),
+            'email': a.email,
+            'dni': a.dni or '',
+            'perfil': a.get_profile_type_display() if hasattr(a, 'get_profile_type_display') else a.profile_type
+        })
+        
+    return JsonResponse({'results': results})
+
 
 def manual_certificate_view(request):
     """

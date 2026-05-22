@@ -1018,10 +1018,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Cargar texto inicial del textarea si lo hubiese
+    // Cargar texto inicial del textarea si lo hubiese o cargar una plantilla base enriquecida por defecto
     const textarea = document.getElementById('mensaje');
-    if (textarea && textarea.value) {
-        quill.root.innerHTML = textarea.value;
+    if (textarea) {
+        if (textarea.value && textarea.value.trim() !== '') {
+            quill.root.innerHTML = textarea.value;
+        } else {
+            const defaultTemplate = `<h2>¡Hola {{ asistente.first_name }}! 👋</h2><p>Nos complace ponernos en contacto contigo en relación al <strong>Congreso Internacional de Logística y Tecnología UNAB 2026</strong>.</p><p>Queremos recordarte que tu participación en calidad de <strong>{{ asistente.perfil }}</strong> es de gran valor para el desarrollo del encuentro. A continuación, te compartimos detalles clave sobre tu registro:</p><ul><li><strong>📍 Ubicación:</strong> Auditorio Central UNAB, Sede Central.</li><li><strong>📅 Fecha:</strong> Del 15 al 18 de Octubre de 2026.</li><li><strong>🔑 Documento (DNI/Pasaporte):</strong> {{ asistente.dni }}</li></ul><p>Te recomendamos verificar que tus datos de acreditación sean correctos y tener a la mano tu documento de identidad para agilizar el ingreso en las mesas de control.</p><p>Si tienes alguna duda o requieres asistencia adicional, no dudes en responder directamente a este comunicado o ponerte en contacto con nuestro equipo de soporte.</p><p>¡Te esperamos para compartir y debatir sobre las últimas tendencias globales en tecnología y logística!</p><p>Atentamente,<br><strong>El Comité Organizador</strong><br><em>Congreso de Logística UNAB 2026</em></p>`;
+            quill.root.innerHTML = defaultTemplate;
+            textarea.value = defaultTemplate;
+        }
     }
 
     // Sincronizar Quill con textarea

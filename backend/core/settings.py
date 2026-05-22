@@ -331,3 +331,33 @@ BASE_URL = os.getenv('BASE_URL', FRONTEND_URL)
 # Por defecto Django usa 2.5MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+
+
+# =================== CIBERSEGURIDAD: CONFIGURACIÓN DE SEGURIDAD NATIVA Y CABECERAS ===================
+# Evita que el navegador intente "adivinar" el tipo MIME de los recursos (previene XSS basados en tipos MIME incorrectos)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Habilita el filtro de XSS integrado en navegadores antiguos (un buen mecanismo heredado)
+SECURE_BROWSER_XSS_FILTER = True
+
+# Evita que el sitio sea embebido en iframes ajenos (protección contra clickjacking)
+X_FRAME_OPTIONS = 'DENY'
+
+# Controla cuánta información de referencia (referrer) se envía en las solicitudes salientes
+SECURE_REFERRER_POLICY = 'same-origin'
+
+
+# =================== DRF CONFIGURATION & THROTTLING (RATE LIMITING) ===================
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day',
+        'dni_verification': '10/min',       # 10 peticiones por minuto por IP para DNI
+        'form_registration': '5/min',       # 5 peticiones por minuto por IP para formularios
+    }
+}
+

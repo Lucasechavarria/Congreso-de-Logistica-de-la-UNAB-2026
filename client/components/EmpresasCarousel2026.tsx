@@ -1,7 +1,7 @@
 import * as React from "react";
 import LogoMarquee from "@/components/LogoMarquee";
 import { useEmpresas, EmpresaAPI } from "@/hooks/use-empresas";
-import { ALL_LOGOS, chunk } from "@/components/data/logos";
+import { ALL_LOGOS, chunk } from "@/data/logos";
 import SkeletonLoader from "./SkeletonLoader";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import { EmpresaModal } from "./EmpresaModal";

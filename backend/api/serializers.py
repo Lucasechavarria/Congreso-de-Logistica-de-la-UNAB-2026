@@ -582,6 +582,7 @@ class AsistenteSerializer(serializers.ModelSerializer):
             ret['occupation'] = detalle.occupation
             
         elif profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE and hasattr(instance, 'detalle_grupo'):
+            detalle = instance.detalle_grupo
             ret['group_name'] = detalle.group_name
             ret['group_municipality'] = detalle.group_municipality
         

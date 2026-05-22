@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { LogoItem, chunk, ALL_LOGOS } from "./data/logos";
+import { LogoItem, chunk, ALL_LOGOS } from "@/data/logos";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEmpresas } from "@/hooks/use-empresas";
 interface LargeLogoCarouselProps {

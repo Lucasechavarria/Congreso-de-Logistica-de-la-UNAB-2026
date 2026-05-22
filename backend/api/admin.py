@@ -471,6 +471,121 @@ class DNIFilter(admin.SimpleListFilter):
         return queryset
 
 
+class InstitucionFilter(admin.SimpleListFilter):
+    title = 'Institución'
+    parameter_name = 'institucion'
+
+    def lookups(self, request, model_admin):
+        from .models import DetalleEstudiante, DetalleDocente, DetalleGrupo
+        
+        inst_estudiantes = DetalleEstudiante.objects.exclude(institution='').exclude(institution__isnull=True).values_list('institution', flat=True).distinct()
+        inst_docentes = DetalleDocente.objects.exclude(institution='').exclude(institution__isnull=True).values_list('institution', flat=True).distinct()
+        inst_grupos = DetalleGrupo.objects.exclude(institution_or_workplace='').exclude(institution_or_workplace__isnull=True).values_list('institution_or_workplace', flat=True).distinct()
+        
+        todas = set()
+        for inst in list(inst_estudiantes) + list(inst_docentes) + list(inst_grupos):
+            clean_inst = inst.strip()
+            if clean_inst:
+                todas.add(clean_inst)
+                
+        return sorted([(i, i) for i in todas], key=lambda x: x[1].lower())
+
+    def queryset(self, request, queryset):
+        if self.value():
+            val = self.value()
+            return queryset.filter(
+                models.Q(detalle_estudiante__institution=val) |
+                models.Q(detalle_docente__institution=val) |
+                models.Q(detalle_grupo__institution_or_workplace=val)
+            ).distinct()
+        return queryset
+
+
+class CarreraFilter(admin.SimpleListFilter):
+    title = 'Carrera / Cargo'
+    parameter_name = 'carrera'
+
+    def lookups(self, request, model_admin):
+        from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional
+        
+        carreras_est = DetalleEstudiante.objects.exclude(career='').exclude(career__isnull=True).values_list('career', flat=True).distinct()
+        carreras_doc = DetalleDocente.objects.exclude(career_taught='').exclude(career_taught__isnull=True).values_list('career_taught', flat=True).distinct()
+        cargos_prof = DetalleProfesional.objects.exclude(occupation='').exclude(occupation__isnull=True).values_list('occupation', flat=True).distinct()
+        
+        todas = set()
+        for carr in list(carreras_est) + list(carreras_doc) + list(cargos_prof):
+            clean_carr = carr.strip()
+            if clean_carr:
+                todas.add(clean_carr)
+                
+        return sorted([(c, c) for c in todas], key=lambda x: x[1].lower())
+
+    def queryset(self, request, queryset):
+        if self.value():
+            val = self.value()
+            return queryset.filter(
+                models.Q(detalle_estudiante__career=val) |
+                models.Q(detalle_docente__career_taught=val) |
+                models.Q(detalle_profesional__occupation=val)
+            ).distinct()
+        return queryset
+
+
+class EsUNaBFilter(admin.SimpleListFilter):
+    title = 'Pertenencia UNaB'
+    parameter_name = 'pertenece_unab'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('si', 'Sí (Estudiante o Docente UNaB)'),
+            ('no', 'No (Externo / Particular)'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'si':
+            return queryset.filter(
+                models.Q(detalle_estudiante__is_unab_student=True) |
+                models.Q(detalle_estudiante__institution__icontains='unab') |
+                models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                models.Q(detalle_docente__institution__icontains='unab') |
+                models.Q(detalle_docente__institution__icontains='almirante brown')
+            ).distinct()
+        if self.value() == 'no':
+            return queryset.exclude(
+                models.Q(detalle_estudiante__is_unab_student=True) |
+                models.Q(detalle_estudiante__institution__icontains='unab') |
+                models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                models.Q(detalle_docente__institution__icontains='unab') |
+                models.Q(detalle_docente__institution__icontains='almirante brown')
+            ).distinct()
+        return queryset
+
+
+class AsistenciaEdicionActivaFilter(admin.SimpleListFilter):
+    title = 'Asistencia (Edición Activa)'
+    parameter_name = 'asistencia_activa'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('confirmado', '✔ Confirmada'),
+            ('pendiente', '✘ Pendiente'),
+        ]
+
+    def queryset(self, request, queryset):
+        from .models import Edicion
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa:
+            return queryset
+            
+        if self.value() == 'confirmado':
+            return queryset.filter(inscripciones__edicion=edicion_activa, inscripciones__asistencia_confirmada=True).distinct()
+        if self.value() == 'pendiente':
+            confirmados = queryset.filter(inscripciones__edicion=edicion_activa, inscripciones__asistencia_confirmada=True).values_list('id', flat=True)
+            return queryset.filter(inscripciones__edicion=edicion_activa).exclude(id__in=confirmados).distinct()
+        return queryset
+
+
+
 class MiembroGrupoInline(admin.TabularInline):
     model = MiembroGrupo
     extra = 0
@@ -535,9 +650,30 @@ class InscripcionAdmin(admin.ModelAdmin):
     fecha_inscripcion_detalle.admin_order_field = 'fecha_inscripcion'
 
 class AsistenteAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'dni', 'get_ediciones', 'get_asistencia_actual', 'fecha_registro_detalle')
-    list_filter = (DNIFilter, 'inscripciones__asistencia_confirmada', 'inscripciones__edicion', 'fecha_registro')
-    search_fields = ('first_name', 'last_name', 'email', 'dni')
+    list_display = ('first_name', 'last_name', 'email', 'perfil_badge', 'dni', 'get_ediciones', 'get_asistencia_actual', 'fecha_registro_detalle')
+    list_filter = (
+        'profile_type',
+        EsUNaBFilter,
+        InstitucionFilter,
+        CarreraFilter,
+        'comision',
+        DNIFilter,
+        AsistenciaEdicionActivaFilter,
+        'inscripciones__edicion',
+        'fecha_registro'
+    )
+    search_fields = (
+        'first_name',
+        'last_name',
+        'email',
+        'dni',
+        'comision',
+        'detalle_estudiante__institution',
+        'detalle_docente__institution',
+        'detalle_estudiante__career',
+        'detalle_docente__career_taught',
+        'detalle_profesional__occupation'
+    )
     ordering = ['-fecha_registro']
 
     def fecha_registro_detalle(self, obj):
@@ -706,7 +842,17 @@ class AsistenteAdmin(admin.ModelAdmin):
             return format_html('<span style="color: green;">✔ Confirmada</span>')
         return format_html('<span style="color: red;">✘ Pendiente</span>')
     get_asistencia_actual.short_description = 'Asistencia 2026'
-    actions = ['confirmar_asistencia', 'enviar_certificados', 'enviar_solicitud_actualizacion_dni', 'enviar_certificados_lote_40', 'exportar_no_estudiantes_xls', 'exportar_asistentes_xls']
+    actions = [
+        'confirmar_asistencia', 
+        'enviar_certificados', 
+        'enviar_solicitud_actualizacion_dni', 
+        'enviar_certificados_lote_40', 
+        'exportar_no_estudiantes_xls', 
+        'exportar_asistentes_xls',
+        'set_perfil_estudiante',
+        'set_perfil_docente',
+        'set_perfil_profesional'
+    ]
     def exportar_asistentes_xls(self, request, queryset):
         """
         Exporta todos los asistentes seleccionados a un archivo Excel (.xls)
@@ -990,6 +1136,43 @@ class AsistenteAdmin(admin.ModelAdmin):
         
         self.message_user(request, f"{queued_count} certificados listos en la cola para ser procesados.")
     enviar_certificados.short_description = "Añadir certificados de seleccionados a la cola"  # type: ignore
+
+    # --- Método Visual Premium para Perfiles ---
+    def perfil_badge(self, obj):
+        colors = {
+            'STUDENT':             ('#065f46', '#d1fae5', '🎓 Estudiante'),
+            'GRADUADO':            ('#047857', '#ecfdf5', '🎓 Graduado'),
+            'TEACHER':             ('#1e3a8a', '#dbeafe', '🏫 Docente'),
+            'PROFESSIONAL':        ('#92400e', '#fef3c7', '💼 Profesional'),
+            'PRESS':               ('#5b21b6', '#ede9fe', '📢 Prensa'),
+            'GROUP_REPRESENTATIVE':('#3730a3', '#e0e7ff', '👥 Rep. Grupo'),
+            'VISITOR':             ('#374151', '#f3f4f6', '👤 Visitante'),
+            'OTRO':                ('#1f2937', '#e5e7eb', '❓ Otro'),
+        }
+        bg, fg, label = colors.get(obj.profile_type, ('#374151', '#f3f4f6', obj.get_profile_type_display()))
+        return format_html(
+            '<span style="background:{}; color:{}; padding:3px 10px; border-radius:12px; '
+            'font-weight:600; font-size:11px; white-space:nowrap; display:inline-block;">{}</span>',
+            fg, bg, label
+        )
+    perfil_badge.short_description = 'Perfil'
+    perfil_badge.admin_order_field = 'profile_type'
+
+    # --- Acciones Masivas Premium ---
+    def set_perfil_estudiante(self, request, queryset):
+        updated = queryset.update(profile_type='STUDENT')
+        self.message_user(request, f'✅ {updated} asistentes actualizados a perfil Estudiante.')
+    set_perfil_estudiante.short_description = '⚙️ Cambiar perfil de seleccionados a Estudiante'
+
+    def set_perfil_docente(self, request, queryset):
+        updated = queryset.update(profile_type='TEACHER')
+        self.message_user(request, f'✅ {updated} asistentes actualizados a perfil Docente.')
+    set_perfil_docente.short_description = '⚙️ Cambiar perfil de seleccionados a Docente'
+
+    def set_perfil_profesional(self, request, queryset):
+        updated = queryset.update(profile_type='PROFESSIONAL')
+        self.message_user(request, f'✅ {updated} asistentes actualizados a perfil Profesional.')
+    set_perfil_profesional.short_description = '⚙️ Cambiar perfil de seleccionados a Profesional'
 
 class CertificadoAdmin(admin.ModelAdmin):
     list_display = ('asistente', 'tipo_certificado', 'email_enviado', 'fecha_envio', 'intentos', 'fecha_generacion')

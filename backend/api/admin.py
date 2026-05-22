@@ -310,64 +310,131 @@ def broadcast_view(request):
         return HttpResponse(f"Error interno al cargar la vista de comunicaciones: {str(e)}. Consulte los logs del servidor.", status=500)
     
 
-def backup_database_view(request):
+def export_to_excel_action(modeladmin, request, queryset):
     """
-    Vista para descargar un backup (dump) completo de la base de datos PostgreSQL.
-    Solo accesible para superusers.
+    Acción global de Django Admin para exportar registros seleccionados/filtrados a Excel (.xlsx).
+    Muestra cabeceras legibles en español y resuelve llaves foráneas a sus strings.
     """
-    if not request.user.is_superuser:
-        return HttpResponse("No autorizado.", status=403)
-        
-    import subprocess
+    import io
+    import pandas as pd
     from datetime import datetime
+    from django.db import models
+    from django.utils import timezone
     
     try:
-        # Obtener configuración de base de datos de Django
-        from django.db import connection
-        db_settings = connection.settings_dict
-        
-        db_name = db_settings['NAME']
-        db_user = db_settings['USER']
-        db_password = db_settings['PASSWORD']
-        db_host = db_settings['HOST']
-        db_port = db_settings['PORT']
-        
-        # Preparar el archivo temporal
+        model = modeladmin.model
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"backup_congreso_{timestamp}.sql"
+        filename = f"export_{model._meta.model_name}_{timestamp}.xlsx"
         
-        # Ejecutar pg_dump
-        # Nota: En producción suele requerir PGPASSWORD en el entorno
-        env = os.environ.copy()
-        env['PGPASSWORD'] = db_password
-        
-        cmd = [
-            'pg_dump',
-            '-h', db_host,
-            '-p', str(db_port),
-            '-U', db_user,
-            '-F', 'p',  # Formato plain text para .sql
-            '-b',       # Incluir blobs
-            '-v',       # Verbose
-            db_name
-        ]
-        
-        process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        
-        if process.returncode != 0:
-            error_msg = stderr.decode() if isinstance(stderr, bytes) else str(stderr)
-            logger.error(f"Error en pg_dump: {error_msg}")
-            return HttpResponse(f"Error generando backup: {error_msg}", status=500)
+        # Optimizar consulta con select_related dinámico para llaves foráneas
+        fk_fields = [f.name for f in model._meta.fields if isinstance(f, (models.ForeignKey, models.OneToOneField))]
+        if fk_fields:
+            queryset = queryset.select_related(*fk_fields)
             
-        # Devolver el archivo como respuesta
-        response = HttpResponse(stdout, content_type='application/sql')
+        data = []
+        for obj in queryset:
+            row = {}
+            for f in model._meta.fields:
+                val = getattr(obj, f.name)
+                header = str(f.verbose_name).capitalize()
+                
+                if val is None:
+                    row[header] = ''
+                elif isinstance(f, (models.ForeignKey, models.OneToOneField)):
+                    row[header] = str(val)
+                elif isinstance(f, (models.DateTimeField, models.DateField)):
+                    if hasattr(val, 'tzinfo') and val is not None:
+                        row[header] = val.astimezone(timezone.get_current_timezone()).replace(tzinfo=None)
+                    else:
+                        row[header] = val
+                else:
+                    row[header] = val
+            data.append(row)
+            
+        df = pd.DataFrame(data)
+        
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name=model._meta.object_name[:31], index=False)
+            
+        output.seek(0)
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
         
     except Exception as e:
-        logger.error(f"Error en backup_database_view: {str(e)}", exc_info=True)
-        return HttpResponse(f"Error interno: {str(e)}", status=500)
+        logger.error(f"Error en export_to_excel_action: {str(e)}", exc_info=True)
+        messages.error(request, f"Error al exportar los datos a Excel: {str(e)}")
+        return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
+
+export_to_excel_action.short_description = "📊 Exportar seleccionados a Excel (.xlsx)"
+
+
+def backup_database_view(request):
+    """
+    Vista para descargar un backup completo de la base de datos en formato Excel (.xlsx).
+    Exporta cada modelo gestionado de las aplicaciones 'api' y 'bolsa_trabajo' 
+    en una pestaña individual. Solo accesible para superusers.
+    """
+    if not request.user.is_superuser:
+        return HttpResponse("No autorizado.", status=403)
+        
+    import io
+    import pandas as pd
+    from datetime import datetime
+    from django.apps import apps
+    
+    try:
+        custom_apps = ['api', 'bolsa_trabajo']
+        models_to_export = []
+        
+        for app_config in apps.get_app_configs():
+            if app_config.label in custom_apps:
+                for model in app_config.get_models():
+                    if model._meta.managed:
+                        models_to_export.append(model)
+                        
+        if not models_to_export:
+            messages.warning(request, "No se encontraron modelos para exportar.")
+            return redirect('admin:index')
+            
+        output = io.BytesIO()
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"backup_congreso_{timestamp}.xlsx"
+        
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            for model in models_to_export:
+                fields = [f.name for f in model._meta.fields]
+                queryset = model.objects.all()
+                data = list(queryset.values(*fields))
+                
+                df = pd.DataFrame(data, columns=fields)
+                
+                for col in df.columns:
+                    if isinstance(df[col].dtype, pd.DatetimeTZDtype):
+                        df[col] = df[col].dt.tz_localize(None)
+                    elif df[col].dtype == 'object':
+                        df[col] = df[col].apply(lambda x: x.replace(tzinfo=None) if hasattr(x, 'tzinfo') and x is not None else x)
+                
+                sheet_name = model._meta.object_name[:31]
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+                
+        output.seek(0)
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error en backup_database_view (.xlsx): {str(e)}", exc_info=True)
+        messages.error(request, f"Error generando backup en Excel: {str(e)}")
+        return redirect('admin:index')
+
 
 @admin.site.admin_view
 def certificate_queue_view(request):
@@ -431,8 +498,10 @@ def patch_admin_urls():
         return custom_urls + urls
     
     admin.site.get_urls = get_urls
-
+    
 patch_admin_urls()
+admin.site.add_action(export_to_excel_action)
+
 # Cambiar el título del índice para incluir un link directo con estilo HTML
 admin.site.index_title = format_html(
     'Admin Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Dashboard</a> | '

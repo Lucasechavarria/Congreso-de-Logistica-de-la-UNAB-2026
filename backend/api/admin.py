@@ -709,7 +709,7 @@ def manual_certificate_view(request):
 class InscripcionAdmin(admin.ModelAdmin):
     list_display = ('asistente', 'empresa', 'fecha_inscripcion_detalle', 'edicion')
     list_filter = ('edicion', 'fecha_inscripcion')
-    search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'empresa__razon_social')
+    search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'empresa__nombre_empresa')
     readonly_fields = ('fecha_inscripcion',)
     ordering = ['-fecha_inscripcion']
 

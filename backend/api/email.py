@@ -371,6 +371,9 @@ def send_bulk_confirmation_email(asistente, es_carga_masiva=False, es_recordator
         fecha_evento: String - Fecha del evento (formato YYYY-MM-DD), default usa fecha configurada
     """
     try:
+        # Definir el sufijo del asunto según sea recordatorio o no
+        subject_suffix = " (Recordatorio)" if es_recordatorio else ""
+        
         # Configurar fecha del evento
         if fecha_evento:
             from datetime import datetime

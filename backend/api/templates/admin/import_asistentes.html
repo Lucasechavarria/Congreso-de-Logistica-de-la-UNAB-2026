@@ -3,82 +3,99 @@
 
 {% block extrahead %}
 {{ block.super }}
-<!-- Importar Tipografías Modernas y de Alto Contraste -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Cargar Tema de Diseño Oscuro Global Compartido -->
+<link rel="stylesheet" href="{% static 'admin/css/admin_dark_theme.css' %}">
+<!-- Tipografías Premium y Consistentes -->
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
-    /* Reset e Integración de Fuente */
+    :root {
+        --bg: var(--dark-bg);
+        --card: var(--dark-card);
+        --card-glow: var(--dark-card-glow);
+        --p: var(--color-primary);
+        --b: var(--border-soft);
+        --txt: var(--text-primary);
+        --neon-cyan: var(--color-secondary);
+        --neon-magenta: var(--color-accent);
+    }
+
     #content-main {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-        background: #f8fafc;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        background: var(--bg) !important;
+        color: var(--txt) !important;
         padding: 0;
         margin: 0;
     }
 
-    /* Contenedor Principal Premium */
+    #content {
+        background: var(--bg) !important;
+        padding: 25px !important;
+    }
+
     .import-wrapper {
-        max-width: 900px;
+        max-width: 950px;
         margin: 30px auto;
         padding: 0 15px;
     }
 
     .import-card {
-        background: #ffffff;
+        background: var(--card);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         border-radius: 20px;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
-        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        border: 1px solid var(--b);
         padding: 40px;
         position: relative;
         overflow: hidden;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Cabecera Premium */
     .import-header {
         display: flex;
         align-items: center;
         gap: 20px;
         margin-bottom: 30px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--b);
         padding-bottom: 25px;
     }
 
     .import-header-icon {
         width: 60px;
         height: 60px;
-        background: linear-gradient(135deg, #e0f2fe, #dbeafe);
-        color: #2563eb;
+        background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(6, 182, 212, 0.15));
+        color: var(--color-secondary);
         border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 28px;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+        border: 1px solid var(--b);
+        box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
     }
 
     .import-header-text h2 {
         font-family: 'Plus Jakarta Sans', sans-serif !important;
         font-size: 24px !important;
         font-weight: 800 !important;
-        color: #0f172a !important;
+        color: #fff !important;
         margin: 0 !important;
         padding: 0 !important;
         letter-spacing: -0.5px;
         border: none !important;
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.35);
     }
 
     .import-header-text p {
         font-size: 14px;
-        color: #64748b;
+        color: var(--text-secondary);
         margin: 5px 0 0 0 !important;
     }
 
-    /* Cuadros de Requisitos Estilizados */
     .requirements-panel {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid var(--b);
         border-radius: 16px;
         padding: 24px;
         margin-bottom: 35px;
@@ -86,8 +103,8 @@
     }
 
     .requirements-panel:hover {
-        border-color: #cbd5e1;
-        background: #f1f5f9;
+        border-color: rgba(167, 139, 250, 0.3);
+        background: rgba(0, 0, 0, 0.45);
     }
 
     .requirements-title {
@@ -95,13 +112,13 @@
         align-items: center;
         gap: 10px;
         font-weight: 700;
-        color: #1e293b;
+        color: var(--color-primary);
         font-size: 15px;
         margin-bottom: 15px;
     }
 
     .requirements-title svg {
-        color: #3b82f6;
+        color: var(--color-secondary);
     }
 
     .requirements-list {
@@ -118,37 +135,62 @@
         align-items: flex-start;
         gap: 10px;
         font-size: 13.5px;
-        color: #334155;
+        color: var(--text-secondary);
         line-height: 1.4;
     }
 
     .requirements-list li strong {
-        color: #0f172a;
+        color: #fff;
     }
 
     .requirements-list li svg {
         flex-shrink: 0;
-        color: #10b981;
+        color: var(--color-success);
         margin-top: 2px;
     }
 
-    /* Área de Dropzone Drag & Drop */
+    /* Área de Dropzone Drag & Drop Oscuro */
     .dropzone-container {
-        border: 2px dashed #cbd5e1;
+        border: 2px dashed var(--b);
         border-radius: 16px;
-        padding: 40px 20px;
+        padding: 45px 20px;
         text-align: center;
-        background: #fafafa;
+        background: rgba(0, 0, 0, 0.25);
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         margin-bottom: 30px;
+        overflow: hidden;
     }
 
-    .dropzone-container:hover, .dropzone-container.dragover {
-        border-color: #2563eb;
-        background: #f0f7ff;
-        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.05);
+    /* Ondas pulsantes de drag over */
+    .dropzone-container::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    .dropzone-container.dragover {
+        border-color: var(--color-secondary);
+        background: rgba(6, 182, 212, 0.05);
+        box-shadow: 0 4px 25px rgba(6, 182, 212, 0.25);
+        transform: scale(1.01);
+    }
+
+    .dropzone-container.dragover::before {
+        opacity: 1;
+        animation: pulse-glow 1.5s infinite;
+    }
+
+    @keyframes pulse-glow {
+        0% { transform: scale(0.95); opacity: 0.5; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+        100% { transform: scale(0.95); opacity: 0.5; }
     }
 
     .dropzone-icon {
@@ -156,6 +198,8 @@
         margin-bottom: 15px;
         display: inline-block;
         transition: transform 0.3s ease;
+        position: relative;
+        z-index: 2;
     }
 
     .dropzone-container:hover .dropzone-icon {
@@ -164,14 +208,18 @@
 
     .dropzone-text {
         font-size: 16px;
-        font-weight: 600;
-        color: #334155;
+        font-weight: 700;
+        color: #fff;
         margin-bottom: 8px;
+        position: relative;
+        z-index: 2;
     }
 
     .dropzone-subtext {
         font-size: 13px;
-        color: #64748b;
+        color: var(--text-secondary);
+        position: relative;
+        z-index: 2;
     }
 
     .file-input {
@@ -182,6 +230,7 @@
         height: 100%;
         opacity: 0;
         cursor: pointer;
+        z-index: 3;
     }
 
     /* Tarjeta de Archivo Seleccionado */
@@ -189,8 +238,8 @@
         display: none;
         align-items: center;
         justify-content: space-between;
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
+        background: rgba(16, 185, 129, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.3);
         padding: 16px 20px;
         border-radius: 12px;
         margin-bottom: 30px;
@@ -209,19 +258,19 @@
 
     .file-name {
         font-weight: 700;
-        color: #166534;
+        color: #6ee7b7;
         font-size: 14.5px;
     }
 
     .file-size {
         font-size: 12.5px;
-        color: #15803d;
+        color: var(--color-success);
     }
 
     .btn-remove-file {
         background: transparent;
         border: none;
-        color: #b91c1c;
+        color: var(--color-accent);
         cursor: pointer;
         padding: 5px;
         border-radius: 6px;
@@ -232,7 +281,7 @@
     }
 
     .btn-remove-file:hover {
-        background: #fee2e2;
+        background: rgba(244, 63, 94, 0.15);
     }
 
     /* Switch Premium para Email */
@@ -240,8 +289,8 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid var(--b);
         padding: 20px;
         border-radius: 16px;
         margin-bottom: 35px;
@@ -255,7 +304,7 @@
 
     .toggle-label {
         font-weight: 700;
-        color: #1e293b;
+        color: #fff;
         font-size: 14.5px;
         display: flex;
         align-items: center;
@@ -264,10 +313,9 @@
 
     .toggle-description {
         font-size: 12.5px;
-        color: #64748b;
+        color: var(--text-secondary);
     }
 
-    /* Switch CSS */
     .switch {
         position: relative;
         display: inline-block;
@@ -285,11 +333,8 @@
     .slider {
         position: absolute;
         cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #cbd5e1;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(255, 255, 255, 0.15);
         transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
         border-radius: 34px;
     }
@@ -304,11 +349,11 @@
         background-color: white;
         transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
         border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 
     input:checked + .slider {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        background: linear-gradient(135deg, var(--color-secondary), #2563eb);
     }
 
     input:checked + .slider:before {
@@ -324,59 +369,27 @@
         margin-top: 10px;
     }
 
-    .btn-primary {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: white !important;
-        font-weight: 700;
-        padding: 14px 28px;
-        border-radius: 12px;
-        border: none;
-        cursor: pointer;
-        font-size: 15px;
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-        transition: all 0.2s ease;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
-    }
-
-    .btn-primary:active {
-        transform: translateY(0);
-    }
-
-    .btn-primary:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-        transform: none !important;
-        box-shadow: none !important;
-    }
-
     .btn-secondary {
         background: transparent;
-        color: #475569 !important;
-        font-weight: 600;
-        padding: 14px 24px;
-        border-radius: 12px;
-        border: 1px solid #cbd5e1;
+        color: var(--text-secondary) !important;
+        font-weight: 700;
+        padding: 12px 24px;
+        border-radius: 8px;
+        border: 1px solid var(--b);
         cursor: pointer;
-        font-size: 15px;
+        font-size: 14px;
         display: inline-flex;
         align-items: center;
         transition: all 0.2s ease;
     }
 
     .btn-secondary:hover {
-        background: #f8fafc;
-        color: #1e293b !important;
-        border-color: #94a3b8;
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff !important;
+        border-color: rgba(255, 255, 255, 0.25);
     }
 
-    /* Pantalla de Carga y Procesamiento Progresivo */
+    /* Contenedores de pasos */
     .step-container {
         display: none;
         animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
@@ -386,17 +399,80 @@
         display: block;
     }
 
-    /* Vista de Previsualización (Paso 2) */
+    /* ==========================================================================
+       PASO 2: MAPEO INTELIGENTE DE COLUMNAS
+       ========================================================================== */
+    .mapping-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 30px;
+    }
+
+    .mapping-row {
+        display: grid;
+        grid-template-columns: 240px 40px 1fr;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 14px 20px;
+        border-radius: 12px;
+        border: 1px solid var(--b);
+        transition: all 0.2s ease;
+    }
+
+    .mapping-row:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(167, 139, 250, 0.2);
+    }
+
+    .mapping-label {
+        font-weight: 700;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #fff;
+    }
+
+    .mapping-required-badge {
+        font-size: 10px;
+        background: rgba(244, 63, 94, 0.15);
+        color: var(--neon-magenta);
+        border: 1px solid rgba(244, 63, 94, 0.3);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 700;
+    }
+
+    .mapping-optional-badge {
+        font-size: 10px;
+        background: rgba(6, 182, 212, 0.1);
+        color: var(--neon-cyan);
+        border: 1px solid rgba(6, 182, 212, 0.2);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    .mapping-arrow {
+        color: var(--text-muted);
+        text-align: center;
+        font-size: 18px;
+    }
+
+    /* ==========================================================================
+       PREVISUALIZACIÓN DE TABLA Y ESTADÍSTICAS
+       ========================================================================== */
     .preview-stats {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
         gap: 20px;
         margin-bottom: 30px;
     }
 
     .stat-box {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid var(--b);
         border-radius: 16px;
         padding: 20px;
         display: flex;
@@ -415,51 +491,59 @@
     }
 
     .stat-box-icon.total {
-        background: #eff6ff;
-        color: #2563eb;
+        background: rgba(6, 182, 212, 0.15);
+        color: var(--color-secondary);
+        border: 1px solid rgba(6, 182, 212, 0.3);
     }
 
-    .stat-box-icon.validation {
-        background: #ecfdf5;
-        color: #10b981;
+    .stat-box-icon.success {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--color-success);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .stat-box-icon.errors {
+        background: rgba(244, 63, 94, 0.15);
+        color: var(--neon-magenta);
+        border: 1px solid rgba(244, 63, 94, 0.3);
     }
 
     .stat-box-data .num {
         font-size: 24px;
         font-weight: 800;
-        color: #0f172a;
+        color: #fff;
         line-height: 1.1;
     }
 
     .stat-box-data .label {
         font-size: 13px;
-        color: #64748b;
+        color: var(--text-secondary);
         margin-top: 4px;
+        font-weight: 600;
     }
 
-    /* Tabla de Previsualización */
     .preview-table-wrapper {
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--b);
         border-radius: 12px;
         overflow: hidden;
         margin-bottom: 30px;
-        background: #ffffff;
+        background: rgba(0, 0, 0, 0.25);
     }
 
     .preview-table-header {
-        background: #f8fafc;
+        background: rgba(255, 255, 255, 0.02);
         padding: 12px 20px;
         font-weight: 700;
         font-size: 13px;
-        color: #475569;
-        border-bottom: 1px solid #e2e8f0;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--b);
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
     .preview-table-scroll {
-        max-height: 200px;
+        max-height: 220px;
         overflow-y: auto;
     }
 
@@ -471,23 +555,33 @@
     }
 
     .preview-table th {
-        background: #f1f5f9;
-        padding: 10px 15px;
-        color: #475569;
-        font-weight: 600;
+        background: rgba(0, 0, 0, 0.4);
+        padding: 12px 15px;
+        color: var(--color-primary);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--b);
     }
 
     .preview-table td {
         padding: 10px 15px;
-        border-bottom: 1px solid #f1f5f9;
-        color: #0f172a;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        color: #fff;
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
         max-width: 180px;
     }
 
-    /* Vista del Progreso de Carga (Paso 3) */
+    .preview-table tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* ==========================================================================
+       PASO 3: PROGRESO Y CONSOLA CYBERPUNK
+       ========================================================================== */
     .progress-header {
         display: flex;
         justify-content: space-between;
@@ -504,113 +598,59 @@
     .progress-title {
         font-weight: 800;
         font-size: 18px;
-        color: #0f172a;
+        color: #fff;
     }
 
     .progress-subtitle {
         font-size: 13px;
-        color: #64748b;
+        color: var(--text-secondary);
     }
 
     .progress-percentage {
         font-size: 28px;
         font-weight: 800;
-        color: #2563eb;
+        color: var(--color-secondary);
         line-height: 1;
     }
 
-    /* Barra de Progreso Glimmer */
     .progress-bar-bg {
         width: 100%;
         height: 12px;
-        background: #f1f5f9;
+        background: rgba(255, 255, 255, 0.05);
         border-radius: 6px;
         overflow: hidden;
         margin-bottom: 30px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .progress-bar-fill {
         height: 100%;
         width: 0%;
-        background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
+        background: linear-gradient(90deg, var(--color-secondary), var(--color-primary), var(--color-secondary));
         background-size: 200% 100%;
         border-radius: 6px;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
         transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         animation: shimmer 2s infinite linear;
     }
 
-    @keyframes shimmer {
-        0% { background-position: 0% 50%; }
-        100% { background-position: 200% 50%; }
-    }
-
-    /* Contadores de Estado */
-    .counter-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 15px;
-        margin-bottom: 30px;
-    }
-
-    .counter-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 15px;
-        text-align: center;
-    }
-
-    .counter-card.success {
-        border-color: #bbf7d0;
-        background: #f0fdf4;
-    }
-
-    .counter-card.warn {
-        border-color: #fef08a;
-        background: #fefce8;
-    }
-
-    .counter-card.error {
-        border-color: #fecaca;
-        background: #fef2f2;
-    }
-
-    .counter-num {
-        font-size: 20px;
-        font-weight: 800;
-        color: #0f172a;
-    }
-
-    .counter-card.success .counter-num { color: #15803d; }
-    .counter-card.warn .counter-num { color: #a16207; }
-    .counter-card.error .counter-num { color: #b91c1c; }
-
-    .counter-label {
-        font-size: 12px;
-        font-weight: 600;
-        color: #64748b;
-        margin-top: 4px;
-    }
-
-    /* Consola de Bitácora Estilo Terminal */
     .terminal-console {
         background: #090d16;
         border-radius: 14px;
         border: 1px solid #1e293b;
-        padding: 20px;
-        box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+        padding: 0;
+        box-shadow: inset 0 2px 10px rgba(0,0,0,0.6);
         margin-bottom: 30px;
+        overflow: hidden;
     }
 
     .terminal-titlebar {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        background: #111827;
         border-bottom: 1px solid #1e293b;
-        padding-bottom: 12px;
-        margin-bottom: 12px;
+        padding: 10px 16px;
     }
 
     .terminal-dots {
@@ -631,21 +671,22 @@
     .terminal-title {
         font-family: 'Fira Code', monospace;
         font-size: 11px;
-        color: #64748b;
+        color: var(--text-secondary);
         letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-weight: 600;
     }
 
     .terminal-log-area {
-        height: 180px;
+        height: 190px;
         overflow-y: auto;
         font-family: 'Fira Code', monospace;
         font-size: 12px;
         line-height: 1.6;
         color: #e2e8f0;
-        padding-right: 10px;
+        padding: 15px 20px;
     }
 
-    /* Scrollbar Personalizado para la Consola */
     .terminal-log-area::-webkit-scrollbar {
         width: 6px;
     }
@@ -656,49 +697,48 @@
         background: #334155;
         border-radius: 3px;
     }
-    .terminal-log-area::-webkit-scrollbar-thumb:hover {
-        background: #475569;
-    }
 
     .log-line {
         margin-bottom: 6px;
         display: flex;
         align-items: flex-start;
-        gap: 8px;
-        animation: fadeSlideIn 0.15s ease-out forwards;
     }
 
     .log-time {
-        color: #475569;
+        color: #6366f1;
+        margin-right: 10px;
         flex-shrink: 0;
     }
 
     .log-msg {
-        word-break: break-word;
+        word-break: break-all;
     }
 
-    .log-info { color: #38bdf8; }
-    .log-success { color: #4ade80; }
-    .log-warn { color: #fbbf24; }
-    .log-error { color: #f87171; }
+    .log-info { color: var(--color-secondary); }
+    .log-success { color: var(--color-success); text-shadow: 0 0 8px rgba(16, 185, 129, 0.2); }
+    .log-warn { color: var(--color-warning); text-shadow: 0 0 8px rgba(245, 158, 11, 0.2); }
+    .log-error { color: var(--neon-magenta); text-shadow: 0 0 8px rgba(244, 63, 94, 0.2); }
 
-    /* Vista Final (Paso 4) */
+    /* ==========================================================================
+       PASO 4: RESUMEN FINAL
+       ========================================================================== */
     .success-badge-container {
         text-align: center;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
     }
 
     .success-badge {
         width: 80px;
         height: 80px;
-        background: #dcfce7;
-        color: #15803d;
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--color-success);
+        border: 1px solid rgba(16, 185, 129, 0.3);
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         font-size: 40px;
-        box-shadow: 0 8px 24px rgba(22, 101, 52, 0.15);
+        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
         animation: scalePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     }
 
@@ -706,23 +746,22 @@
         text-align: center;
         font-size: 22px;
         font-weight: 800;
-        color: #0f172a;
+        color: #fff;
         margin-bottom: 10px;
     }
 
     .summary-desc {
         text-align: center;
         font-size: 14.5px;
-        color: #64748b;
+        color: var(--text-secondary);
         max-width: 500px;
-        margin: 0 auto 35px auto;
+        margin: 0 auto 30px auto;
         line-height: 1.5;
     }
 
-    /* Detalle de Errores Final */
     .error-details-card {
-        background: #fef2f2;
-        border: 1px solid #fee2e2;
+        background: rgba(244, 63, 94, 0.08);
+        border: 1px solid rgba(244, 63, 94, 0.3);
         border-radius: 14px;
         padding: 24px;
         margin-bottom: 30px;
@@ -732,7 +771,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        color: #991b1b;
+        color: #fca5a5;
         font-weight: 700;
         font-size: 15px;
         margin-bottom: 12px;
@@ -744,19 +783,13 @@
         padding-left: 20px;
         margin: 0;
         font-size: 13.5px;
-        color: #b91c1c;
+        color: #fca5a5;
         line-height: 1.6;
     }
 
-    /* Animaciones */
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes fadeSlideIn {
-        from { opacity: 0; transform: translateX(-5px); }
-        to { opacity: 1; transform: translateX(0); }
     }
 
     @keyframes scalePop {
@@ -767,13 +800,13 @@
 {% endblock %}
 
 {% block content %}
-<div id="content-main">
-    <!-- Breadcrumbs Integrados -->
-    <div class="breadcrumbs" style="background: none; border: none; margin: 0 0 10px 0; padding: 0 15px;">
-        <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
-        &rsaquo; <a href="{% url 'admin:app_list' app_label='api' %}">API</a>
-        &rsaquo; <a href="{% url 'admin:api_asistente_changelist' %}">Asistentes</a>
-        &rsaquo; {% trans 'Carga Masiva' %}
+<div id="content-main" class="dark-theme-container">
+    <!-- Breadcrumbs -->
+    <div class="breadcrumbs" style="background: none; border: none; margin: 0 0 15px 0; padding: 0 15px;">
+        <a href="{% url 'admin:index' %}" style="color: var(--text-secondary);">{% trans 'Home' %}</a>
+        &rsaquo; <a href="{% url 'admin:app_list' app_label='api' %}" style="color: var(--text-secondary);">API</a>
+        &rsaquo; <a href="{% url 'admin:api_asistente_changelist' %}" style="color: var(--text-secondary);">Asistentes</a>
+        &rsaquo; <span style="color: var(--color-primary);">{% trans 'Carga Masiva' %}</span>
     </div>
 
     <div class="import-wrapper">
@@ -789,257 +822,207 @@
                     </div>
                 </div>
 
-                <!-- Requisitos del archivo con Alto Contraste -->
+                <!-- Requisitos estructurados -->
                 <div class="requirements-panel">
                     <div class="requirements-title">
                         <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                         </svg>
-                        Estructura Requerida del Archivo
+                        Estructura Mapeada Soportada
                     </div>
                     <ul class="requirements-list">
                         <li>
-                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                             </svg>
-                            <span>Columnas obligatorias: <strong>nombre</strong>, <strong>apellido</strong>, <strong>email</strong>, <strong>dni</strong>.</span>
+                            <span><strong>dni:</strong> Cédula o identificación (único)</span>
                         </li>
                         <li>
-                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                             </svg>
-                            <span>Columnas opcionales: <strong>telefono</strong>, <strong>perfil</strong>, <strong>institucion</strong>, <strong>carrera</strong>, <strong>comision</strong>.</span>
+                            <span><strong>email:</strong> Correo electrónico único</span>
                         </li>
                         <li>
-                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                             </svg>
-                            <span>Perfiles: VISITOR, STUDENT, TEACHER, PROFESSIONAL, PRESS, GRADUADO, OTRO.</span>
+                            <span><strong>nombre:</strong> Primer y segundo nombre</span>
                         </li>
                         <li>
-                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                             </svg>
-                            <span>Evita duplicados: El sistema valida DNI e Email para actualizar si ya existen.</span>
+                            <span><strong>apellido:</strong> Apellidos del asistente</span>
                         </li>
                     </ul>
                 </div>
-
-                <!-- Dropzone Premium -->
+                
+                <!-- Área de Carga Drag & Drop -->
                 <div class="dropzone-container" id="dropzone">
                     <span class="dropzone-icon">📥</span>
-                    <div class="dropzone-text">Arrastra y suelta tu archivo Excel o CSV aquí</div>
-                    <div class="dropzone-subtext">o haz clic para explorar en tu equipo</div>
-                    <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" class="file-input">
+                    <div class="dropzone-text">Arrastra tu archivo Excel o haz clic para buscar</div>
+                    <div class="dropzone-subtext">Formatos soportados: .xlsx, .xls, .csv</div>
+                    <input type="file" id="fileInput" class="file-input" accept=".xlsx, .xls, .csv">
                 </div>
 
-                <!-- Archivo Seleccionado -->
-                <div class="selected-file-card" id="file-card">
+                <!-- Tarjeta de Archivo Seleccionado -->
+                <div class="selected-file-card" id="fileCard">
                     <div class="file-details">
                         <span class="file-details-icon">📄</span>
                         <div>
-                            <div class="file-name" id="file-card-name">nombre_del_archivo.xlsx</div>
-                            <div class="file-size" id="file-card-size">0 KB</div>
+                            <span class="file-name" id="fileName">archivo.xlsx</span>
+                            <span class="file-size" id="fileSize"> (0 KB)</span>
                         </div>
                     </div>
-                    <button type="button" class="btn-remove-file" id="btn-remove-file" title="Quitar archivo">
-                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    <button class="btn-remove-file" id="btnRemoveFile" title="Quitar archivo">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                         </svg>
                     </button>
                 </div>
 
-                <!-- Toggle Premium para Correos -->
+                <!-- Switch de Envíos de Email de Bienvenida -->
                 <div class="toggle-wrapper">
                     <div class="toggle-info">
-                        <span class="toggle-label">
-                            ✉️ Enviar correo de confirmación
-                        </span>
-                        <span class="toggle-description">Envía un email individual de bienvenida tras procesar cada asistente de la lista.</span>
+                        <div class="toggle-label">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L22 8m-9 11h.01M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z"/>
+                            </svg>
+                            Enviar correo de confirmación
+                        </div>
+                        <div class="toggle-description">Despacha automáticamente el mail de bienvenida tras importar exitosamente cada fila.</div>
                     </div>
                     <label class="switch">
-                        <input type="checkbox" id="send_emails_input" checked>
+                        <input type="checkbox" id="sendEmailsToggle" checked>
                         <span class="slider"></span>
                     </label>
                 </div>
 
-                <!-- Botones -->
+                <!-- Acciones -->
                 <div class="actions-row">
-                    <a href="{% url 'admin:api_asistente_changelist' %}" class="btn-secondary">Volver a Asistentes</a>
-                    <button type="button" class="btn-primary" id="btn-submit-upload" disabled>
-                        <span>Analizar Archivo</span>
-                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                        </svg>
-                    </button>
+                    <a href="{% url 'admin:api_asistente_changelist' %}" class="btn-secondary">Cancelar</a>
+                    <button class="btn-neon-cyan" id="btnUpload" disabled>Validar Archivo &rsaquo;</button>
                 </div>
             </div>
 
-            <!-- PASO 2: Confirmación y Vista Previa de Filas -->
-            <div id="step-preview" class="step-container">
+            <!-- PASO 2: MAPEO INTELIGENTE DE COLUMNAS -->
+            <div id="step-mapping" class="step-container">
                 <div class="import-header">
-                    <div class="import-header-icon" style="background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #059669;">📋</div>
+                    <div class="import-header-icon">🔗</div>
                     <div class="import-header-text">
-                        <h2>Verificación de Registros</h2>
-                        <p>Hemos analizado el archivo. Confirma los datos antes de iniciar la importación masiva.</p>
+                        <h2>Mapeador Inteligente de Columnas</h2>
+                        <p>Correlaciona las cabeceras de tu archivo con los campos del sistema.</p>
                     </div>
                 </div>
 
-                <div class="preview-stats">
-                    <div class="stat-box">
-                        <div class="stat-box-icon total">📊</div>
-                        <div class="stat-box-data">
-                            <div class="num" id="preview-stat-total">0</div>
-                            <div class="label">Total de filas encontradas</div>
-                        </div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-box-icon validation">✅</div>
-                        <div class="stat-box-data">
-                            <div class="num" id="preview-stat-valid">0</div>
-                            <div class="label">Registros listos para procesar</div>
-                        </div>
-                    </div>
+                <!-- Grid de Columnas -->
+                <div class="mapping-grid" id="mappingGrid">
+                    <!-- Se inyecta dinámicamente con JS -->
                 </div>
 
+                <!-- Previsualización Dinámica de Filas -->
                 <div class="preview-table-wrapper">
                     <div class="preview-table-header">
-                        <span>Vista previa del archivo (Primeros 5 registros)</span>
-                        <span style="color: #64748b; font-weight: normal;" id="preview-filename-badge">archivo.xlsx</span>
+                        <span>Previsualización de los primeros registros mapeados</span>
+                        <span id="previewCountBadge" class="mapping-optional-badge">3 registros</span>
                     </div>
                     <div class="preview-table-scroll">
                         <table class="preview-table">
                             <thead>
-                                <tr>
-                                    <th>Fila</th>
-                                    <th>DNI</th>
-                                    <th>Nombre Completo</th>
-                                    <th>Email</th>
-                                    <th>Perfil</th>
+                                <tr id="previewTableHeader">
+                                    <!-- Dinámico -->
                                 </tr>
                             </thead>
-                            <tbody id="preview-table-body">
-                                <!-- Filas dinámicas -->
+                            <tbody id="previewTableBody">
+                                <!-- Dinámico -->
                             </tbody>
                         </table>
                     </div>
                 </div>
 
                 <div class="actions-row">
-                    <button type="button" class="btn-secondary" id="btn-back-to-upload">Cambiar Archivo</button>
-                    <button type="button" class="btn-primary" id="btn-start-import" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
-                        <span>🚀 Iniciar Importación de <span id="btn-import-count">0</span> Registros</span>
-                    </button>
+                    <button class="btn-secondary" id="btnBackToUpload">&lsaquo; Volver</button>
+                    <button class="btn-neon-cyan" id="btnConfirmMapping">Iniciar Importación 🚀</button>
                 </div>
             </div>
 
-            <!-- PASO 3: Procesamiento en Vivo -->
-            <div id="step-progress" class="step-container">
+            <!-- PASO 3: PROCESAMIENTO Y LOGS EN VIVO -->
+            <div id="step-importing" class="step-container">
                 <div class="progress-header">
                     <div class="progress-title-container">
-                        <span class="progress-title">Importación Masiva en Progreso</span>
-                        <span class="progress-subtitle">Procesando por lotes individuales para evitar saturación de red...</span>
+                        <span class="progress-title">Importando Registros</span>
+                        <span id="progressStepSubtitle" class="progress-subtitle">Procesando filas...</span>
                     </div>
-                    <div class="progress-percentage" id="progress-percent">0%</div>
+                    <span id="progressPercentageText" class="progress-percentage">0%</span>
                 </div>
 
-                <!-- Barra de progreso Glimmer -->
                 <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                    <div id="progressBarFill" class="progress-bar-fill"></div>
                 </div>
 
                 <!-- Contadores Dinámicos -->
-                <div class="counter-grid">
-                    <div class="counter-card">
-                        <div class="counter-num" id="count-total">0</div>
-                        <div class="counter-label">Total</div>
+                <div class="preview-stats">
+                    <div class="stat-box">
+                        <div class="stat-box-icon total">📂</div>
+                        <div class="stat-box-data">
+                            <span class="num" id="totalRowsCount">0</span>
+                            <span class="label">Total Filas</span>
+                        </div>
                     </div>
-                    <div class="counter-card success">
-                        <div class="counter-num" id="count-created">0</div>
-                        <div class="counter-label">Creados</div>
+                    <div class="stat-box">
+                        <div class="stat-box-icon success">✓</div>
+                        <div class="stat-box-data">
+                            <span class="num" id="importedRowsCount" style="color: var(--color-success);">0</span>
+                            <span class="label">Importados</span>
+                        </div>
                     </div>
-                    <div class="counter-card warn">
-                        <div class="counter-num" id="count-updated">0</div>
-                        <div class="counter-label">Actualizados</div>
-                    </div>
-                    <div class="counter-card error">
-                        <div class="counter-num" id="count-errors">0</div>
-                        <div class="counter-label">Errores</div>
+                    <div class="stat-box">
+                        <div class="stat-box-icon errors">✗</div>
+                        <div class="stat-box-data">
+                            <span class="num" id="failedRowsCount" style="color: var(--neon-magenta);">0</span>
+                            <span class="label">Errores</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Terminal Console -->
+                <!-- Consola Cyberpunk de logs -->
                 <div class="terminal-console">
                     <div class="terminal-titlebar">
                         <div class="terminal-dots">
-                            <span class="terminal-dot r"></span>
-                            <span class="terminal-dot y"></span>
-                            <span class="terminal-dot g"></span>
+                            <div class="terminal-dot r"></div>
+                            <div class="terminal-dot y"></div>
+                            <div class="terminal-dot g"></div>
                         </div>
-                        <div class="terminal-title">LIVE CONSOLE LOG</div>
+                        <span class="terminal-title">Import console log</span>
+                        <div style="width: 42px;"></div>
                     </div>
-                    <div class="terminal-log-area" id="terminal-logs">
-                        <!-- Mensajes de log en tiempo real -->
+                    <div class="terminal-log-area" id="terminalLog">
+                        <!-- logs -->
                     </div>
-                </div>
-
-                <div class="actions-row">
-                    <button type="button" class="btn-secondary" id="btn-pause-import" style="color: #d97706 !important; border-color: #f59e0b;">
-                        <span>⏸️ Pausar</span>
-                    </button>
                 </div>
             </div>
 
-            <!-- PASO 4: Resumen y Reporte Final -->
-            <div id="step-final" class="step-container">
+            <!-- PASO 4: RESUMEN FINAL -->
+            <div id="step-summary" class="step-container">
                 <div class="success-badge-container">
-                    <div class="success-badge" id="final-badge">🎉</div>
+                    <div class="success-badge">✓</div>
                 </div>
+                <h3 class="summary-title">¡Procesamiento Finalizado!</h3>
+                <p class="summary-desc" id="summaryDesc">La lista de asistentes ha sido procesada de manera segura.</p>
 
-                <h2 class="summary-title" id="final-title">¡Procesamiento Completado!</h2>
-                <p class="summary-desc" id="final-desc">La carga de datos ha finalizado correctamente. A continuación se detallan las estadísticas de la operación.</p>
-
-                <!-- Cuadrícula de Resumen Fijo -->
-                <div class="counter-grid" style="margin-bottom: 35px;">
-                    <div class="counter-card">
-                        <div class="counter-num" id="final-total">0</div>
-                        <div class="counter-label">Procesados</div>
-                    </div>
-                    <div class="counter-card success">
-                        <div class="counter-num" id="final-created">0</div>
-                        <div class="counter-label">Creados Nuevos</div>
-                    </div>
-                    <div class="counter-card warn">
-                        <div class="counter-num" id="final-updated">0</div>
-                        <div class="counter-label">Actualizados</div>
-                    </div>
-                    <div class="counter-card error">
-                        <div class="counter-num" id="final-errors">0</div>
-                        <div class="counter-label">Fallidos</div>
-                    </div>
-                </div>
-
-                <!-- Detalle de Errores (Se muestra solo si hay fallas) -->
-                <div class="error-details-card" id="final-error-panel" style="display: none;">
+                <!-- Detalle de Errores -->
+                <div class="error-details-card" id="errorDetailsCard" style="display: none;">
                     <div class="error-details-title">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                        Listado de Errores Registrados:
+                        ⚠️ Errores Críticos durante la Importación (<span id="totalErrorsCountBadge">0</span>)
                     </div>
-                    <ul class="error-details-list" id="final-errors-list">
-                        <!-- Detalles de error -->
-                    </ul>
+                    <ol class="error-details-list" id="errorDetailsList">
+                        <!-- Inyectado con JS -->
+                    </ol>
                 </div>
 
                 <div class="actions-row">
-                    <button type="button" class="btn-secondary" id="btn-restart">Importar Otro Archivo</button>
-                    <a href="{% url 'admin:api_asistente_changelist' %}" class="btn-primary" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">
-                        <span>Ir a la lista de Asistentes</span>
-                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </a>
+                    <a href="{% url 'admin:api_asistente_changelist' %}" class="btn-neon-cyan">Volver a Asistentes</a>
                 </div>
             </div>
 
@@ -1047,419 +1030,410 @@
     </div>
 </div>
 
+<!-- Librería de Lectura de Excel en Frontend (SheetJS) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        // Variables de Estado de la Carga
-        let selectedFile = null;
-        let parsedRows = [];
-        let totalRows = 0;
-        let isPaused = false;
-        let processedIndex = 0;
+    let selectedFile = null;
+    let excelHeaders = [];
+    let excelDataRows = [];
+    
+    // Configuración de campos del modelo y sinónimos para mapeo inteligente
+    const targetFields = [
+        { key: 'dni', label: 'DNI / Identificación', required: true, synonyms: ['dni', 'documento', 'cedula', 'cédula', 'identificación', 'identificacion', 'rut', 'id'] },
+        { key: 'email', label: 'Email', required: true, synonyms: ['email', 'correo', 'mail', 'contacto', 'correo electrónico', 'correo electronico'] },
+        { key: 'nombre', label: 'Nombre', required: true, synonyms: ['nombre', 'nombres', 'first name', 'first_name', 'nombre completo'] },
+        { key: 'apellido', label: 'Apellido', required: true, synonyms: ['apellido', 'apellidos', 'last name', 'last_name'] },
+        { key: 'telefono', label: 'Teléfono (Opcional)', required: false, synonyms: ['telefono', 'teléfono', 'celular', 'phone', 'movil', 'móvil', 'contacto_tel'] },
+        { key: 'perfil', label: 'Perfil (Opcional)', required: false, synonyms: ['perfil', 'tipo', 'profile', 'profile_type', 'tipo_perfil'] },
+        { key: 'institucion', label: 'Institución (Opcional)', required: false, synonyms: ['institucion', 'institución', 'universidad', 'empresa', 'organización', 'organization', 'institution', 'colegio'] },
+        { key: 'carrera', label: 'Carrera / Cargo (Opcional)', required: false, synonyms: ['carrera', 'cargo', 'career', 'job', 'position', 'curso_año'] },
+        { key: 'comision', label: 'Comisión (Opcional)', required: false, synonyms: ['comision', 'comisión', 'curso', 'aula', 'comision_excel'] }
+    ];
 
-        // Estadísticas de Carga
-        let stats = {
-            created: 0,
-            updated: 0,
-            errors: 0,
-            errorDetails: []
+    let fieldMappings = {}; // Almacenará: { 'dni': 'columna_excel', ... }
+
+    // Referencias UI
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const fileCard = document.getElementById('fileCard');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const btnRemoveFile = document.getElementById('btnRemoveFile');
+    const btnUpload = document.getElementById('btnUpload');
+    const sendEmailsToggle = document.getElementById('sendEmailsToggle');
+
+    const stepUpload = document.getElementById('step-upload');
+    const stepMapping = document.getElementById('step-mapping');
+    const stepImporting = document.getElementById('step-importing');
+    const stepSummary = document.getElementById('step-summary');
+
+    const mappingGrid = document.getElementById('mappingGrid');
+    const previewTableHeader = document.getElementById('previewTableHeader');
+    const previewTableBody = document.getElementById('previewTableBody');
+    const btnBackToUpload = document.getElementById('btnBackToUpload');
+    const btnConfirmMapping = document.getElementById('btnConfirmMapping');
+
+    // Drag and Drop
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            handleFileSelection(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelection(e.target.files[0]);
+        }
+    });
+
+    btnRemoveFile.addEventListener('click', () => {
+        selectedFile = null;
+        excelHeaders = [];
+        excelDataRows = [];
+        fileInput.value = '';
+        fileCard.style.display = 'none';
+        dropzone.style.display = 'block';
+        btnUpload.disabled = true;
+    });
+
+    function handleFileSelection(file) {
+        selectedFile = file;
+        fileName.innerText = file.name;
+        fileSize.innerText = ` (${Math.round(file.size / 1024)} KB)`;
+        dropzone.style.display = 'none';
+        fileCard.style.display = 'flex';
+        btnUpload.disabled = false;
+    }
+
+    // Al hacer clic en "Validar Archivo"
+    btnUpload.addEventListener('click', () => {
+        if (!selectedFile) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Obtener cabeceras y filas con SheetJS
+                excelHeaders = getSheetHeaders(worksheet);
+                excelDataRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                if (excelHeaders.length === 0 || excelDataRows.length === 0) {
+                    alert("El archivo cargado parece estar vacío o no tiene una estructura válida.");
+                    return;
+                }
+
+                // Ejecutar Mapeo Inteligente e ir al paso 2
+                buildMappingUI();
+                switchStep(stepUpload, stepMapping);
+
+            } catch (err) {
+                alert("Error al leer el archivo Excel: " + err.message);
+            }
         };
+        reader.readAsArrayBuffer(selectedFile);
+    });
 
-        // Elementos DOM
-        const dropzone = document.getElementById("dropzone");
-        const fileInput = document.getElementById("excel_file_input");
-        const fileCard = document.getElementById("file-card");
-        const fileCardName = document.getElementById("file-card-name");
-        const fileCardSize = document.getElementById("file-card-size");
-        const btnRemoveFile = document.getElementById("btn-remove-file");
-        const sendEmailsInput = document.getElementById("send_emails_input");
-        const btnSubmitUpload = document.getElementById("btn-submit-upload");
+    function getSheetHeaders(sheet) {
+        const headers = [];
+        if (!sheet['!ref']) return [];
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+        const R = range.s.r; // primera fila
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cell = sheet[XLSX.utils.encode_cell({ c: C, r: R })];
+            let hdr = "Columna " + (C + 1);
+            if (cell && cell.t) hdr = XLSX.utils.format_cell(cell).trim();
+            headers.push(hdr);
+        }
+        return headers;
+    }
 
-        // Elementos del Paso 2
-        const stepUpload = document.getElementById("step-upload");
-        const stepPreview = document.getElementById("step-preview");
-        const previewStatTotal = document.getElementById("preview-stat-total");
-        const previewStatValid = document.getElementById("preview-stat-valid");
-        const previewFilenameBadge = document.getElementById("preview-filename-badge");
-        const previewTableBody = document.getElementById("preview-table-body");
-        const btnBackToUpload = document.getElementById("btn-back-to-upload");
-        const btnStartImport = document.getElementById("btn-start-import");
-        const btnImportCount = document.getElementById("btn-import-count");
+    // Construir la UI del Mapeador de Columnas
+    function buildMappingUI() {
+        mappingGrid.innerHTML = '';
+        fieldMappings = {};
 
-        // Elementos del Paso 3
-        const stepProgress = document.getElementById("step-progress");
-        const progressPercent = document.getElementById("progress-percent");
-        const progressBarFill = document.getElementById("progress-bar-fill");
-        const countTotal = document.getElementById("count-total");
-        const countCreated = document.getElementById("count-created");
-        const countUpdated = document.getElementById("count-updated");
-        const countErrors = document.getElementById("count-errors");
-        const terminalLogs = document.getElementById("terminal-logs");
-        const btnPauseImport = document.getElementById("btn-pause-import");
+        targetFields.forEach(field => {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'mapping-row';
 
-        // Elementos del Paso 4
-        const stepFinal = document.getElementById("step-final");
-        const finalBadge = document.getElementById("final-badge");
-        const finalTitle = document.getElementById("final-title");
-        const finalDesc = document.getElementById("final-desc");
-        const finalTotal = document.getElementById("final-total");
-        const finalCreated = document.getElementById("final-created");
-        const finalUpdated = document.getElementById("final-updated");
-        const finalErrors = document.getElementById("final-errors");
-        const finalErrorPanel = document.getElementById("final-error-panel");
-        const finalErrorsList = document.getElementById("final-errors-list");
-        const btnRestart = document.getElementById("btn-restart");
+            // Columna 1: Label
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'mapping-label';
+            labelDiv.innerText = field.label;
+            if (field.required) {
+                const badge = document.createElement('span');
+                badge.className = 'mapping-required-badge';
+                badge.innerText = 'Obligatorio';
+                labelDiv.appendChild(badge);
+            } else {
+                const badge = document.createElement('span');
+                badge.className = 'mapping-optional-badge';
+                badge.innerText = 'Opcional';
+                labelDiv.appendChild(badge);
+            }
+            rowDiv.appendChild(labelDiv);
 
-        // CSRF Token de Django
+            // Columna 2: Flecha
+            const arrowDiv = document.createElement('div');
+            arrowDiv.className = 'mapping-arrow';
+            arrowDiv.innerText = '→';
+            rowDiv.appendChild(arrowDiv);
+
+            // Columna 3: Dropdown
+            const select = document.createElement('select');
+            select.className = 'premium-select';
+            select.style.width = '100%';
+            select.dataset.field = field.key;
+
+            // Opción por defecto
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.innerText = field.required ? '-- Selecciona una columna obligatoria --' : '-- Ignorar este campo / No mapear --';
+            select.appendChild(defaultOpt);
+
+            // Intentar Mapeo Inteligente
+            let matchedHeader = '';
+            excelHeaders.forEach(hdr => {
+                const opt = document.createElement('option');
+                opt.value = hdr;
+                opt.innerText = hdr;
+                select.appendChild(opt);
+
+                // Algoritmo de sinónimos insensibles
+                const cleanHdr = hdr.toLowerCase().replace(/[._-\s]/g, '');
+                field.synonyms.forEach(syn => {
+                    const cleanSyn = syn.toLowerCase().replace(/[._-\s]/g, '');
+                    if (cleanHdr === cleanSyn || cleanHdr.includes(cleanSyn) || cleanSyn.includes(cleanHdr)) {
+                        matchedHeader = hdr;
+                    }
+                });
+            });
+
+            if (matchedHeader) {
+                select.value = matchedHeader;
+                fieldMappings[field.key] = matchedHeader;
+            }
+
+            select.addEventListener('change', (e) => {
+                fieldMappings[field.key] = e.target.value;
+                updatePreviewTable();
+                validateMappingForm();
+            });
+
+            rowDiv.appendChild(select);
+            mappingGrid.appendChild(rowDiv);
+        });
+
+        updatePreviewTable();
+        validateMappingForm();
+    }
+
+    function validateMappingForm() {
+        // Verificar que todos los campos requeridos estén seleccionados
+        let allRequiredMapped = true;
+        targetFields.forEach(field => {
+            if (field.required && !fieldMappings[field.key]) {
+                allRequiredMapped = false;
+            }
+        });
+        btnConfirmMapping.disabled = !allRequiredMapped;
+    }
+
+    function updatePreviewTable() {
+        previewTableHeader.innerHTML = '';
+        previewTableBody.innerHTML = '';
+
+        // Cabeceras de previsualización (Solo campos que tienen mapeo)
+        const mappedKeys = targetFields.filter(f => fieldMappings[f.key]);
+        
+        if (mappedKeys.length === 0) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.innerText = "Ningún campo mapeado aún.";
+            td.style.textAlign = 'center';
+            td.colSpan = 5;
+            previewTableBody.appendChild(tr);
+            return;
+        }
+
+        mappedKeys.forEach(field => {
+            const th = document.createElement('th');
+            th.innerText = field.label.split(' ')[0]; // Simplificar nombre
+            previewTableHeader.appendChild(th);
+        });
+
+        // Primeras 3 filas de previsualización
+        const previewRows = excelDataRows.slice(0, 3);
+        previewRows.forEach(row => {
+            const tr = document.createElement('tr');
+            mappedKeys.forEach(field => {
+                const td = document.createElement('td');
+                const excelCol = fieldMappings[field.key];
+                td.innerText = row[excelCol] !== undefined ? row[excelCol] : '';
+                tr.appendChild(td);
+            });
+            previewTableBody.appendChild(tr);
+        });
+    }
+
+    btnBackToUpload.addEventListener('click', () => {
+        switchStep(stepMapping, stepUpload);
+    });
+
+    // Iniciar importación asíncrona
+    btnConfirmMapping.addEventListener('click', () => {
+        switchStep(stepMapping, stepImporting);
+        startBulkImport();
+    });
+
+    function switchStep(fromStep, toStep) {
+        fromStep.classList.remove('active');
+        toStep.classList.add('active');
+    }
+
+    async function startBulkImport() {
+        const totalRows = excelDataRows.length;
+        const sendEmails = sendEmailsToggle.checked;
+        
+        document.getElementById('totalRowsCount').innerText = totalRows;
+        const importedEl = document.getElementById('importedRowsCount');
+        const failedEl = document.getElementById('failedRowsCount');
+        const progressPercentText = document.getElementById('progressPercentageText');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const logBox = document.getElementById('terminalLog');
+        const errorList = document.getElementById('errorDetailsList');
+        const errorCard = document.getElementById('errorDetailsCard');
+
+        logBox.innerHTML = '';
+        errorList.innerHTML = '';
+        errorCard.style.display = 'none';
+
+        let imported = 0;
+        let failed = 0;
+        let errorDetails = [];
+
+        addTerminalLog("Inicializando transacciones masivas...", "log-info");
+        addTerminalLog(`Total filas a importar: ${totalRows}`, "log-info");
+
+        // Token CSRF de Django
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || "";
 
-        // ==========================================
-        // GESTIÓN DE ARCHIVOS Y DROPZONE (PASO 1)
-        // ==========================================
-
-        const triggerFileSelect = () => fileInput.click();
-
-        const handleDragOver = (e) => {
-            e.preventDefault();
-            dropzone.classList.add("dragover");
-        };
-
-        const handleDragLeave = () => {
-            dropzone.classList.remove("dragover");
-        };
-
-        const handleDrop = (e) => {
-            e.preventDefault();
-            dropzone.classList.remove("dragover");
-            if (e.dataTransfer.files.length > 0) {
-                setFile(e.dataTransfer.files[0]);
-            }
-        };
-
-        const handleFileChange = (e) => {
-            if (e.target.files.length > 0) {
-                setFile(e.target.files[0]);
-            }
-        };
-
-        const setFile = (file) => {
-            const allowed = [".xlsx", ".xls", ".csv"];
-            const filename = file.name.toLowerCase();
-            const isValid = allowed.some(ext => filename.endsWith(ext));
-
-            if (!isValid) {
-                alert("Formato de archivo inválido. Por favor, sube un archivo Excel (.xlsx, .xls) o CSV.");
-                return;
-            }
-
-            selectedFile = file;
-            fileCardName.textContent = file.name;
-            fileCardSize.textContent = formatBytes(file.size);
+        for (let i = 0; i < totalRows; i++) {
+            const excelRow = excelDataRows[i];
             
-            dropzone.style.display = "none";
-            fileCard.style.display = "flex";
-            btnSubmitUpload.disabled = false;
-        };
-
-        const clearFile = () => {
-            selectedFile = null;
-            fileInput.value = "";
-            fileCard.style.display = "none";
-            dropzone.style.display = "block";
-            btnSubmitUpload.disabled = true;
-        };
-
-        const formatBytes = (bytes, decimals = 2) => {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-        };
-
-        // Eventos Paso 1
-        dropzone.addEventListener("click", triggerFileSelect);
-        dropzone.addEventListener("dragover", handleDragOver);
-        dropzone.addEventListener("dragleave", handleDragLeave);
-        dropzone.addEventListener("drop", handleDrop);
-        fileInput.addEventListener("change", handleFileChange);
-        btnRemoveFile.addEventListener("click", clearFile);
-
-        // ==========================================
-        // ANALIZAR Y PASAR A VISTA PREVIA (PASO 2)
-        // ==========================================
-
-        btnSubmitUpload.addEventListener("click", async () => {
-            if (!selectedFile) return;
-
-            // Cambiar texto de carga e inhabilitar botón
-            btnSubmitUpload.disabled = true;
-            btnSubmitUpload.querySelector("span").textContent = "Analizando archivo...";
-            
-            const formData = new FormData();
-            formData.append("excel_file", selectedFile);
-            formData.append("action", "parse");
-
-            try {
-                const response = await fetch("", {
-                    method: "POST",
-                    body: formData,
-                    headers: {
-                        "X-CSRFToken": csrfToken,
-                        "x-requested-with": "XMLHttpRequest"
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.status === "success") {
-                    parsedRows = data.rows || [];
-                    totalRows = data.total || 0;
-
-                    // Llenar datos de vista previa
-                    previewStatTotal.textContent = totalRows;
-                    previewStatValid.textContent = parsedRows.length;
-                    previewFilenameBadge.textContent = selectedFile.name;
-                    btnImportCount.textContent = parsedRows.length;
-
-                    // Dibujar primeras 5 filas
-                    previewTableBody.innerHTML = "";
-                    const sample = parsedRows.slice(0, 5);
-                    sample.forEach(row => {
-                        const tr = document.createElement("tr");
-                        tr.innerHTML = `
-                            <td>Fila ${row.index}</td>
-                            <td><strong>${row.dni || 'N/D'}</strong></td>
-                            <td>${row.nombre || ''} ${row.apellido || ''}</td>
-                            <td>${row.email || 'N/D'}</td>
-                            <td><span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e2e8f0; font-weight: 700;">${row.perfil || 'VISITOR'}</span></td>
-                        `;
-                        previewTableBody.appendChild(tr);
-                    });
-
-                    // Si hay más de 5 filas, agregar un indicador
-                    if (parsedRows.length > 5) {
-                        const tr = document.createElement("tr");
-                        tr.innerHTML = `
-                            <td colspan="5" style="text-align: center; color: #64748b; font-style: italic; background: #fafafa;">
-                                ... y ${parsedRows.length - 5} registros más en la cola de procesamiento ...
-                            </td>
-                        `;
-                        previewTableBody.appendChild(tr);
-                    }
-
-                    // Cambiar de vista
-                    switchStep(stepUpload, stepPreview);
-                } else {
-                    alert(data.message || "Ocurrió un error al analizar el archivo.");
-                    btnSubmitUpload.disabled = false;
-                    btnSubmitUpload.querySelector("span").textContent = "Analizar Archivo";
+            // Construir el registro normalizado basado en el mapeo
+            const normalizedRow = {};
+            targetFields.forEach(field => {
+                const colName = fieldMappings[field.key];
+                if (colName) {
+                    normalizedRow[field.key] = excelRow[colName];
                 }
-            } catch (err) {
-                console.error(err);
-                alert("Error de conexión al servidor durante el análisis del archivo.");
-                btnSubmitUpload.disabled = false;
-                btnSubmitUpload.querySelector("span").textContent = "Analizar Archivo";
-            }
-        });
+            });
 
-        btnBackToUpload.addEventListener("click", () => {
-            switchStep(stepPreview, stepUpload);
-            btnSubmitUpload.disabled = false;
-            btnSubmitUpload.querySelector("span").textContent = "Analizar Archivo";
-        });
+            const index = i + 2; // Fila de excel real es index + 2 (cabecera + 1-index)
 
-        // ==========================================
-        // IMPORTACIÓN PROGRESIVA EN VIVO (PASO 3)
-        // ==========================================
-
-        btnStartImport.addEventListener("click", () => {
-            switchStep(stepPreview, stepProgress);
-            
-            // Inicializar contadores visuales
-            countTotal.textContent = parsedRows.length;
-            countCreated.textContent = "0";
-            countUpdated.textContent = "0";
-            countErrors.textContent = "0";
-            
-            // Resetear estados
-            processedIndex = 0;
-            isPaused = false;
-            stats = {
-                created: 0,
-                updated: 0,
-                errors: 0,
-                errorDetails: []
-            };
-
-            terminalLogs.innerHTML = "";
-            logToTerminal(`System`, `Iniciando importación masiva de ${parsedRows.length} asistentes...`, `info`);
-            logToTerminal(`System`, `Emails de confirmación activados: ${sendEmailsInput.checked ? 'SÍ' : 'NO'}.`, `info`);
-            
-            // Comenzar cola secuencial
-            processQueue();
-        });
-
-        btnPauseImport.addEventListener("click", () => {
-            if (isPaused) {
-                isPaused = false;
-                btnPauseImport.querySelector("span").textContent = "⏸️ Pausar";
-                btnPauseImport.style.color = "#d97706";
-                btnPauseImport.style.borderColor = "#f59e0b";
-                logToTerminal(`System`, `Procesamiento reanudado.`, `info`);
-                processQueue();
-            } else {
-                isPaused = true;
-                btnPauseImport.querySelector("span").textContent = "▶️ Continuar";
-                btnPauseImport.style.color = "#10b981";
-                btnPauseImport.style.borderColor = "#10b981";
-                logToTerminal(`System`, `Carga pausada por el administrador.`, `warn`);
-            }
-        });
-
-        const processQueue = async () => {
-            if (isPaused) return;
-
-            if (processedIndex >= parsedRows.length) {
-                // Finalizado!
-                finishImport();
-                return;
-            }
-
-            const row = parsedRows[processedIndex];
-            const timestamp = getFormattedTime();
-
-            // Llamada AJAX secuencial
             try {
-                const response = await fetch("", {
-                    method: "POST",
+                const response = await fetch('{% url "admin:api_asistente_import_excel" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     body: JSON.stringify({
-                        action: "import_row",
-                        row: row,
-                        send_emails: sendEmailsInput.checked
-                    }),
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": csrfToken,
-                        "x-requested-with": "XMLHttpRequest"
-                    }
+                        action: 'import_row',
+                        row: normalizedRow,
+                        send_emails: sendEmails
+                    })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP Error ${response.status}`);
-                }
+                const res = await response.json();
 
-                const result = await response.json();
+                if (res.status === 'success') {
+                    imported++;
+                    importedEl.innerText = imported;
+                    
+                    // Animación bounce en contador de éxito
+                    importedEl.classList.add('kpi-animating');
+                    setTimeout(() => importedEl.classList.remove('kpi-animating'), 300);
 
-                if (result.status === "success") {
-                    if (result.action === "created") {
-                        stats.created++;
-                        countCreated.textContent = stats.created;
-                        logToTerminal(`Fila ${row.index}`, `✅ NUEVO: ${result.asistente.first_name} ${result.asistente.last_name} (DNI: ${result.asistente.dni}). Email: ${result.email_status}.`, `success`);
-                    } else {
-                        stats.updated++;
-                        countUpdated.textContent = stats.updated;
-                        logToTerminal(`Fila ${row.index}`, `🔄 ACTUALIZADO: ${result.asistente.first_name} ${result.asistente.last_name} (DNI: ${result.asistente.dni}). Email: ${result.email_status}.`, `warn`);
-                    }
+                    const emailMsg = sendEmails ? ` (Email: ${res.email_status})` : "";
+                    addTerminalLog(`[Fila ${index}] Asistente ${res.asistente.first_name} ${res.asistente.last_name} importado con éxito.${emailMsg}`, "log-success");
                 } else {
-                    stats.errors++;
-                    countErrors.textContent = stats.errors;
-                    stats.errorDetails.push({ row: row.index, msg: result.message });
-                    logToTerminal(`Fila ${row.index}`, `❌ ERROR: ${result.message}`, `error`);
+                    failed++;
+                    failedEl.innerText = failed;
+
+                    failedEl.classList.add('kpi-animating');
+                    setTimeout(() => failedEl.classList.remove('kpi-animating'), 300);
+
+                    const errorMsg = `[Fila ${index}] Error: ${res.message}`;
+                    addTerminalLog(errorMsg, "log-error");
+                    errorDetails.push(errorMsg);
                 }
             } catch (err) {
-                stats.errors++;
-                countErrors.textContent = stats.errors;
-                stats.errorDetails.push({ row: row.index, msg: err.message });
-                logToTerminal(`Fila ${row.index}`, `❌ FALLO DE RED: ${err.message}`, `error`);
+                failed++;
+                failedEl.innerText = failed;
+                const errorMsg = `[Fila ${index}] Fallo crítico de conexión: ${err.message}`;
+                addTerminalLog(errorMsg, "log-error");
+                errorDetails.push(errorMsg);
             }
 
-            // Actualizar interfaz
-            processedIndex++;
-            updateProgressBar();
+            // Actualizar barra de progreso
+            const percent = Math.round(((i + 1) / totalRows) * 100);
+            progressPercentText.innerText = `${percent}%`;
+            progressBarFill.style.width = `${percent}%`;
+        }
 
-            // Siguiente fila con una pequeña pausa para suavidad de animación (50ms)
-            setTimeout(processQueue, 50);
-        };
-
-        const updateProgressBar = () => {
-            const pct = Math.round((processedIndex / parsedRows.length) * 100);
-            progressPercent.textContent = `${pct}%`;
-            progressBarFill.style.width = `${pct}%`;
-        };
-
-        const logToTerminal = (source, message, type = 'info') => {
-            const div = document.createElement("div");
-            div.className = "log-line";
+        // Finalizar y pasar al paso 4
+        setTimeout(() => {
+            switchStep(stepImporting, stepSummary);
             
-            const timeSpan = document.createElement("span");
-            timeSpan.className = "log-time";
-            timeSpan.textContent = `[${getFormattedTime()}]`;
+            document.getElementById('summaryDesc').innerHTML = `Procesamiento completado con éxito.<br>Registros importados/actualizados: <strong>${imported}</strong>.<br>Registros fallidos: <strong>${failed}</strong>.`;
 
-            const sourceSpan = document.createElement("span");
-            sourceSpan.className = `log-msg log-${type}`;
-            sourceSpan.innerHTML = `<strong>[${source}]</strong> ${message}`;
-
-            div.appendChild(timeSpan);
-            div.appendChild(sourceSpan);
-            terminalLogs.appendChild(div);
-
-            // Auto Scroll
-            terminalLogs.scrollTop = terminalLogs.scrollHeight;
-        };
-
-        const getFormattedTime = () => {
-            const now = new Date();
-            return now.toTimeString().split(' ')[0];
-        };
-
-        // ==========================================
-        // FINALIZACIÓN Y RESUMEN (PASO 4)
-        // ==========================================
-
-        const finishImport = () => {
-            // Llenar panel final
-            finalTotal.textContent = parsedRows.length;
-            finalCreated.textContent = stats.created;
-            finalUpdated.textContent = stats.updated;
-            finalErrors.textContent = stats.errors;
-
-            if (stats.errors > 0) {
-                finalBadge.textContent = "⚠️";
-                finalBadge.style.background = "#fef3c7";
-                finalBadge.style.color = "#d97706";
-                finalTitle.textContent = "Carga Finalizada con Advertencias";
-                finalDesc.textContent = `Se procesaron todos los registros del archivo Excel, pero se detectaron fallas en ${stats.errors} filas. Por favor revisa los detalles a continuación.`;
-                
-                finalErrorPanel.style.display = "block";
-                finalErrorsList.innerHTML = "";
-                stats.errorDetails.forEach(err => {
-                    const li = document.createElement("li");
-                    li.innerHTML = `Fila <strong>${err.row}</strong>: ${err.msg}`;
-                    finalErrorsList.appendChild(li);
+            if (failed > 0) {
+                document.getElementById('totalErrorsCountBadge').innerText = failed;
+                errorDetails.forEach(msg => {
+                    const li = document.createElement('li');
+                    li.innerText = msg;
+                    errorList.appendChild(li);
                 });
-            } else {
-                finalBadge.textContent = "🎉";
-                finalBadge.style.background = "#dcfce7";
-                finalBadge.style.color = "#15803d";
-                finalTitle.textContent = "¡Carga Completada con Éxito!";
-                finalDesc.textContent = `Se han procesado la totalidad de los registros sin reportar ninguna incidencia. Todos los asistentes ya se encuentran inscritos en el Congreso de Logística de la UNAB 2026.`;
-                finalErrorPanel.style.display = "none";
+                errorCard.style.display = 'block';
             }
+        }, 1000);
+    }
 
-            switchStep(stepProgress, stepFinal);
-        };
+    function addTerminalLog(msg, className = "") {
+        const logBox = document.getElementById('terminalLog');
+        const line = document.createElement('div');
+        line.className = "log-line " + className;
 
-        btnRestart.addEventListener("click", () => {
-            clearFile();
-            switchStep(stepFinal, stepUpload);
-        });
+        const time = document.createElement('span');
+        time.className = "log-time";
+        time.innerText = new Date().toLocaleTimeString();
 
-        // Auxiliar: Transicionar Pasos de Forma Fluida
-        const switchStep = (fromStep, toStep) => {
-            fromStep.classList.remove("active");
-            toStep.classList.add("active");
-        };
-    });
+        const text = document.createElement('span');
+        text.className = "log-msg";
+        text.innerText = msg;
+
+        line.appendChild(time);
+        line.appendChild(text);
+        logBox.appendChild(line);
+        logBox.scrollTop = logBox.scrollHeight;
+    }
 </script>
 {% endblock %}

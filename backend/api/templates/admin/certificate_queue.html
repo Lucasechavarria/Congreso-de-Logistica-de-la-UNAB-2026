@@ -3,120 +3,336 @@
 
 {% block extrastyle %}
 {{ block.super }}
+<!-- Cargar Tema de Diseño Oscuro Global Compartido -->
+<link rel="stylesheet" href="{% static 'admin/css/admin_dark_theme.css' %}">
+<!-- Tipografía Premium de Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
+    :root {
+        --bg: var(--dark-bg);
+        --card: var(--dark-card);
+        --card-glow: var(--dark-card-glow);
+        --p: var(--color-primary);
+        --b: var(--border-soft);
+        --txt: var(--text-primary);
+        --neon-cyan: var(--color-secondary);
+        --neon-magenta: var(--color-accent);
+    }
+
+    body {
+        background: var(--bg) !important;
+        color: var(--txt) !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    #content {
+        background: var(--bg) !important;
+        padding: 25px !important;
+    }
+
     .queue-container {
         max-width: 800px;
-        margin: 20px auto;
-        padding: 30px;
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        margin: 30px auto;
+        padding: 40px;
+        background: var(--card);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-radius: 16px;
+        border: 1px solid var(--b);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
+
     .queue-header {
         text-align: center;
-        margin-bottom: 30px;
+        margin-bottom: 35px;
     }
+    
     .queue-header h2 {
-        color: #1e293b;
-        font-weight: 700;
-        margin-bottom: 10px;
+        color: #fff;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.35);
+        margin-bottom: 8px;
     }
+
+    .queue-header p {
+        color: var(--text-secondary);
+        font-size: 14px;
+        margin: 0;
+    }
+
     .status-summary {
-        display: flex;
-        justify-content: space-around;
-        margin-bottom: 30px;
-        background: #f8fafc;
-        padding: 15px;
-        border-radius: 8px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-bottom: 35px;
     }
+
     .stat-item {
         text-align: center;
+        background: rgba(0, 0, 0, 0.4);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid var(--b);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
+
+    .stat-item:hover {
+        transform: translateY(-3px);
+        border-color: rgba(167, 139, 250, 0.25);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
     .stat-value {
         display: block;
-        font-size: 24px;
-        font-weight: 700;
-        color: #3b82f6;
+        font-size: 36px;
+        font-weight: 800;
+        color: var(--neon-cyan);
+        text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+        transition: transform 0.2s ease;
     }
+    
+    /* Animación Física de Rebote (Bounce) */
+    @keyframes stat-bounce {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-8px) scale(1.1); }
+    }
+
+    .bounce-active {
+        animation: stat-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
     .stat-label {
-        font-size: 12px;
-        color: #64748b;
+        font-size: 11px;
+        color: var(--text-secondary);
         text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-top: 6px;
+        display: block;
     }
-    .progress-wrapper {
+
+    /* Rediseño Radial Progress SVG */
+    .radial-progress-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         margin: 40px 0;
     }
-    .progress-bar-container {
-        height: 20px;
-        width: 100%;
-        background: #e2e8f0;
-        border-radius: 10px;
-        overflow: hidden;
+
+    .radial-progress-container {
         position: relative;
+        width: 200px;
+        height: 200px;
+        margin-bottom: 15px;
     }
-    .progress-bar-fill {
+
+    .radial-progress-svg {
+        width: 100%;
         height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, #3b82f6, #2563eb);
-        transition: width 0.3s ease;
+        transform: rotate(-90deg);
     }
-    .progress-text {
+
+    .radial-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.03);
+        stroke-width: 8;
+    }
+
+    .radial-fill {
+        fill: none;
+        stroke: url(#neon-gradient);
+        stroke-width: 8;
+        stroke-linecap: round;
+        stroke-dasharray: 314.16; /* 2 * PI * r (r=50) */
+        stroke-dashoffset: 314.16; /* Inicialmente vacío */
+        transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        filter: drop-shadow(0 0 8px var(--color-secondary));
+    }
+
+    .radial-progress-text-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         text-align: center;
-        margin-top: 10px;
-        font-weight: 600;
-        color: #334155;
     }
-    .log-container {
-        height: 150px;
-        overflow-y: auto;
-        background: #1e293b;
-        color: #cbd5e1;
-        padding: 15px;
-        border-radius: 8px;
+
+    .radial-percent {
+        font-size: 38px;
+        font-weight: 800;
+        color: #fff;
+        text-shadow: 0 0 15px rgba(6, 182, 212, 0.6);
+        line-height: 1;
+    }
+
+    .radial-subtext {
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 6px;
+    }
+
+    .progress-status-text {
+        text-align: center;
+        font-weight: 700;
+        color: var(--color-primary);
+        font-size: 14px;
+        letter-spacing: 0.5px;
+        margin-top: 5px;
+        text-shadow: 0 0 8px rgba(167, 139, 250, 0.3);
+    }
+
+    /* Terminal Cyberpunk para Logs */
+    .terminal-container {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #1e293b;
+        background: #090d16;
+        margin-top: 30px;
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .terminal-header {
+        background: #111827;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #1e293b;
+    }
+
+    .terminal-dots {
+        display: flex;
+        gap: 6px;
+    }
+
+    .terminal-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .terminal-title {
         font-family: 'Fira Code', monospace;
-        font-size: 13px;
-        margin-top: 20px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
-    .log-entry { margin-bottom: 4px; }
-    .log-success { color: #4ade80; }
-    .log-error { color: #f87171; }
+
+    .log-container {
+        height: 190px;
+        overflow-y: auto;
+        color: #cbd5e1;
+        padding: 20px;
+        font-family: 'Fira Code', monospace;
+        font-size: 12px;
+    }
+
+    /* Scrollbar */
+    .log-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    .log-container::-webkit-scrollbar-track {
+        background: #090d16;
+    }
+    .log-container::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 3px;
+    }
+
+    .log-entry { 
+        margin-bottom: 8px; 
+        line-height: 1.5;
+        animation: logFadeIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards;
+        display: flex;
+        align-items: flex-start;
+    }
+
+    @keyframes logFadeIn {
+        from { opacity: 0; transform: translateX(-8px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    .log-timestamp {
+        color: #6366f1;
+        margin-right: 10px;
+        font-weight: 500;
+        flex-shrink: 0;
+    }
+
+    .log-text {
+        word-break: break-all;
+    }
+
+    .log-success { color: #4ade80; text-shadow: 0 0 8px rgba(74, 222, 128, 0.2); }
+    .log-error { color: #f87171; text-shadow: 0 0 8px rgba(248, 113, 113, 0.2); }
+    .log-warning { color: #fbbf24; text-shadow: 0 0 8px rgba(251, 191, 36, 0.2); }
     
     .btn-start {
         display: block;
         width: 100%;
-        padding: 12px;
-        background: #3b82f6;
-        color: white;
+        padding: 15px;
+        background: linear-gradient(135deg, var(--color-primary), #818cf8);
+        color: #0f0724;
         border: none;
         border-radius: 8px;
-        font-weight: 600;
+        font-weight: 800;
+        font-size: 15px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(167, 139, 250, 0.35);
     }
-    .btn-start:hover { background: #2563eb; }
-    .btn-start:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-start:hover:not(:disabled) { 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 22px rgba(167, 139, 250, 0.55); 
+    }
+    .btn-start:disabled { 
+        background: #1e1e2e !important; 
+        color: var(--text-muted) !important;
+        cursor: not-allowed; 
+        box-shadow: none !important;
+        transform: none !important;
+        border: 1px solid rgba(255,255,255,0.05);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="queue-container">
+<div class="queue-container dark-theme-container">
     <div class="queue-header">
         <h2>🚀 Procesador de Certificados</h2>
-        <p>Enviando certificados pendientes de forma segura en lotes.</p>
+        <p>Enviando certificados pendientes de forma segura en lotes asíncronos.</p>
     </div>
 
+    <!-- Resumen de Estados del Lote -->
     <div class="status-summary">
-        <div class="stat-item">
+        <div class="stat-item" id="stat-item-pendientes">
             <span class="stat-value" id="pendientes-count">{{ pendientes }}</span>
             <span class="stat-label">Pendientes</span>
         </div>
-        <div class="stat-item">
-            <span class="stat-value" id="procesados-count">0</span>
+        <div class="stat-item" id="stat-item-procesados">
+            <span class="stat-value" id="procesados-count" style="color: var(--color-primary); text-shadow: 0 0 10px rgba(167, 139, 250, 0.2);">0</span>
             <span class="stat-label">Enviados</span>
         </div>
-        <div class="stat-item">
-            <span class="stat-value" id="errores-count">0</span>
+        <div class="stat-item" id="stat-item-errores">
+            <span class="stat-value" id="errores-count" style="color: var(--neon-magenta); text-shadow: 0 0 10px rgba(244, 63, 94, 0.2);">0</span>
             <span class="stat-label">Errores</span>
         </div>
     </div>
@@ -125,33 +341,75 @@
         {% if pendientes == 0 %}Nada que procesar{% else %}Empezar a enviar{% endif %}
     </button>
 
-    <div class="progress-wrapper">
-        <div class="progress-bar-container">
-            <div id="progress-fill" class="progress-bar-fill"></div>
+    <!-- Indicador Radial de Progreso -->
+    <div class="radial-progress-wrapper">
+        <div class="radial-progress-container">
+            <svg class="radial-progress-svg" viewBox="0 0 120 120">
+                <defs>
+                    <linearGradient id="neon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="var(--neon-cyan)"></stop>
+                        <stop offset="100%" stop-color="var(--color-primary)"></stop>
+                    </linearGradient>
+                </defs>
+                <circle class="radial-bg" cx="60" cy="60" r="50"></circle>
+                <circle id="radial-progress-fill" class="radial-fill" cx="60" cy="60" r="50"></circle>
+            </svg>
+            <div class="radial-progress-text-container">
+                <span id="radial-percent" class="radial-percent">0%</span>
+                <span class="radial-subtext">PROGRESO</span>
+            </div>
         </div>
-        <div id="progress-text" class="progress-text">Listo para comenzar</div>
+        <div id="progress-status-text" class="progress-status-text">Listo para comenzar</div>
     </div>
 
-    <div class="log-container" id="log-box">
-        <div class="log-entry">Esperando inicio...</div>
+    <!-- Consola Cyberpunk de Logs -->
+    <div class="terminal-container">
+        <div class="terminal-header">
+            <div class="terminal-dots">
+                <div class="terminal-dot dot-red"></div>
+                <div class="terminal-dot dot-yellow"></div>
+                <div class="terminal-dot dot-green"></div>
+            </div>
+            <div class="terminal-title">SMTP Transmission logs</div>
+            <div style="width: 42px;"></div> <!-- Spacer para alinear centro -->
+        </div>
+        <div class="log-container" id="log-box">
+            <div class="log-entry"><span class="log-timestamp">INIT</span><span class="log-text">Consola de transmisión inicializada. Esperando señal de inicio...</span></div>
+        </div>
     </div>
 </div>
 
 <script>
     const startBtn = document.getElementById('start-btn');
     const logBox = document.getElementById('log-box');
-    const progressFill = document.getElementById('progress-fill');
-    const progressText = document.getElementById('progress-text');
+    const progressFill = document.getElementById('radial-progress-fill');
+    const progressPercentText = document.getElementById('radial-percent');
+    const progressStatusText = document.getElementById('progress-status-text');
+    
+    const pendientesEl = document.getElementById('pendientes-count');
     const procesadosEl = document.getElementById('procesados-count');
     const erroresEl = document.getElementById('errores-count');
     
-    let totalPendientes = {{ pendientes }};
+    const statPendientesItem = document.getElementById('stat-item-pendientes');
+    const statProcesadosItem = document.getElementById('stat-item-procesados');
+    const statErroresItem = document.getElementById('stat-item-errores');
+    
+    let totalPendientes = parseInt("{{ pendientes }}") || 0;
     let procesados = 0;
     let errores = 0;
 
+    // Radio del círculo SVG es r=50
+    const circleRadius = 50;
+    const circumference = 2 * Math.PI * circleRadius; // ~314.16
+
+    // Configurar circunferencia inicial
+    progressFill.style.strokeDasharray = circumference;
+    progressFill.style.strokeDashoffset = circumference;
+
     startBtn.addEventListener('click', async () => {
         startBtn.disabled = true;
-        addLog("Iniciando procesamiento...");
+        addLog("Iniciando procesamiento de lotes asíncronos...", "log-warning");
+        progressStatusText.innerText = "Iniciando...";
         processNextBatch();
     });
 
@@ -161,40 +419,93 @@
             const data = await response.json();
 
             if (data.status === 'ok') {
-                procesados += data.processed;
-                errores += data.errors;
+                let batchProcessed = data.processed;
+                let batchErrors = data.errors;
+                let nuevosPendientes = data.remaining;
                 
-                // Actualizar UI
+                procesados += batchProcessed;
+                errores += batchErrors;
+                
+                // Actualizar contadores en la interfaz
                 procesadosEl.innerText = procesados;
                 erroresEl.innerText = errores;
-                
-                let percent = Math.min(100, (procesados / totalPendientes) * 100);
-                progressFill.style.width = percent + '%';
-                progressText.innerText = `Enviados: ${procesados} de ${totalPendientes}`;
+                pendientesEl.innerText = nuevosPendientes;
 
-                data.logs.forEach(msg => addLog(msg));
+                // Animaciones de bounce en contadores que han cambiado
+                if (batchProcessed > 0) {
+                    statProcesadosItem.classList.add('bounce-active');
+                    setTimeout(() => statProcesadosItem.classList.remove('bounce-active'), 400);
+                }
+                if (batchErrors > 0) {
+                    statErroresItem.classList.add('bounce-active');
+                    setTimeout(() => statErroresItem.classList.remove('bounce-active'), 400);
+                }
+                
+                statPendientesItem.classList.add('bounce-active');
+                setTimeout(() => statPendientesItem.classList.remove('bounce-active'), 400);
+                
+                // Calcular y animar el progreso radial
+                let percent = totalPendientes > 0 ? Math.min(100, (procesados / totalPendientes) * 100) : 100;
+                progressPercentText.innerText = `${Math.round(percent)}%`;
+                
+                // Calcular stroke-dashoffset
+                let offset = circumference - (percent / 100) * circumference;
+                progressFill.style.strokeDashoffset = offset;
+                
+                progressStatusText.innerText = `Enviados: ${procesados} de ${totalPendientes}`;
+
+                data.logs.forEach(msg => {
+                    let entryClass = "";
+                    if (msg.toLowerCase().includes("éxito") || msg.toLowerCase().includes("exito")) {
+                        entryClass = "log-success";
+                    } else if (msg.toLowerCase().includes("error") || msg.toLowerCase().includes("falló") || msg.toLowerCase().includes("fallo")) {
+                        entryClass = "log-error";
+                    } else {
+                        entryClass = "log-warning";
+                    }
+                    addLog(msg, entryClass);
+                });
 
                 if (data.remaining > 0) {
-                    // Pequeña pausa para no saturar SMTP
+                    // Esperar 1 segundo antes del siguiente lote para proteger reputación de servidor SMTP
                     setTimeout(processNextBatch, 1000);
                 } else {
-                    addLog("✨ ¡Procesamiento completado!", "log-success");
-                    progressText.innerText = "¡Todo listo!";
+                    addLog("✨ ¡Procesamiento masivo finalizado exitosamente!", "log-success");
+                    progressStatusText.innerText = "¡Procesamiento completo!";
                     startBtn.innerText = "Finalizado";
+                    progressPercentText.innerText = "100%";
+                    progressFill.style.strokeDashoffset = 0;
                 }
             } else {
-                addLog("Error grave: " + data.message, "log-error");
+                addLog("Error crítico del lote: " + data.message, "log-error");
+                progressStatusText.innerText = "Error en lote";
+                startBtn.disabled = false;
+                startBtn.innerText = "Reintentar Lote";
             }
         } catch (e) {
-            addLog("Error de conexión: " + e.message, "log-error");
+            addLog("Error de conexión al servidor: " + e.message, "log-error");
+            progressStatusText.innerText = "Error de conexión";
+            startBtn.disabled = false;
+            startBtn.innerText = "Reintentar Lote";
         }
     }
 
     function addLog(msg, className = "") {
-        const div = document.createElement('div');
-        div.className = "log-entry " + className;
-        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-        logBox.appendChild(div);
+        const entryDiv = document.createElement('div');
+        entryDiv.className = "log-entry " + className;
+        
+        const timeSpan = document.createElement('span');
+        timeSpan.className = "log-timestamp";
+        timeSpan.innerText = new Date().toLocaleTimeString();
+        
+        const textSpan = document.createElement('span');
+        textSpan.className = "log-text";
+        textSpan.innerText = msg;
+        
+        entryDiv.appendChild(timeSpan);
+        entryDiv.appendChild(textSpan);
+        
+        logBox.appendChild(entryDiv);
         logBox.scrollTop = logBox.scrollHeight;
     }
 </script>

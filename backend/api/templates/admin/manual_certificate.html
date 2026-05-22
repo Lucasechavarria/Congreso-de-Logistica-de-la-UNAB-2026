@@ -1,73 +1,579 @@
 {% extends "admin/base_site.html" %}
 {% load i18n admin_urls static admin_modify %}
 
-{% block extrahead %}
+{% block extrastyle %}
 {{ block.super }}
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<!-- Cargar Tema de Diseño Oscuro Global Compartido -->
+<link rel="stylesheet" href="{% static 'admin/css/admin_dark_theme.css' %}">
+<!-- Tipografía Premium de Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --bg: var(--dark-bg);
+        --card: var(--dark-card);
+        --card-glow: var(--dark-card-glow);
+        --p: var(--color-primary);
+        --b: var(--border-soft);
+        --txt: var(--text-primary);
+        --neon-cyan: var(--color-secondary);
+        --neon-magenta: var(--color-accent);
+    }
+
+    body {
+        background: var(--bg) !important;
+        color: var(--txt) !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    #content {
+        background: var(--bg) !important;
+        padding: 25px !important;
+    }
+
+    .cert-layout {
+        display: flex;
+        gap: 30px;
+        max-width: 1350px;
+        margin: 20px auto;
+        flex-wrap: wrap;
+    }
+
+    .cert-manual-container {
+        flex: 1.2;
+        min-width: 320px;
+        padding: 40px;
+        background: var(--card);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-radius: 16px;
+        border: 1px solid var(--b);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .cert-preview-container {
+        flex: 1;
+        min-width: 320px;
+        padding: 40px;
+        background: var(--dark-sidebar);
+        border-radius: 16px;
+        border: 1px solid var(--b);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .cert-header {
+        border-bottom: 1px solid var(--b);
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+    }
+
+    .cert-header h2 {
+        color: #fff;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.35);
+        margin: 0 0 8px 0;
+        font-size: 24px;
+    }
+
+    .cert-header p {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin: 0;
+    }
+
+    .form-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .form-field-group label {
+        font-size: 11px;
+        color: var(--color-primary);
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 1px;
+    }
+
+    /* Autocomplete suggestions */
+    .autocomplete-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background: #120e25;
+        border: 1px solid var(--b);
+        border-radius: 10px;
+        z-index: 100;
+        max-height: 250px;
+        overflow-y: auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        display: none;
+    }
+
+    .autocomplete-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .autocomplete-item:hover {
+        background: rgba(167, 139, 250, 0.12);
+    }
+
+    .autocomplete-name {
+        font-weight: 700;
+        color: #fff;
+        font-size: 13px;
+    }
+
+    .autocomplete-meta {
+        font-size: 11px;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .alert { 
+        padding: 15px 20px; 
+        border-radius: 8px; 
+        margin-bottom: 25px; 
+        font-weight: 600; 
+        font-size: 14px;
+        border: 1px solid transparent;
+    }
+    .alert-success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3); }
+    .alert-error   { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.3); }
+
+    .btn-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid var(--b);
+    }
+
+    .btn-back {
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 13px;
+        transition: color 0.2s ease;
+        text-decoration: none;
+    }
+
+    .btn-back:hover {
+        color: var(--color-primary);
+    }
+
+    /* Live preview diploma design */
+    .diploma-preview-box {
+        width: 100%;
+        max-width: 500px;
+        aspect-ratio: 1.414 / 1;
+        background: radial-gradient(circle, #140f2b 0%, #080518 100%);
+        border: 10px double #a78bfa;
+        border-radius: 8px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+        padding: 24px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        border-image: linear-gradient(135deg, var(--color-primary), var(--color-secondary)) 10;
+        margin-top: 20px;
+    }
+
+    .diploma-watermark {
+        position: absolute;
+        font-size: 150px;
+        opacity: 0.02;
+        color: #fff;
+        z-index: 1;
+        user-select: none;
+    }
+
+    .diploma-content {
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+    }
+
+    .diploma-title {
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--color-primary);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 10px;
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
+    }
+
+    .diploma-subtitle {
+        font-size: 10px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .diploma-name {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 26px;
+        font-style: italic;
+        color: #ffffff;
+        margin: 14px 0;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        border-bottom: 1px dashed rgba(255,255,255,0.15);
+        width: 80%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .diploma-text {
+        font-size: 11px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        max-width: 380px;
+    }
+
+    .diploma-type-badge {
+        color: var(--color-secondary);
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .diploma-footer {
+        margin-top: 24px;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        font-size: 8px;
+        color: var(--text-muted);
+        border-top: 1px solid rgba(255,255,255,0.05);
+        padding-top: 12px;
+    }
+
+    .diploma-seal {
+        position: absolute;
+        bottom: 30px;
+        right: 30px;
+        width: 45px;
+        height: 45px;
+        background: radial-gradient(circle, rgba(6,182,212,0.2) 0%, rgba(6,182,212,0) 70%);
+        border: 1px dashed var(--color-secondary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.6;
+        animation: spinSeal 20s linear infinite;
+    }
+
+    @keyframes spinSeal {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .diploma-seal::after {
+        content: '★';
+        font-size: 10px;
+        color: var(--color-secondary);
+    }
+
+    .autocomplete-badge {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: #6ee7b7;
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        margin-bottom: 15px;
+        font-weight: 700;
+        transition: all 0.3s;
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    .autocomplete-badge.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .info-panel {
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px dashed var(--b);
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 35px;
+    }
+
+    .info-panel h4 {
+        color: var(--color-warning);
+        margin: 0 0 10px 0;
+        font-size: 13px;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .info-panel ul {
+        margin: 0;
+        padding-left: 20px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .info-panel ul li {
+        margin-bottom: 4px;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
-    <div class="border-b pb-4 mb-6">
-        <h2 class="text-2xl font-bold text-slate-800">Generación de Certificado Manual</h2>
-        <p class="text-slate-600">Complete los datos para generar y enviar un certificado "on-the-fly". El archivo NO se guardará permanentemente en el servidor.</p>
-    </div>
+<div class="cert-layout dark-theme-container">
 
-    {% if messages %}
-    <div class="mb-6">
-        {% for message in messages %}
-        <div class="p-4 rounded-md {% if message.tags == 'success' %}bg-green-50 text-green-700 border border-green-200{% else %}bg-red-50 text-red-700 border border-red-200{% endif %}">
-            {{ message }}
+    <!-- FORM COLUMN -->
+    <div class="cert-manual-container">
+        <div class="cert-header">
+            <h2>Generación de Certificado Manual</h2>
+            <p>Complete los datos para generar y enviar un certificado "on-the-fly". El buscador predictivo AJAX autocompleta asistentes registrados.</p>
         </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
-    <form method="post" class="space-y-6">
-        {% csrf_token %}
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
+        {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+            <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="autocomplete-badge" id="autocompleteBadge">
+            ✨ Datos autocompletados desde base de datos
+        </div>
+
+        <form method="post" class="space-y-6" id="certForm">
+            {% csrf_token %}
+            
+            <div class="form-field-group">
+                <label for="nombre">Nombre Completo</label>
                 <input type="text" name="nombre" id="nombre" required 
-                    class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    placeholder="Ej: Juan Pérez">
+                    class="premium-input"
+                    placeholder="Escribe el nombre del destinatario..."
+                    autocomplete="off"
+                    oninput="updatePreviewName(this.value)">
+                
+                <!-- AUTOCOMPLETE CONTAINER -->
+                <div class="autocomplete-results" id="autocompleteResults"></div>
             </div>
             
-            <div>
-                <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+            <div class="form-field-group">
+                <label for="email">Correo Electrónico</label>
                 <input type="email" name="email" id="email" required 
-                    class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    placeholder="ejemplo@correo.com">
+                    class="premium-input"
+                    placeholder="ejemplo@correo.com"
+                    autocomplete="off">
             </div>
-        </div>
 
-        <div>
-            <label for="tipo" class="block text-sm font-medium text-slate-700 mb-1">Tipo de Certificado</label>
-            <select name="tipo" id="tipo" class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
-                <option value="ASISTENCIA">Asistencia</option>
-                <option value="DISERTANTE">Disertante</option>
-                <option value="EMPRESA">Empresa / Stand</option>
-            </select>
-        </div>
+            <div class="form-field-group">
+                <label for="tipo">Tipo de Certificado</label>
+                <select name="tipo" id="tipo" class="premium-select" onchange="updatePreviewType(this.value)">
+                    <option value="ASISTENCIA">Asistencia</option>
+                    <option value="DISERTANTE">Disertante</option>
+                    <option value="EMPRESA">Empresa / Stand</option>
+                </select>
+            </div>
 
-        <div class="pt-4 flex items-center justify-between">
-            <a href="{% url 'admin:index' %}" class="text-slate-500 hover:text-slate-700 font-medium transition-colors">
-                &lsaquo; Volver al Inicio
-            </a>
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md shadow-sm transition-all transform active:scale-95">
-                Generar y Enviar Certificado
-            </button>
-        </div>
-    </form>
+            <div class="btn-row">
+                <a href="{% url 'admin:index' %}" class="btn-back">
+                    &lsaquo; Volver al Inicio
+                </a>
+                <button type="submit" class="btn-neon-cyan" style="box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);">
+                    Generar y Enviar Certificado
+                </button>
+            </div>
+        </form>
 
-    <div class="mt-12 p-4 bg-slate-50 rounded-md border border-slate-200">
-        <h4 class="font-semibold text-slate-700 mb-2">Información Importante:</h4>
-        <ul class="list-disc list-inside text-sm text-slate-600 space-y-1">
-            <li>Si el correo ya existe en el sistema, se utilizará el registro existente.</li>
-            <li>Si el correo NO existe, se creará un registro de "Asistente" mínimo para procesar el envío.</li>
-            <li>El certificado se genera en tiempo real y se envía como adjunto.</li>
-        </ul>
+        <div class="info-panel">
+            <h4>Información Importante:</h4>
+            <ul>
+                <li>Si el correo ya existe en el sistema, se utilizará el registro existente del asistente.</li>
+                <li>Si el correo NO existe, se creará un registro de "Asistente" mínimo para poder procesar el envío.</li>
+                <li>El certificado se genera en tiempo real a partir del template oficial del congreso y se despacha como un archivo PDF adjunto.</li>
+            </ul>
+        </div>
     </div>
+
+    <!-- PREVIEW COLUMN -->
+    <div class="cert-preview-container">
+        <div class="cert-header" style="width: 100%; border-bottom: 1px solid var(--b); margin-bottom: 15px; padding-bottom: 15px;">
+            <h2 style="font-size: 16px; color: var(--color-secondary);">👁️ Vista Previa del Certificado</h2>
+            <p>Representación interactiva en vivo del diploma digital oficial.</p>
+        </div>
+
+        <!-- DIPLOMA FRAME -->
+        <div class="diploma-preview-box">
+            <div class="diploma-watermark">UNAB</div>
+            <div class="diploma-content">
+                <div class="diploma-title">Certificado de Acreditación</div>
+                <div class="diploma-subtitle">El Comité Organizador hace constar que</div>
+                
+                <div class="diploma-name" id="previewName">Juan Pérez</div>
+                
+                <div class="diploma-text">
+                    Ha participado activamente en calidad de <span class="diploma-type-badge" id="previewType">Asistente</span> en el <strong>Congreso Internacional de Logística y Tecnología de la UNAB 2026</strong>, desarrollado el 22 de Mayo de 2026.
+                </div>
+                
+                <div class="diploma-footer">
+                    <div>
+                        <strong>Universidad Andrés Bello</strong><br>
+                        Facultad de Ingeniería
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Sede Central UNAB</strong><br>
+                        Comité Ejecutivo 2026
+                    </div>
+                </div>
+            </div>
+            <div class="diploma-seal"></div>
+        </div>
+
+        <div style="margin-top: 30px; width: 100%; text-align: center;">
+            <p style="font-size: 12px; color: var(--text-muted); font-style: italic;">
+                💡 Los cambios hechos en el formulario se reflejarán instantáneamente en este diploma de muestra.
+            </p>
+        </div>
+    </div>
+
 </div>
+
+<script>
+// ── Live Preview Sync ──────────────────────────────────────
+function updatePreviewName(val) {
+    document.getElementById('previewName').textContent = val.trim() || 'Nombre Destinatario';
+}
+
+function updatePreviewType(val) {
+    const map = {
+        'ASISTENCIA': 'Asistencia',
+        'DISERTANTE': 'Disertante',
+        'EMPRESA': 'Empresa / Stand'
+    };
+    document.getElementById('previewType').textContent = map[val] || val;
+}
+
+// ── Predictive AJAX Search (Autocomplete) ──────────────────
+const nombreInput = document.getElementById('nombre');
+const emailInput = document.getElementById('email');
+const resultsBox = document.getElementById('autocompleteResults');
+const badge = document.getElementById('autocompleteBadge');
+
+let debounceTimer;
+
+nombreInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const q = nombreInput.value.trim();
+
+    if (q.length < 2) {
+        resultsBox.style.display = 'none';
+        return;
+    }
+
+    debounceTimer = setTimeout(() => {
+        fetch(`/admin/asistentes-search/?q=${encodeURIComponent(q)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    renderResults(data.results);
+                } else {
+                    resultsBox.style.display = 'none';
+                }
+            })
+            .catch(err => console.error('Error fetching autocomplete:', err));
+    }, 200);
+});
+
+// Render suggestions list
+function renderResults(list) {
+    resultsBox.innerHTML = '';
+    list.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'autocomplete-item';
+        div.innerHTML = `
+            <div class="autocomplete-name">${item.nombre}</div>
+            <div class="autocomplete-meta">
+                <span>📧 ${item.email}</span>
+                <span>👤 ${item.perfil || 'Asistente'}</span>
+            </div>
+        `;
+        div.addEventListener('click', () => {
+            selectAsistente(item);
+        });
+        resultsBox.appendChild(div);
+    });
+    resultsBox.style.display = 'block';
+}
+
+// User clicked a suggestion
+function selectAsistente(item) {
+    nombreInput.value = item.nombre;
+    emailInput.value = item.email;
+    
+    // Auto-select tipo based on perfil
+    const tipoSelect = document.getElementById('tipo');
+    if (item.perfil.toUpperCase().includes('DISERTANTE')) {
+        tipoSelect.value = 'DISERTANTE';
+    } else if (item.perfil.toUpperCase().includes('EMPRESA') || item.perfil.toUpperCase().includes('STAND')) {
+        tipoSelect.value = 'EMPRESA';
+    } else {
+        tipoSelect.value = 'ASISTENCIA';
+    }
+    
+    // Update live previews
+    updatePreviewName(item.nombre);
+    updatePreviewType(tipoSelect.value);
+    
+    resultsBox.style.display = 'none';
+    
+    // Show alert badge
+    badge.classList.add('show');
+    setTimeout(() => {
+        badge.classList.remove('show');
+    }, 4000);
+}
+
+// Close suggestions on outside click
+document.addEventListener('click', (e) => {
+    if (e.target !== nombreInput && e.target !== resultsBox) {
+        resultsBox.style.display = 'none';
+    }
+});
+
+// Initial load
+updatePreviewName(nombreInput.value);
+updatePreviewType(document.getElementById('tipo').value);
+</script>
 {% endblock %}

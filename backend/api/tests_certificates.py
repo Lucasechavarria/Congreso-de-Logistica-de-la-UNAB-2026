@@ -78,7 +78,7 @@ class CertificateQueueTests(TestCase):
         cert.refresh_from_db()
         self.assertEqual(cert.intentos, 1)
         self.assertFalse(cert.email_enviado)
-        self.assertNil = cert.fecha_envio
+        self.assertIsNone(cert.fecha_envio)
 
     @patch('django.core.mail.EmailMultiAlternatives.send')
     def test_process_certificate_batch_api_success(self, mock_send):

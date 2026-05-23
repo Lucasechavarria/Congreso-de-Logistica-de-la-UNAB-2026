@@ -485,6 +485,219 @@ def process_certificate_batch_api(request):
     })
 
 
+@admin.site.admin_view
+def dashboard_api_view(request):
+    """
+    Endpoint JSON para procesar y retornar estadísticas de segmentos analíticos 
+    personalizados construidos por el usuario de forma dinámica y segura.
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+        
+    import json
+    
+    try:
+        if request.method == 'POST':
+            data = json.loads(request.body)
+        else:
+            data = json.loads(request.GET.get('data', '{}'))
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'JSON inválido: {str(e)}'}, status=400)
+        
+    periodo = data.get('periodo', 'diario')
+    alineacion = data.get('alineacion', 'campania')
+    edicion_sel_id = data.get('edicion')
+    segmentos = data.get('segmentos', [])
+    
+    # Determinar truncado temporal
+    if periodo == 'semanal':
+        trunc_func = TruncWeek
+    elif periodo == 'mensual':
+        trunc_func = TruncMonth
+    else:
+        trunc_func = TruncDate
+        
+    series_response = []
+    
+    for seg in segmentos:
+        nombre = seg.get('nombre', 'Segmento')
+        entidad = seg.get('entidad', 'asistentes')
+        combinador = seg.get('combinador', 'AND')
+        reglas = seg.get('reglas', [])
+        
+        # QuerySet Base
+        if entidad == 'empresas':
+            qs = Empresa.objects.all()
+            date_field = 'fecha_registro'
+        elif entidad == 'disertantes':
+            qs = PostulacionDisertante.objects.all()
+            date_field = 'fecha_postulacion'
+        else:
+            qs = Asistente.objects.all()
+            date_field = 'fecha_registro'
+            
+        # Filtrar por edición si no es 'todas'
+        if edicion_sel_id and edicion_sel_id != 'todas':
+            try:
+                ed_id = int(edicion_sel_id)
+                if entidad == 'empresas':
+                    qs = qs.filter(edicion_id=ed_id)
+                elif entidad == 'disertantes':
+                    qs = qs.filter(edicion_id=ed_id)
+                else:
+                    qs = qs.filter(inscripciones__edicion_id=ed_id)
+            except ValueError:
+                pass
+                
+        # Construir consulta dinámica y segura mediante Q-objects
+        segment_q = models.Q()
+        
+        for r in reglas:
+            campo = r.get('campo')
+            operador = r.get('operador', 'exact')
+            valor = r.get('valor')
+            
+            if not campo or valor is None:
+                continue
+                
+            q_rule = models.Q()
+            
+            if campo == 'profile_type':
+                q_rule = models.Q(profile_type=valor)
+            elif campo == 'pertenece_unab':
+                unab_q = (
+                    models.Q(detalle_estudiante__is_unab_student=True) |
+                    models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='unab') |
+                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                )
+                q_rule = unab_q if valor == 'si' else ~unab_q
+            elif campo == 'asistencia_confirmada':
+                confirm_q = models.Q(inscripciones__asistencia_confirmada=True)
+                if edicion_sel_id and edicion_sel_id != 'todas':
+                    confirm_q &= models.Q(inscripciones__edicion_id=edicion_sel_id)
+                q_rule = confirm_q if valor == 'si' else ~confirm_q
+            elif campo == 'has_dni':
+                dni_q = models.Q(dni__isnull=False) & ~models.Q(dni='')
+                q_rule = dni_q if valor == 'si' else ~dni_q
+            elif campo == 'institucion':
+                if operador == 'contains':
+                    q_rule = (
+                        models.Q(detalle_estudiante__institution__icontains=valor) |
+                        models.Q(detalle_docente__institution__icontains=valor) |
+                        models.Q(detalle_grupo__institution_or_workplace__icontains=valor)
+                    )
+                else:
+                    q_rule = (
+                        models.Q(detalle_estudiante__institution=valor) |
+                        models.Q(detalle_docente__institution=valor) |
+                        models.Q(detalle_grupo__institution_or_workplace=valor)
+                    )
+            elif campo == 'carrera':
+                if operador == 'contains':
+                    q_rule = (
+                        models.Q(detalle_estudiante__career__icontains=valor) |
+                        models.Q(detalle_docente__career_taught__icontains=valor) |
+                        models.Q(detalle_profesional__occupation__icontains=valor)
+                    )
+                else:
+                    q_rule = (
+                        models.Q(detalle_estudiante__career=valor) |
+                        models.Q(detalle_docente__career_taught=valor) |
+                        models.Q(detalle_profesional__occupation=valor)
+                    )
+            elif campo == 'comision':
+                q_rule = models.Q(comision__icontains=valor) if operador == 'contains' else models.Q(comision=valor)
+            
+            # Campos de Empresa
+            elif campo == 'estado':
+                q_rule = models.Q(estado=valor)
+            elif campo == 'es_sponsor':
+                q_rule = models.Q(es_sponsor=(valor == 'si' or valor is True))
+            elif campo == 'participo_edicion_anterior':
+                q_rule = models.Q(participo_edicion_anterior=(valor == 'si' or valor is True))
+            elif campo == 'requiere_electricidad':
+                q_rule = models.Q(requiere_electricidad=(valor == 'si' or valor is True))
+            elif campo == 'computadora_o_pantalla':
+                q_rule = models.Q(computadora_o_pantalla=(valor == 'si' or valor is True))
+            elif campo == 'gazebo_propio':
+                q_rule = models.Q(gazebo_propio=(valor == 'si' or valor is True))
+            elif campo == 'rubro_logistico':
+                q_rule = models.Q(rubro_logistico__icontains=valor) if operador == 'contains' else models.Q(rubro_logistico=valor)
+            elif campo == 'tipo_mobiliario':
+                q_rule = models.Q(tipo_mobiliario=valor)
+                
+            # Campos de PostulacionDisertante
+            elif campo == 'modalidad':
+                q_rule = models.Q(modalidad__icontains=valor) if operador == 'contains' else models.Q(modalidad=valor)
+                
+            # Combinar lógica
+            if segment_q:
+                if combinador == 'OR':
+                    segment_q |= q_rule
+                else:
+                    segment_q &= q_rule
+            else:
+                segment_q = q_rule
+                
+        if segment_q:
+            qs = qs.filter(segment_q).distinct()
+            
+        # Agrupación y cuenta
+        # Evitar errores si no hay registros
+        stats_query = qs.annotate(period=trunc_func(date_field))
+        raw_data = stats_query.values('period').annotate(count=Count('id', distinct=True)).order_by('period')
+        
+        points = []
+        cumulative = 0
+        for item in raw_data:
+            if not item['period']:
+                continue
+            cumulative += item['count']
+            date_str = item['period'].strftime('%Y-%m-%d')
+            points.append({
+                'date': date_str,
+                'count': item['count'],
+                'cumulative': cumulative
+            })
+            
+        # Alineación temporal avanzada
+        if alineacion == 'campania' and points:
+            primer_dia = timezone.datetime.strptime(points[0]['date'], '%Y-%m-%d').date()
+            for p in points:
+                cur_dia = timezone.datetime.strptime(p['date'], '%Y-%m-%d').date()
+                p['aligned_day'] = (cur_dia - primer_dia).days + 1
+        elif alineacion == 'cuenta_regresiva' and points and edicion_sel_id and edicion_sel_id != 'todas':
+            fecha_evento = None
+            try:
+                first_prog = Programa.objects.filter(edicion_id=edicion_sel_id).order_by('dia').first()
+                if first_prog:
+                    fecha_evento = first_prog.dia
+            except Exception:
+                pass
+            if not fecha_evento:
+                try:
+                    ed = Edicion.objects.get(id=edicion_sel_id)
+                    fecha_evento = timezone.datetime(ed.anio, 11, 15).date()
+                except Exception:
+                    fecha_evento = timezone.now().date()
+                    
+            for p in points:
+                cur_dia = timezone.datetime.strptime(p['date'], '%Y-%m-%d').date()
+                p['aligned_day'] = (cur_dia - fecha_evento).days
+                
+        series_response.append({
+            'segment_name': nombre,
+            'points': points
+        })
+        
+    return JsonResponse({
+        'status': 'success',
+        'series': series_response
+    })
+
+
 # Inyectar el dashboard en el Admin de Django
 def patch_admin_urls():
     original_get_urls = admin.site.get_urls
@@ -493,6 +706,7 @@ def patch_admin_urls():
         urls = original_get_urls(*args, **kwargs)
         custom_urls = [
             path('dashboard/', admin.site.admin_view(admin_dashboard), name='admin-dashboard'),
+            path('dashboard-api/', admin.site.admin_view(dashboard_api_view), name='admin-dashboard-api'),
             path('broadcast/', admin.site.admin_view(broadcast_view), name='admin-broadcast'),
             path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
             path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
@@ -536,12 +750,15 @@ class DNIFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        if self.value() == 'sin_dni':
-            # Filtrar asistentes sin DNI (nulo o vacío)
-            return queryset.filter(dni__isnull=True) | queryset.filter(dni='')
-        if self.value() == 'con_dni':
-            # Filtrar asistentes con DNI válido (no nulo y no vacío)
-            return queryset.exclude(dni__isnull=True).exclude(dni='')
+        if self.value():
+            valores = self.value().split(',')
+            if len(valores) > 1:
+                return queryset
+            val = valores[0]
+            if val == 'sin_dni':
+                return queryset.filter(dni__isnull=True) | queryset.filter(dni='')
+            if val == 'con_dni':
+                return queryset.exclude(dni__isnull=True).exclude(dni='')
         return queryset
 
 
@@ -566,12 +783,15 @@ class InstitucionFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         if self.value():
-            val = self.value()
-            return queryset.filter(
-                models.Q(detalle_estudiante__institution=val) |
-                models.Q(detalle_docente__institution=val) |
-                models.Q(detalle_grupo__institution_or_workplace=val)
-            ).distinct()
+            valores = self.value().split(',')
+            q_obj = models.Q()
+            for val in valores:
+                q_obj |= (
+                    models.Q(detalle_estudiante__institution=val) |
+                    models.Q(detalle_docente__institution=val) |
+                    models.Q(detalle_grupo__institution_or_workplace=val)
+                )
+            return queryset.filter(q_obj).distinct()
         return queryset
 
 
@@ -596,12 +816,15 @@ class CarreraFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         if self.value():
-            val = self.value()
-            return queryset.filter(
-                models.Q(detalle_estudiante__career=val) |
-                models.Q(detalle_docente__career_taught=val) |
-                models.Q(detalle_profesional__occupation=val)
-            ).distinct()
+            valores = self.value().split(',')
+            q_obj = models.Q()
+            for val in valores:
+                q_obj |= (
+                    models.Q(detalle_estudiante__career=val) |
+                    models.Q(detalle_docente__career_taught=val) |
+                    models.Q(detalle_profesional__occupation=val)
+                )
+            return queryset.filter(q_obj).distinct()
         return queryset
 
 
@@ -616,22 +839,27 @@ class EsUNaBFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        if self.value() == 'si':
-            return queryset.filter(
-                models.Q(detalle_estudiante__is_unab_student=True) |
-                models.Q(detalle_estudiante__institution__icontains='unab') |
-                models.Q(detalle_estudiante__institution__icontains='almirante brown') |
-                models.Q(detalle_docente__institution__icontains='unab') |
-                models.Q(detalle_docente__institution__icontains='almirante brown')
-            ).distinct()
-        if self.value() == 'no':
-            return queryset.exclude(
-                models.Q(detalle_estudiante__is_unab_student=True) |
-                models.Q(detalle_estudiante__institution__icontains='unab') |
-                models.Q(detalle_estudiante__institution__icontains='almirante brown') |
-                models.Q(detalle_docente__institution__icontains='unab') |
-                models.Q(detalle_docente__institution__icontains='almirante brown')
-            ).distinct()
+        if self.value():
+            valores = self.value().split(',')
+            if len(valores) > 1:
+                return queryset
+            val = valores[0]
+            if val == 'si':
+                return queryset.filter(
+                    models.Q(detalle_estudiante__is_unab_student=True) |
+                    models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='unab') |
+                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                ).distinct()
+            if val == 'no':
+                return queryset.exclude(
+                    models.Q(detalle_estudiante__is_unab_student=True) |
+                    models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='unab') |
+                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                ).distinct()
         return queryset
 
 
@@ -651,11 +879,16 @@ class AsistenciaEdicionActivaFilter(admin.SimpleListFilter):
         if not edicion_activa:
             return queryset
             
-        if self.value() == 'confirmado':
-            return queryset.filter(inscripciones__edicion=edicion_activa, inscripciones__asistencia_confirmada=True).distinct()
-        if self.value() == 'pendiente':
-            confirmados = queryset.filter(inscripciones__edicion=edicion_activa, inscripciones__asistencia_confirmada=True).values_list('id', flat=True)
-            return queryset.filter(inscripciones__edicion=edicion_activa).exclude(id__in=confirmados).distinct()
+        if self.value():
+            valores = self.value().split(',')
+            if len(valores) > 1:
+                return queryset
+            val = valores[0]
+            if val == 'confirmado':
+                return queryset.filter(inscripciones__edicion=edicion_activa, inscripciones__asistencia_confirmada=True).distinct()
+            if val == 'pendiente':
+                confirmados = queryset.filter(inscripciones__edicion=edicion_activa, inscripciones__asistencia_confirmada=True).values_list('id', flat=True)
+                return queryset.filter(inscripciones__edicion=edicion_activa).exclude(id__in=confirmados).distinct()
         return queryset
 
 
@@ -755,6 +988,9 @@ class InscripcionAdmin(SimpleHistoryAdmin):
     fecha_inscripcion_detalle.admin_order_field = 'fecha_inscripcion'
 
 class AsistenteAdmin(SimpleHistoryAdmin):
+    class Media:
+        js = ('admin/js/multiselect_filters.js',)
+
     list_display = ('first_name', 'last_name', 'email', 'perfil_badge', 'dni', 'get_ediciones', 'get_asistencia_actual', 'fecha_registro_detalle')
     list_filter = (
         'profile_type',
@@ -1085,10 +1321,32 @@ class AsistenteAdmin(SimpleHistoryAdmin):
     def get_queryset(self, request):
         """
         Por defecto, muestra solo los registrados en la edición activa.
-        Permite ver todos si se aplican filtros específicos.
+        Permite ver todos si se aplican filtros específicos y soporta multiselección sumada.
         """
-        qs = super().get_queryset(request)
+        get_copy = request.GET.copy()
+        comma_fields = {
+            'profile_type': 'profile_type__in',
+            'comision': 'comision__in',
+            'inscripciones__edicion__id__exact': 'inscripciones__edicion__id__in',
+        }
         
+        custom_filters = {}
+        for get_key, filter_lookup in comma_fields.items():
+            val = get_copy.get(get_key)
+            if val and ',' in val:
+                custom_filters[filter_lookup] = val.split(',')
+                del get_copy[get_key]
+
+        original_GET = request.GET
+        request.GET = get_copy
+        try:
+            qs = super().get_queryset(request)
+        finally:
+            request.GET = original_GET
+
+        if custom_filters:
+            qs = qs.filter(**custom_filters).distinct()
+
         # Si no hay filtros de edición aplicados, filtrar por la activa por defecto
         if not request.GET.get('inscripciones__edicion__id__exact'):
             edicion_activa = Edicion.objects.filter(activa=True).first()
@@ -1503,6 +1761,9 @@ class DisertanteAdmin(admin.ModelAdmin):
     list_filter = ('edicion', 'estado')
 @admin.register(Empresa)
 class EmpresaAdmin(SimpleHistoryAdmin):
+    class Media:
+        js = ('admin/js/multiselect_filters.js',)
+
     list_display = ('nombre_empresa', 'estado_badge', 'es_sponsor', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro_detalle')
     list_filter = ('estado', 'es_sponsor', 'edicion', 'participo_edicion_anterior')
     search_fields = ('nombre_empresa', 'cuit', 'email_contacto', 'nombre_contacto')
@@ -1583,11 +1844,65 @@ class EmpresaAdmin(SimpleHistoryAdmin):
         self.message_user(request, f'❌ {updated} empresa(s) rechazada(s).')
     rechazar_empresas.short_description = '❌ Rechazar empresas seleccionadas'  # type: ignore
 
+    def get_queryset(self, request):
+        get_copy = request.GET.copy()
+        comma_fields = {
+            'estado': 'estado__in',
+            'edicion__id__exact': 'edicion__id__in',
+        }
+        custom_filters = {}
+        for get_key, filter_lookup in comma_fields.items():
+            val = get_copy.get(get_key)
+            if val and ',' in val:
+                custom_filters[filter_lookup] = val.split(',')
+                del get_copy[get_key]
+                
+        original_GET = request.GET
+        request.GET = get_copy
+        try:
+            qs = super().get_queryset(request)
+        finally:
+            request.GET = original_GET
+            
+        if custom_filters:
+            qs = qs.filter(**custom_filters).distinct()
+        return qs
+
+
+class EjeTematicoFilter(admin.SimpleListFilter):
+    title = 'Eje Temático'
+    parameter_name = 'eje_tematico'
+
+    def lookups(self, request, model_admin):
+        return [
+            ("TECNOLOGIA", "Tecnología"),
+            ("LOGISTICA", "Logística"),
+            ("PUERTOS/COMERCIO EXTERIOR", "Puertos/Comercio Exterior"),
+            ("E-COMMERS", "E-Commerce"),
+            ("SUPPLY CHAIN", "Supply Chain"),
+            ("CAPITAL HUMANO", "Capital Humano"),
+            ("RADIO", "Radio"),
+            ("SUSTENTABILIDAD", "Sustentabilidad"),
+            ("TRANSPORTE", "Transporte"),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            valores = self.value().split(',')
+            q_obj = models.Q()
+            for val in valores:
+                q_obj |= models.Q(ejes_tematicos__icontains=val)
+            return queryset.filter(q_obj).distinct()
+        return queryset
+
 
 @admin.register(PostulacionDisertante)
 class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
+    class Media:
+        js = ('admin/js/multiselect_filters.js',)
+
     list_display = ('nombre_apellido', 'email', 'titulo_charla', 'estado', 'edicion', 'fecha_postulacion_detalle')
-    list_filter = ('estado', 'edicion', 'modalidad')
+    list_filter = ('estado', 'edicion', EjeTematicoFilter, 'modalidad')
     search_fields = ('nombre_apellido', 'dni', 'email', 'titulo_charla')
     list_editable = ('estado',)
     actions = ['aprobar_postulaciones', 'rechazar_postulaciones']
@@ -1636,6 +1951,31 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
         updated = queryset.update(estado='RECHAZADO', fecha_revision=timezone.now(), revisada_por=request.user)
         self.message_user(request, f'{updated} postulacion(es) de disertante rechazada(s).')
     rechazar_postulaciones.short_description = 'Rechazar postulaciones seleccionadas'  # type: ignore
+
+    def get_queryset(self, request):
+        get_copy = request.GET.copy()
+        comma_fields = {
+            'estado': 'estado__in',
+            'edicion__id__exact': 'edicion__id__in',
+            'modalidad': 'modalidad__in',
+        }
+        custom_filters = {}
+        for get_key, filter_lookup in comma_fields.items():
+            val = get_copy.get(get_key)
+            if val and ',' in val:
+                custom_filters[filter_lookup] = val.split(',')
+                del get_copy[get_key]
+                
+        original_GET = request.GET
+        request.GET = get_copy
+        try:
+            qs = super().get_queryset(request)
+        finally:
+            request.GET = original_GET
+            
+        if custom_filters:
+            qs = qs.filter(**custom_filters).distinct()
+        return qs
 
 
 @admin.register(InscripcionPrensa)

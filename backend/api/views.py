@@ -81,7 +81,7 @@ class ProgramaViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         edicion_id = self.request.query_params.get('edicion_id')
-        queryset = Programa.objects.all().order_by('dia', 'hora_inicio')
+        queryset = Programa.objects.all().prefetch_related('disertantes').order_by('dia', 'hora_inicio')
         if edicion_id:
             queryset = queryset.filter(edicion_id=edicion_id)
         else:
@@ -490,7 +490,7 @@ class EnvioMasivoEmailsView(views.APIView):
     Vista para envío masivo de emails a todos los asistentes registrados.
     Envía emails de confirmación con la fecha correcta del evento: 7 de noviembre de 2026.
     """
-    permission_classes = [AllowAny]  # En producción, cambiar por permisos de administrador
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, *args, **kwargs):
         """Método GET para mostrar estadísticas de emails"""
@@ -593,7 +593,7 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
     Vista para carga masiva de asistentes desde archivo Excel/CSV.
     Maneja DNIs nulos y asigna perfil 'OTRO' por defecto cuando el tipo de perfil está vacío.
     """
-    permission_classes = [AllowAny]  # En producción, cambiar por permisos de administrador
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, *args, **kwargs):
         """Método GET para mostrar información sobre el endpoint"""
@@ -883,7 +883,7 @@ class CargaMasivaAsistentesView(views.APIView):
     Vista para carga masiva de asistentes desde archivo Excel.
     Permite subir un archivo Excel con datos de asistentes y procesarlos en lote.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, *args, **kwargs):
         """Método GET para mostrar información sobre la carga masiva"""

@@ -319,6 +319,7 @@ class Certificado(models.Model):
         EMPRESA = 'EMPRESA', 'Empresa'
 
     asistente = models.ForeignKey(Asistente, on_delete=models.CASCADE)
+    edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='certificados')
     tipo_certificado = models.CharField(max_length=10, choices=TipoCertificado.choices, verbose_name="Tipo de Certificado")
     pdf_generado = models.FileField(upload_to='certificados/', storage=storages["private"], blank=True, null=True, verbose_name="PDF Generado")
     fecha_generacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Generación")
@@ -330,6 +331,11 @@ class Certificado(models.Model):
 
     def __str__(self):
         return f"Certificado de {self.get_tipo_certificado_display()} para {self.asistente.first_name} {self.asistente.last_name}" # type: ignore
+
+    class Meta:
+        unique_together = ('asistente', 'edicion', 'tipo_certificado')
+        verbose_name = "Certificado"
+        verbose_name_plural = "Certificados"
 
     def generar_pdf(self, save=True): # type: ignore
         """

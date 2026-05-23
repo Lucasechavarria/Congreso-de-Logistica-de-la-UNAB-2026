@@ -525,19 +525,22 @@ def dashboard_api_view(request):
         combinador = seg.get('combinador', 'AND')
         reglas = seg.get('reglas', [])
         
-        # QuerySet Base
+        # QuerySet Base Optimizado para evitar N+1 en DB
         if entidad == 'empresas':
-            qs = Empresa.objects.all()
+            qs = Empresa.objects.all().select_related('edicion')
             date_field = 'fecha_registro'
         elif entidad == 'disertantes':
-            qs = PostulacionDisertante.objects.all()
+            qs = PostulacionDisertante.objects.all().select_related('edicion')
             date_field = 'fecha_postulacion'
         else:
-            qs = Asistente.objects.all()
+            qs = Asistente.objects.all().select_related(
+                'detalle_estudiante', 'detalle_docente', 'detalle_profesional', 'detalle_grupo'
+            ).prefetch_related('inscripciones')
             date_field = 'fecha_registro'
             
-        # Filtrar por edición si no es 'todas'
-        if edicion_sel_id and edicion_sel_id != 'todas':
+        # Solo filtrar por edición global si el segmento NO define una regla de edición específica
+        has_seg_edicion = any(r.get('campo') == 'edicion' for r in reglas)
+        if edicion_sel_id and edicion_sel_id != 'todas' and not has_seg_edicion:
             try:
                 ed_id = int(edicion_sel_id)
                 if entidad == 'empresas':
@@ -609,6 +612,19 @@ def dashboard_api_view(request):
                     )
             elif campo == 'comision':
                 q_rule = models.Q(comision__icontains=valor) if operador == 'contains' else models.Q(comision=valor)
+            elif campo == 'year_of_study':
+                try:
+                    q_rule = models.Q(detalle_estudiante__year_of_study=int(valor))
+                except ValueError:
+                    pass
+            elif campo == 'work_area':
+                q_rule = models.Q(detalle_profesional__work_area__icontains=valor) if operador == 'contains' else models.Q(detalle_profesional__work_area=valor)
+            elif campo == 'group_name':
+                q_rule = models.Q(detalle_grupo__group_name__icontains=valor) if operador == 'contains' else models.Q(detalle_grupo__group_name=valor)
+            elif campo == 'group_municipality':
+                q_rule = models.Q(detalle_grupo__group_municipality__icontains=valor) if operador == 'contains' else models.Q(detalle_grupo__group_municipality=valor)
+            elif campo == 'tipo_grupo':
+                q_rule = models.Q(detalle_grupo__tipo_grupo__icontains=valor)
             
             # Campos de Empresa
             elif campo == 'estado':
@@ -631,6 +647,27 @@ def dashboard_api_view(request):
             # Campos de PostulacionDisertante
             elif campo == 'modalidad':
                 q_rule = models.Q(modalidad__icontains=valor) if operador == 'contains' else models.Q(modalidad=valor)
+            elif campo == 'profesion_cargo':
+                q_rule = models.Q(profesion_cargo__icontains=valor) if operador == 'contains' else models.Q(profesion_cargo=valor)
+            elif campo == 'empresa_institucion':
+                q_rule = models.Q(empresa_institucion__icontains=valor) if operador == 'contains' else models.Q(empresa_institucion=valor)
+            elif campo == 'ejes_tematicos':
+                q_rule = models.Q(ejes_tematicos__icontains=valor)
+            elif campo == 'participacion_tipo':
+                q_rule = models.Q(participacion_tipo__icontains=valor)
+            elif campo == 'requiere_equipamiento':
+                q_rule = models.Q(requiere_equipamiento__icontains=valor) if operador == 'contains' else models.Q(requiere_equipamiento=valor)
+                
+            # Filtro de Edición por Segmento (Comparativas Cruzadas)
+            elif campo == 'edicion':
+                try:
+                    anio_val = int(valor)
+                    if entidad == 'empresas' or entidad == 'disertantes':
+                        q_rule = models.Q(edicion__anio=anio_val)
+                    else:
+                        q_rule = models.Q(inscripciones__edicion__anio=anio_val)
+                except ValueError:
+                    pass
                 
             # Combinar lógica
             if segment_q:
@@ -1699,11 +1736,38 @@ class AsistenteAdmin(SimpleHistoryAdmin):
     set_perfil_profesional.short_description = '⚙️ Cambiar perfil de seleccionados a Profesional'
 
 class CertificadoAdmin(admin.ModelAdmin):
+    class Media:
+        js = ('admin/js/multiselect_filters.js',)
+
     list_display = ('asistente', 'tipo_certificado', 'email_enviado', 'fecha_envio', 'intentos', 'fecha_generacion')
     list_filter = ('tipo_certificado', 'email_enviado', 'fecha_generacion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email')
     readonly_fields = ('fecha_generacion', 'fecha_envio', 'intentos')
     actions = ['enviar_por_email_accion_masiva']
+
+    def get_queryset(self, request):
+        get_copy = request.GET.copy()
+        comma_fields = {
+            'tipo_certificado': 'tipo_certificado__in',
+            'email_enviado': 'email_enviado__in',
+        }
+        custom_filters = {}
+        for get_key, filter_lookup in comma_fields.items():
+            val = get_copy.get(get_key)
+            if val and ',' in val:
+                custom_filters[filter_lookup] = val.split(',')
+                del get_copy[get_key]
+                
+        original_GET = request.GET
+        request.GET = get_copy
+        try:
+            qs = super().get_queryset(request)
+        finally:
+            request.GET = original_GET
+            
+        if custom_filters:
+            qs = qs.filter(**custom_filters).distinct()
+        return qs
 
     def enviar_por_email_accion_masiva(self, request, queryset):
         # Redirigir a la nueva interfaz de procesamiento por lotes si es necesario, 
@@ -1731,10 +1795,38 @@ class CertificadoAdmin(admin.ModelAdmin):
     enviar_por_email_accion.short_description = "Re-enviar certificados seleccionados por Email" # type: ignore
 
 class ProgramaAdmin(admin.ModelAdmin):
+    class Media:
+        js = ('admin/js/multiselect_filters.js',)
+
     list_display = ('titulo', 'categoria', 'aula', 'dia', 'hora_inicio', 'hora_fin', 'edicion')
     list_filter = ('edicion', 'dia', 'categoria', 'aula')
     search_fields = ('titulo',)
     list_editable = ('categoria',)
+
+    def get_queryset(self, request):
+        get_copy = request.GET.copy()
+        comma_fields = {
+            'edicion__id__exact': 'edicion__id__in',
+            'categoria': 'categoria__in',
+            'aula': 'aula__in',
+        }
+        custom_filters = {}
+        for get_key, filter_lookup in comma_fields.items():
+            val = get_copy.get(get_key)
+            if val and ',' in val:
+                custom_filters[filter_lookup] = val.split(',')
+                del get_copy[get_key]
+                
+        original_GET = request.GET
+        request.GET = get_copy
+        try:
+            qs = super().get_queryset(request)
+        finally:
+            request.GET = original_GET
+            
+        if custom_filters:
+            qs = qs.filter(**custom_filters).distinct()
+        return qs
     
     actions = ['set_logistica', 'set_tecnologia']
 
@@ -1980,9 +2072,36 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
 
 @admin.register(InscripcionPrensa)
 class InscripcionPrensaAdmin(admin.ModelAdmin):
+    class Media:
+        js = ('admin/js/multiselect_filters.js',)
+
     list_display = ('nombre_apellido', 'tipo_perfil', 'medio_o_canal', 'edicion', 'fecha_inscripcion_detalle', 'link_display')
     list_filter = ('tipo_perfil', 'edicion')
     search_fields = ('nombre_apellido', 'dni', 'email', 'medio_o_canal')
+
+    def get_queryset(self, request):
+        get_copy = request.GET.copy()
+        comma_fields = {
+            'tipo_perfil': 'tipo_perfil__in',
+            'edicion__id__exact': 'edicion__id__in',
+        }
+        custom_filters = {}
+        for get_key, filter_lookup in comma_fields.items():
+            val = get_copy.get(get_key)
+            if val and ',' in val:
+                custom_filters[filter_lookup] = val.split(',')
+                del get_copy[get_key]
+                
+        original_GET = request.GET
+        request.GET = get_copy
+        try:
+            qs = super().get_queryset(request)
+        finally:
+            request.GET = original_GET
+            
+        if custom_filters:
+            qs = qs.filter(**custom_filters).distinct()
+        return qs
     readonly_fields = ('fecha_inscripcion',)
     ordering = ['-fecha_inscripcion']
 

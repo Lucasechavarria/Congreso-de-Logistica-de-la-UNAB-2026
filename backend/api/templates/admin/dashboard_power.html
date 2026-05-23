@@ -438,6 +438,7 @@
         border-radius: 8px;
         border: 1px solid rgba(255,255,255,0.04);
         flex-wrap: wrap;
+        position: relative;
     }
 
     .rule-row select, .rule-row input {
@@ -546,9 +547,146 @@
         background: rgba(255, 255, 255, 0.02);
     }
 
+    /* Burbuja de Sugerencias */
+    .bi-suggestions-box {
+        position: absolute;
+        z-index: 1001;
+        background: #0f0724;
+        border: 1px solid var(--b);
+        border-radius: 8px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+        max-height: 120px;
+        overflow-y: auto;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        left: 0;
+        top: 30px;
+        display: none;
+    }
+    .bi-suggestions-box li {
+        padding: 6px 12px;
+        font-size: 11px;
+        cursor: pointer;
+        color: #cbd5e1;
+        font-weight: 500;
+        transition: background 0.2s ease;
+    }
+    .bi-suggestions-box li:hover {
+        background: rgba(6, 182, 212, 0.15);
+        color: #fff;
+    }
+
     @media (max-width: 1100px) {
         .c-card {
             height: 350px;
+        }
+    }
+
+    /* Hoja de estilos ejecutiva optimizada para impresión a PDF */
+    @media print {
+        body {
+            background: #fff !important;
+            color: #000 !important;
+        }
+        
+        /* Ocultar elementos innecesarios */
+        .f-panel, 
+        .bi-console, 
+        .aurora-bg,
+        #btn-print-pdf,
+        .btn-chart-export,
+        #load-report-dropdown,
+        .btn-apply,
+        .breadcrumbs {
+            display: none !important;
+        }
+        
+        /* Restablecer paddings y márgenes */
+        #content {
+            background: #fff !important;
+            padding: 0 !important;
+        }
+        
+        .ds-header h1 {
+            color: #000 !important;
+            text-shadow: none !important;
+            font-size: 24px !important;
+            border-bottom: 2px solid #cbd5e1;
+            padding-bottom: 10px;
+        }
+        
+        /* Forzar que los KPIs y gráficos ocupen toda la pantalla de forma impresa */
+        .k-row {
+            grid-template-columns: repeat(5, 1fr) !important;
+            gap: 10px !important;
+            margin-bottom: 20px !important;
+        }
+        
+        .k-card {
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #000 !important;
+            box-shadow: none !important;
+            padding: 12px !important;
+        }
+        
+        .k-card span {
+            color: #64748b !important;
+        }
+        
+        .k-card div.kpi-val {
+            color: #000 !important;
+            font-size: 24px !important;
+            text-shadow: none !important;
+        }
+        
+        .c-grid {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 20px !important;
+            page-break-inside: avoid;
+        }
+        
+        .c-card {
+            background: #fff !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+            height: auto !important;
+            min-height: 280px !important;
+            page-break-inside: avoid;
+        }
+        
+        .c-card h3 {
+            color: #000 !important;
+        }
+        
+        canvas {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        
+        /* Formatear gráficos BI y tabla */
+        #bi-chart-card, #bi-table-card {
+            display: block !important;
+            page-break-before: always;
+        }
+        
+        .bi-table-container {
+            display: block !important;
+            border: 1px solid #cbd5e1 !important;
+            background: #fff !important;
+        }
+        
+        .bi-table th {
+            background: #f1f5f9 !important;
+            color: #000 !important;
+            border-bottom: 2px solid #cbd5e1 !important;
+        }
+        
+        .bi-table td {
+            color: #000 !important;
+            border-bottom: 1px solid #e2e8f0 !important;
         }
     }
 </style>
@@ -562,8 +700,12 @@
 </div>
 
 <div class="ds-container">
-    <div class="ds-header">
-        <h1>ANALYTICS HUB 🚀</h1>
+    <div class="ds-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px;">
+        <h1 style="margin: 0; font-size: 2.3rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px rgba(167, 139, 250, 0.45); display: flex; align-items: center; gap: 12px;">ANALYTICS HUB 🚀</h1>
+        <button type="button" class="btn-apply" id="btn-print-pdf" style="background: linear-gradient(135deg, var(--neon-cyan), var(--p)); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);">
+            📄 Descargar Informe PDF
+        </button>
+    </div>
 
         <form method="get" class="f-panel">
             <!-- Fila 1: Filtros de Tiempo y Contexto -->
@@ -748,11 +890,27 @@
 
     <!-- CONSOLA PREMIUM: VISUAL QUERY & SEGMENT BUILDER (BI ANALYST TOOL 2.0) -->
     <div class="bi-console">
-        <div class="bi-title">
-            <h2>Dynamic BI Analyst Tool 2.0 📊</h2>
-            <button type="button" class="btn-apply" id="btn-add-segment" style="background: rgba(167, 139, 250, 0.1); border: 1px solid var(--p); color: var(--p);">
-                + Añadir Segmento de Comparación
-            </button>
+        <div class="bi-title" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0; color: #fff; font-size: 1.5rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; text-shadow: 0 0 15px rgba(6, 182, 212, 0.4);">Dynamic BI Analyst Tool 2.0 📊</h2>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <button type="button" class="btn-apply" id="btn-clear-segments" style="background: rgba(244, 63, 94, 0.1); border: 1px solid var(--neon-magenta); color: var(--neon-magenta);">
+                    🧹 Limpiar Consola
+                </button>
+                <button type="button" class="btn-apply" id="btn-save-report" style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981;">
+                    💾 Guardar Reporte
+                </button>
+                <div style="position: relative; display: inline-block;">
+                    <button type="button" class="btn-apply" id="btn-load-report" style="background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; color: #f59e0b;">
+                        📂 Cargar Reporte
+                    </button>
+                    <ul id="load-report-dropdown" class="bi-suggestions-box" style="width: 220px; top: 40px; right: 0; left: auto; max-height: 250px;">
+                        <!-- Reportes guardados se listarán aquí -->
+                    </ul>
+                </div>
+                <button type="button" class="btn-apply" id="btn-add-segment" style="background: rgba(167, 139, 250, 0.1); border: 1px solid var(--p); color: var(--p);">
+                    + Añadir Segmento
+                </button>
+            </div>
         </div>
 
         <!-- Rejilla de Segmentos Creados por el Usuario -->
@@ -795,6 +953,17 @@
                     <select id="bi-chart-type" class="premium-select">
                         <option value="line">Curvas de Línea Neon</option>
                         <option value="bar">Barras Comparativas 3D</option>
+                    </select>
+                </div>
+                <div class="f-group">
+                    <label>Métrica de Curva
+                        <span class="info-badge-help">?
+                            <span class="tooltip-box"><b>Acumulado Histórico</b>: Muestra el crecimiento acumulativo total.<br><b>Volumen por Período</b>: Muestra la cantidad neta registrada en cada tramo temporal (Diario, Semanal, Mensual).</span>
+                        </span>
+                    </label>
+                    <select id="bi-metric" class="premium-select">
+                        <option value="cumulative">Acumulado Histórico</option>
+                        <option value="count">Volumen por Período</option>
                     </select>
                 </div>
             </div>
@@ -1042,7 +1211,7 @@
         });
     });
 
-    // ── LOGICA COMPLETA DEL VISUAL QUERY & SEGMENT BUILDER 2.0 ─────────────────────
+    // ── LOGICA COMPLETA DEL VISUAL QUERY & SEGMENT BUILDER 2.0 (FASE 5) ─────────────
     const segContainer = document.getElementById("bi-segments-container");
     const btnAddSeg = document.getElementById("btn-add-segment");
     const btnExecuteBi = document.getElementById("btn-execute-bi");
@@ -1051,15 +1220,22 @@
 
     const fieldsByEntity = {
         asistentes: [
+            { value: "edicion", label: "Año de Edición" },
             { value: "profile_type", label: "Tipo de Perfil" },
             { value: "pertenece_unab", label: "Pertenencia UNaB" },
             { value: "asistencia_confirmada", label: "Asistencia (Acreditado)" },
             { value: "has_dni", label: "Tiene DNI Cargado" },
             { value: "institucion", label: "Institución" },
             { value: "carrera", label: "Carrera / Cargo" },
-            { value: "comision", label: "Comisión" }
+            { value: "comision", label: "Comisión" },
+            { value: "year_of_study", label: "Año de Estudio (Estudiantes)" },
+            { value: "work_area", label: "Área de Trabajo (Profesionales)" },
+            { value: "group_name", label: "Nombre de Grupo (Grupos)" },
+            { value: "group_municipality", label: "Municipio del Grupo (Grupos)" },
+            { value: "tipo_grupo", label: "Tipo de Grupo (Grupos)" }
         ],
         empresas: [
+            { value: "edicion", label: "Año de Edición" },
             { value: "estado", label: "Estado del Stand" },
             { value: "es_sponsor", label: "Es Patrocinador" },
             { value: "participo_edicion_anterior", label: "Expositor Recurrente" },
@@ -1070,12 +1246,23 @@
             { value: "tipo_mobiliario", label: "Mobiliario del Stand" }
         ],
         disertantes: [
+            { value: "edicion", label: "Año de Edición" },
             { value: "estado", label: "Estado Postulación" },
-            { value: "modalidad", label: "Formato / Modalidad" }
+            { value: "modalidad", label: "Formato / Modalidad" },
+            { value: "profesion_cargo", label: "Profesión / Cargo" },
+            { value: "empresa_institucion", label: "Empresa / Institución" },
+            { value: "ejes_tematicos", label: "Eje Temático" },
+            { value: "participacion_tipo", label: "Tipo de Participación" },
+            { value: "requiere_equipamiento", label: "Equipamiento Requerido" }
         ]
     };
 
     const valueOptions = {
+        edicion: [
+            { value: "2026", label: "Edición 2026" },
+            { value: "2025", label: "Edición 2025" },
+            { value: "2024", label: "Edición 2024" }
+        ],
         profile_type: [
             { value: "STUDENT", label: "🎓 Estudiante" },
             { value: "TEACHER", label: "🏫 Docente" },
@@ -1129,15 +1316,56 @@
             { value: "Solo mesa", label: "Solo mesa" },
             { value: "Solo dos sillas", label: "Solo dos sillas" },
             { value: "Ninguno", label: "No requiere mobiliario" }
+        ],
+        year_of_study: [
+            { value: "1", label: "1º Año" },
+            { value: "2", label: "2º Año" },
+            { value: "3", label: "3º Año" },
+            { value: "4", label: "4º Año" },
+            { value: "5", label: "5º Año" }
+        ],
+        tipo_grupo: [
+            { value: "ESCOLAR", label: "Escolar / Colegio" },
+            { value: "UNIVERSITARIO", label: "Universitario / Terciario" },
+            { value: "INSTITUCIONAL", label: "Institucional / Ong" },
+            { value: "EMPRESARIAL", label: "Empresarial / Pyme" },
+            { value: "OTRO", label: "Otro" }
+        ],
+        ejes_tematicos: [
+            { value: "TECNOLOGIA", label: "Tecnología e Innovación" },
+            { value: "LOGISTICA", label: "Logística y Suministros" },
+            { value: "PUERTOS/COMERCIO EXTERIOR", label: "Puertos y Comercio Exterior" },
+            { value: "E-COMMERS", label: "E-Commerce" },
+            { value: "OTRO", label: "Otro" }
+        ],
+        participacion_tipo: [
+            { value: "CONFERENCIA", label: "Conferencia / Exposición" },
+            { value: "MESA_REDONDA", label: "Mesa Redonda / Debate" },
+            { value: "TALLER", label: "Taller / Workshop" },
+            { value: "OTRO", label: "Otro" }
         ]
+    };
+
+    const textSuggestions = {
+        institucion: ["UNaB", "Universidad Nacional de Almirante Brown", "Particular", "UBA", "UTN", "UNLP"],
+        carrera: ["Logística", "Tecnología", "Docente", "Estudiante", "Administración", "Prensa"],
+        comision: ["Turno Mañana", "Turno Noche", "Comisión A", "Comisión B"],
+        rubro_logistico: ["Transporte", "Puertos", "Tecnología", "Comercio Exterior", "Distribución", "Consultoría"],
+        modalidad: ["Presencial", "Virtual", "Híbrido", "Charla Magistral", "Mesa Redonda", "Taller"],
+        work_area: ["Logística", "Administración", "Sistemas", "Abastecimiento", "Producción", "Ventas"],
+        group_name: ["Colegio UNAB", "Instituto Logístico", "Delegación Brown", "Grupo UTN"],
+        group_municipality: ["Almirante Brown", "Lomas de Zamora", "Quilmes", "Lanús", "Avellaneda", "Esteban Echeverría"],
+        profesion_cargo: ["Director de Logística", "Consultor Senior", "Investigador", "Gerente de Operaciones"],
+        empresa_institucion: ["UNaB", "Empresa Logística S.A.", "Puerto de Buenos Aires", "Particular"],
+        requiere_equipamiento: ["Proyector y Micrófono", "Puntero Láser", "Conexión a Internet", "Ninguno"]
     };
 
     const neonColors = ['#06b6d4', '#f43f5e', '#10b981', '#fbbf24', '#a78bfa'];
     let segmentCount = 0;
-    let biDataHistory = null; // Guardar data de la última corrida para exportación CSV
+    let biDataHistory = null; // Guardar data para exportación CSV
 
     // Crear Segmento Nuevo
-    function addSegment() {
+    function addSegment(config = null) {
         const segId = `seg-${segmentCount}`;
         const color = neonColors[segmentCount % neonColors.length];
         
@@ -1147,24 +1375,33 @@
         card.style.setProperty("--seg-border", color);
         card.style.borderLeft = `4px solid ${color}`;
         
+        const nameVal = config ? config.nombre : `Segmento Comparativo ${segmentCount + 1}`;
+        const entityVal = config ? config.entidad : "asistentes";
+        const combinerVal = config ? config.combinador : "AND";
+        
         card.innerHTML = `
             <div class="seg-card-header">
-                <input type="text" class="seg-name" value="Segmento Comparativo ${segmentCount + 1}">
+                <input type="text" class="seg-name" value="${nameVal}">
                 <button type="button" class="btn-delete-seg" onclick="deleteSegment('${segId}')">Eliminar ❌</button>
             </div>
             
             <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:12px; gap:8px;">
                 <span style="font-size:10px; font-weight:700; color: #a78bfa; text-transform:uppercase;">Analizar</span>
                 <select class="seg-entity" onchange="onEntityChange('${segId}', this.value)" style="font-size:11px; padding:3px; background:#120b24; border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:4px;">
-                    <option value="asistentes">Asistentes</option>
-                    <option value="empresas">Empresas</option>
-                    <option value="disertantes">Ponentes</option>
+                    <option value="asistentes" ${entityVal === 'asistentes' ? 'selected' : ''}>Asistentes</option>
+                    <option value="empresas" ${entityVal === 'empresas' ? 'selected' : ''}>Empresas</option>
+                    <option value="disertantes" ${entityVal === 'disertantes' ? 'selected' : ''}>Ponentes</option>
                 </select>
                 
-                <span style="font-size:10px; font-weight:700; color: #a78bfa; text-transform:uppercase;">Unir</span>
+                <span style="font-size:10px; font-weight:700; color: #a78bfa; text-transform:uppercase; display:flex; align-items:center; gap:3px;">
+                    Unir 
+                    <span class="info-badge-help" style="width:12px; height:12px; font-size:8px;">?
+                        <span class="tooltip-box" style="width:160px; font-weight:500;"><b>AND (Y)</b>: El registro debe cumplir con TODAS las reglas.<br><b>OR (O)</b>: El registro se suma si cumple con AL MENOS UNA.</span>
+                    </span>
+                </span>
                 <select class="seg-combiner" style="font-size:11px; padding:3px; background:#120b24; border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:4px;">
-                    <option value="AND">AND (Y)</option>
-                    <option value="OR">OR (O)</option>
+                    <option value="AND" ${combinerVal === 'AND' ? 'selected' : ''}>AND (Y)</option>
+                    <option value="OR" ${combinerVal === 'OR' ? 'selected' : ''}>OR (O)</option>
                 </select>
             </div>
             
@@ -1178,8 +1415,14 @@
         segContainer.appendChild(card);
         segmentCount++;
         
-        // Agregar la primera regla por defecto
-        addRule(segId);
+        if (config && config.reglas && config.reglas.length > 0) {
+            config.reglas.forEach(r => {
+                addRule(segId, r);
+            });
+        } else {
+            // Agregar la primera regla por defecto
+            addRule(segId);
+        }
     }
 
     // Cambiar Entidad (Actualizar campos disponibles de la regla)
@@ -1196,7 +1439,7 @@
     };
 
     // Añadir Regla (Filtro) a un Segmento
-    window.addRule = function(segId) {
+    window.addRule = function(segId, ruleConfig = null) {
         const rulesContainer = document.getElementById(`${segId}-rules`);
         const card = document.getElementById(segId);
         const entityVal = card.querySelector(".seg-entity").value;
@@ -1207,10 +1450,13 @@
         row.className = "rule-row";
         row.id = ruleId;
         
+        const selectedField = ruleConfig ? ruleConfig.campo : fields[0].value;
+        const selectedOp = ruleConfig ? ruleConfig.operador : "exact";
+        
         // Cargar opciones del selector de campo
         let fieldOptionsHTML = "";
         fields.forEach(f => {
-            fieldOptionsHTML += `<option value="${f.value}">${f.label}</option>`;
+            fieldOptionsHTML += `<option value="${f.value}" ${f.value === selectedField ? 'selected' : ''}>${f.label}</option>`;
         });
         
         row.innerHTML = `
@@ -1219,11 +1465,11 @@
             </select>
             
             <select class="rule-operator" style="width:25%;">
-                <option value="exact">Es igual a</option>
-                <option value="contains" class="text-op" style="display:none;">Contiene</option>
+                <option value="exact" class="exact-op" ${selectedOp === 'exact' ? 'selected' : ''}>Es igual a</option>
+                <option value="contains" class="text-op" ${selectedOp === 'contains' ? 'selected' : ''} style="display:none;">Contiene</option>
             </select>
             
-            <div class="rule-value-container" style="flex:1; display:flex;">
+            <div class="rule-value-container" style="flex:1; display:flex; position:relative;">
                 <!-- Cambia dinámicamente según el campo -->
             </div>
             
@@ -1233,32 +1479,42 @@
         rulesContainer.appendChild(row);
         
         // Disparar cambio de campo inicial
-        const initialField = fields[0].value;
-        onFieldChange(ruleId, initialField);
+        onFieldChange(ruleId, selectedField, ruleConfig ? ruleConfig.valor : null);
     };
 
-    // Cambiar Campo de la Regla (Cargar selector de valores o input libre)
-    window.onFieldChange = function(ruleId, fieldVal) {
+    // Cambiar Campo de la Regla (Forzar "Contiene" para Textos, "Es igual a" para Opciones Estructuradas)
+    window.onFieldChange = function(ruleId, fieldVal, initialValue = null) {
         const row = document.getElementById(ruleId);
         const valContainer = row.querySelector(".rule-value-container");
         const opSelect = row.querySelector(".rule-operator");
-        const textOps = opSelect.querySelectorAll(".text-op");
-
-        // Opciones del operador
+        
         const textFields = ["institucion", "carrera", "comision", "rubro_logistico", "modalidad"];
-        if (textFields.includes(fieldVal)) {
-            textOps.forEach(o => o.style.display = "block");
-            opSelect.value = "contains"; // Por defecto contiene para textos
+        const isTextField = textFields.includes(fieldVal);
+
+        if (isTextField) {
+            // Forzar búsqueda parcial "Contiene" para evitar confusiones al usuario
+            opSelect.querySelectorAll("option").forEach(o => o.style.display = "none");
+            const containsOp = opSelect.querySelector("option[value='contains']");
+            if (containsOp) containsOp.style.display = "block";
+            opSelect.value = "contains";
+            opSelect.style.pointerEvents = "none"; // Ocultar o bloquear selector
+            opSelect.style.opacity = "0.7";
         } else {
-            textOps.forEach(o => o.style.display = "none");
+            // Campos de opciones estructuradas (Es igual a)
+            opSelect.querySelectorAll("option").forEach(o => o.style.display = "none");
+            const exactOp = opSelect.querySelector("option[value='exact']");
+            if (exactOp) exactOp.style.display = "block";
             opSelect.value = "exact";
+            opSelect.style.pointerEvents = "auto";
+            opSelect.style.opacity = "1";
         }
 
-        // Cargar widget del valor (Select vs Input Text)
+        // Cargar widget del valor (Select vs Input Text con Autocompletado)
         if (valueOptions[fieldVal]) {
             let optionsHTML = "";
             valueOptions[fieldVal].forEach(o => {
-                optionsHTML += `<option value="${o.value}">${o.label}</option>`;
+                const isSelected = initialValue !== null && String(o.value) === String(initialValue);
+                optionsHTML += `<option value="${o.value}" ${isSelected ? 'selected' : ''}>${o.label}</option>`;
             });
             valContainer.innerHTML = `
                 <select class="rule-value" style="width:100%;">
@@ -1266,9 +1522,48 @@
                 </select>
             `;
         } else {
+            const valStr = initialValue !== null ? initialValue : "";
             valContainer.innerHTML = `
-                <input type="text" class="rule-value" placeholder="Escriba valor..." style="width:100%;" required>
+                <input type="text" class="rule-value" value="${valStr}" placeholder="Escriba valor..." style="width:100%;" required>
+                <ul class="bi-suggestions-box"></ul>
             `;
+
+            // Configurar Sugerencias de Autocompletado (Autofill Helper)
+            const input = valContainer.querySelector("input");
+            const suggestionsList = valContainer.querySelector(".bi-suggestions-box");
+            const items = textSuggestions[fieldVal] || [];
+
+            if (items.length > 0) {
+                input.addEventListener("input", (e) => {
+                    const q = e.target.value.toLowerCase().trim();
+                    suggestionsList.innerHTML = "";
+                    if (!q) {
+                        suggestionsList.style.display = "none";
+                        return;
+                    }
+
+                    const matches = items.filter(i => i.toLowerCase().includes(q));
+                    if (matches.length > 0) {
+                        suggestionsList.style.display = "block";
+                        matches.forEach(m => {
+                            const li = document.createElement("li");
+                            li.innerText = m;
+                            li.addEventListener("click", () => {
+                                input.value = m;
+                                suggestionsList.style.display = "none";
+                            });
+                            suggestionsList.appendChild(li);
+                        });
+                    } else {
+                        suggestionsList.style.display = "none";
+                    }
+                });
+
+                // Cerrar burbuja al perder foco (con retardo para permitir clic)
+                input.addEventListener("blur", () => {
+                    setTimeout(() => suggestionsList.style.display = "none", 200);
+                });
+            }
         }
     };
 
@@ -1280,7 +1575,6 @@
             return;
         }
 
-        // Construir JSON de solicitud
         const segmentsPayload = [];
         segmentCards.forEach(card => {
             const nombre = card.querySelector(".seg-name").value;
@@ -1304,7 +1598,7 @@
             });
         });
 
-        const activeEdicion = '{{ edicion_seleccionada.id }}'; // Obtener edición activa seleccionada de Django
+        const activeEdicion = '{{ edicion_seleccionada.id }}'; 
         const payload = {
             edicion: activeEdicion || "todas",
             periodo: document.getElementById("bi-period").value,
@@ -1312,7 +1606,6 @@
             segmentos: segmentsPayload
         };
 
-        // Mostrar cargando
         btnExecuteBi.innerText = "Procesando Analíticas en la DB... ⏳";
         btnExecuteBi.disabled = true;
 
@@ -1330,9 +1623,9 @@
             btnExecuteBi.disabled = false;
 
             if (data.status === "success" && data.series) {
+                biDataHistory = data.series;
                 renderBiChart(data.series);
                 renderBiTable(data.series);
-                biDataHistory = data.series;
             } else {
                 alert("❌ Error al procesar segmentos: " + (data.message || "Error desconocido"));
             }
@@ -1345,21 +1638,28 @@
         });
     });
 
+    // Cambiar la Métrica Dinámicamente en el Gráfico en Vivo (Acumulado vs Volumen)
+    document.getElementById("bi-metric").addEventListener("change", () => {
+        if (biDataHistory) {
+            renderBiChart(biDataHistory);
+            renderBiTable(biDataHistory);
+        }
+    });
+
     // Renderizar Gráfica BI con Degradados Neon Dinámicos
     function renderBiChart(series) {
         biChartCard.style.display = "block";
         const canvas = document.getElementById("bi-canvas");
         const ctx = canvas.getContext("2d");
 
-        // Destruir instancia anterior si existe
         if (chartInstances['bi']) {
             chartInstances['bi'].destroy();
         }
 
         const chartType = document.getElementById("bi-chart-type").value;
         const alignmentMode = document.getElementById("bi-alignment").value;
+        const metricMode = document.getElementById("bi-metric").value; // 'cumulative' o 'count'
 
-        // Recopilar etiquetas de tiempo
         let allLabels = new Set();
         series.forEach(s => {
             s.points.forEach(p => {
@@ -1371,13 +1671,11 @@
             });
         });
 
-        // Ordenar etiquetas
         const sortedLabels = Array.from(allLabels).sort((a, b) => {
             if (typeof a === 'number') return a - b;
             return new Date(a) - new Date(b);
         });
 
-        // Formatear etiquetas de cuenta regresiva/lanzamiento
         const formattedLabels = sortedLabels.map(l => {
             if (alignmentMode === "campania") return `Día ${l}`;
             if (alignmentMode === "cuenta_regresiva") {
@@ -1388,12 +1686,10 @@
             return l;
         });
 
-        // Construir Datasets
         const datasets = [];
         series.forEach((s, idx) => {
             const color = neonColors[idx % neonColors.length];
             
-            // Mapear puntos del label ordenado
             const dataPoints = sortedLabels.map(label => {
                 const p = s.points.find(point => {
                     const matchLabel = (alignmentMode === "campania" || alignmentMode === "cuenta_regresiva") 
@@ -1401,8 +1697,8 @@
                         : point.date;
                     return matchLabel === label;
                 });
-                // Gráficos acumulativos interanuales
-                return p ? p.cumulative : null;
+                // Elegir dinámicamente acumulado o cantidad neta
+                return p ? p[metricMode] : null;
             });
 
             // Degradado lineal Neon
@@ -1459,13 +1755,15 @@
         const tbody = document.getElementById("bi-table-body");
         tbody.innerHTML = "";
 
+        const metricMode = document.getElementById("bi-metric").value;
+
         series.forEach((s, idx) => {
             const card = segContainer.querySelectorAll(".seg-card")[idx];
             const entityLabel = card ? card.querySelector(".seg-entity option:checked").text : "Asistente";
             
             const total = s.points.length > 0 ? s.points[s.points.length - 1].cumulative : 0;
             const prom = s.points.length > 0 
-                ? (total / s.points.length).toFixed(2) 
+                ? (s.points.reduce((sum, p) => sum + p[metricMode], 0) / s.points.length).toFixed(2)
                 : "0.00";
 
             const row = document.createElement("tr");
@@ -1485,14 +1783,11 @@
         if (!biDataHistory) return;
 
         let csvContent = "data:text/csv;charset=utf-8,";
-        
-        // Cabeceras
-        csvContent += "Segmento,Dato/Fecha,Total Acumulado\r\n";
+        csvContent += "Segmento,Dato/Fecha,Total Periodo,Total Acumulado\r\n";
 
-        // Cargar filas
         biDataHistory.forEach(s => {
             s.points.forEach(p => {
-                csvContent += `"${s.segment_name}","${p.date}",${p.cumulative}\r\n`;
+                csvContent += `"${s.segment_name}","${p.date}",${p.count},${p.cumulative}\r\n`;
             });
         });
 
@@ -1529,8 +1824,158 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    // Inicializar el Primer Segmento al cargar
-    btnAddSeg.addEventListener("click", addSegment);
-    addSegment(); // Inicializar con un segmento por defecto
+    // --- PERSISTENCIA LOCAL DE REPORTES (localStorage) ---
+    const btnSaveReport = document.getElementById("btn-save-report");
+    const btnLoadReport = document.getElementById("btn-load-report");
+    const loadReportDropdown = document.getElementById("load-report-dropdown");
+
+    // Guardar Reporte en LocalStorage
+    btnSaveReport.addEventListener("click", () => {
+        const reportName = prompt("📂 Ingrese el nombre para este reporte personalizado:");
+        if (!reportName || !reportName.trim()) return;
+
+        const segmentCards = segContainer.querySelectorAll(".seg-card");
+        const segmentsPayload = [];
+        segmentCards.forEach(card => {
+            const nombre = card.querySelector(".seg-name").value;
+            const entidad = card.querySelector(".seg-entity").value;
+            const combinador = card.querySelector(".seg-combiner").value;
+            const rulesRows = card.querySelectorAll(".rule-row");
+            
+            const reglas = [];
+            rulesRows.forEach(row => {
+                const campo = row.querySelector(".rule-field").value;
+                const operador = row.querySelector(".rule-operator").value;
+                const valor = row.querySelector(".rule-value").value;
+                reglas.push({ campo, operador, valor });
+            });
+
+            segmentsPayload.push({ nombre, entidad, combinador, reglas });
+        });
+
+        const reportData = {
+            name: reportName.trim(),
+            periodo: document.getElementById("bi-period").value,
+            alineacion: document.getElementById("bi-alignment").value,
+            chart_type: document.getElementById("bi-chart-type").value,
+            metric: document.getElementById("bi-metric").value,
+            segmentos: segmentsPayload
+        };
+
+        let savedReports = JSON.parse(localStorage.getItem("unab_bi_reports") || "[]");
+        savedReports = savedReports.filter(r => r.name !== reportData.name);
+        savedReports.push(reportData);
+        localStorage.setItem("unab_bi_reports", JSON.stringify(savedReports));
+
+        alert(`💾 Reporte "${reportData.name}" guardado correctamente.`);
+        renderSavedReportsList();
+    });
+
+    // Cargar Reporte (Toggle Dropdown)
+    btnLoadReport.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const display = loadReportDropdown.style.display;
+        loadReportDropdown.style.display = display === "block" ? "none" : "block";
+    });
+
+    // Cerrar el menú dropdown si se hace clic fuera
+    document.addEventListener("click", () => {
+        loadReportDropdown.style.display = "none";
+    });
+
+    // Renderizar la lista de reportes guardados
+    function renderSavedReportsList() {
+        const savedReports = JSON.parse(localStorage.getItem("unab_bi_reports") || "[]");
+        loadReportDropdown.innerHTML = "";
+        
+        if (savedReports.length === 0) {
+            const li = document.createElement("li");
+            li.innerText = "No hay reportes guardados";
+            li.style.cursor = "default";
+            li.style.fontStyle = "italic";
+            li.style.padding = "10px";
+            loadReportDropdown.appendChild(li);
+            return;
+        }
+
+        savedReports.forEach(report => {
+            const li = document.createElement("li");
+            li.style.display = "flex";
+            li.style.justifyContent = "space-between";
+            li.style.alignItems = "center";
+            li.style.padding = "8px 12px";
+            li.style.gap = "10px";
+            
+            const spanName = document.createElement("span");
+            spanName.innerText = report.name;
+            spanName.style.flex = "1";
+            spanName.style.cursor = "pointer";
+            spanName.addEventListener("click", () => loadReport(report));
+            
+            const btnDelete = document.createElement("span");
+            btnDelete.innerHTML = "✕";
+            btnDelete.style.color = "var(--neon-magenta)";
+            btnDelete.style.cursor = "pointer";
+            btnDelete.style.fontWeight = "bold";
+            btnDelete.style.padding = "2px 6px";
+            btnDelete.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (confirm(`¿Está seguro de eliminar el reporte "${report.name}"?`)) {
+                    let reports = JSON.parse(localStorage.getItem("unab_bi_reports") || "[]");
+                    reports = reports.filter(r => r.name !== report.name);
+                    localStorage.setItem("unab_bi_reports", JSON.stringify(reports));
+                    renderSavedReportsList();
+                }
+            });
+
+            li.appendChild(spanName);
+            li.appendChild(btnDelete);
+            loadReportDropdown.appendChild(li);
+        });
+    }
+
+    function loadReport(report) {
+        segContainer.innerHTML = "";
+        segmentCount = 0;
+
+        document.getElementById("bi-period").value = report.periodo || "diario";
+        document.getElementById("bi-alignment").value = report.alineacion || "campania";
+        document.getElementById("bi-chart-type").value = report.chart_type || "line";
+        document.getElementById("bi-metric").value = report.metric || "cumulative";
+
+        report.segmentos.forEach(segConfig => {
+            addSegment(segConfig);
+        });
+
+        loadReportDropdown.style.display = "none";
+        btnExecuteBi.click();
+    }
+
+    // --- ACCIÓN DE IMPRESIÓN (PDF REPORT GENERATION) ---
+    document.getElementById("btn-print-pdf").addEventListener("click", () => {
+        window.print();
+    });
+
+    // --- ACCIÓN DE LIMPIAR CONSOLA (RESET STATE) ---
+    const btnClearSegments = document.getElementById("btn-clear-segments");
+    btnClearSegments.addEventListener("click", () => {
+        if (confirm("¿Está seguro de que desea limpiar la consola y vaciar todos los segmentos?")) {
+            segContainer.innerHTML = "";
+            segmentCount = 0;
+            biChartCard.style.display = "none";
+            biTableCard.style.display = "none";
+            if (chartInstances['bi']) {
+                chartInstances['bi'].destroy();
+                chartInstances['bi'] = null;
+            }
+            biDataHistory = null;
+            addSegment();
+        }
+    });
+
+    // Inicializar el Primer Segmento al cargar y renderizar lista de reportes
+    btnAddSeg.addEventListener("click", () => addSegment());
+    addSegment(); 
+    renderSavedReportsList();
 </script>
 {% endblock %}

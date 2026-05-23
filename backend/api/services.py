@@ -2,7 +2,7 @@ import logging
 from typing import Tuple, Dict, Any
 from django.db import transaction
 from django.utils import timezone
-from .models import Inscripcion, Certificado, Empresa, Asistente
+from .models import Inscripcion, Certificado, Empresa, Asistente, Edicion
 from .email import send_certificate_email, send_empresa_confirmation_email
 
 logger = logging.getLogger('django.services')
@@ -57,7 +57,7 @@ def create_empresa_and_notify(data: Dict[str, Any]) -> Tuple[Empresa, bool]:
         return empresa, email_success
 
 
-def _upsert_detalles(asistente, data: dict):
+def _upsert_detalles(asistente: Asistente, data: dict) -> None:
     """
     Persiste o actualiza los detalles específicos del perfil del asistente.
     """
@@ -101,7 +101,7 @@ def _upsert_detalles(asistente, data: dict):
         )
 
 
-def _register_integrantes(representante, integrantes_data: list, edicion_activa) -> list:
+def _register_integrantes(representante: Asistente, integrantes_data: list, edicion_activa: Edicion) -> list:
     """
     Registra secuencialmente a cada integrante del grupo y lo inscribe a la edición activa.
     """

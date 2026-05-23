@@ -16,29 +16,52 @@ export default function LogoMarquee({
 }: LogoMarqueeProps) {
   if (!items || items.length === 0) return null;
 
-  // Duplicamos los items para asegurar el efecto infinito suave
-  // Usamos un factor de 4 para asegurar que cubra pantallas anchas
-  const displayItems = [...items, ...items, ...items, ...items];
+  // Multiplicamos los elementos si el set es muy corto para asegurar que
+  // llene pantallas anchas y no queden espacios vacíos durante la transición.
+  let baseItems = [...items];
+  while (baseItems.length < 8) {
+    baseItems = [...baseItems, ...items];
+  }
 
   return (
-    <div className="relative flex overflow-hidden w-full">
-      <motion.div
-        className="flex whitespace-nowrap gap-12 items-center py-4"
-        animate={{
-          x: direction === "rtl" ? ["0%", "-25%"] : ["-25%", "0%"],
-        }}
-        transition={{
-          duration: durationSec,
-          ease: "linear",
-          repeat: Infinity,
-        }}
-      >
-        {displayItems.map((item, idx) => (
-          <div key={idx} className="flex-shrink-0">
-            {renderItem(item, idx)}
-          </div>
-        ))}
-      </motion.div>
+    <div className="relative flex overflow-hidden w-full select-none">
+      <div className="flex flex-row w-max gap-12">
+        <motion.div
+          className="flex flex-row shrink-0 gap-12 items-center py-2"
+          animate={{
+            x: direction === "rtl" ? [0, "-100%"] : ["-100%", 0],
+          }}
+          transition={{
+            duration: durationSec,
+            ease: "linear",
+            repeat: Infinity,
+          }}
+        >
+          {baseItems.map((item, idx) => (
+            <div key={`set1-${idx}`} className="flex-shrink-0">
+              {renderItem(item, idx)}
+            </div>
+          ))}
+        </motion.div>
+        
+        <motion.div
+          className="flex flex-row shrink-0 gap-12 items-center py-2"
+          animate={{
+            x: direction === "rtl" ? [0, "-100%"] : ["-100%", 0],
+          }}
+          transition={{
+            duration: durationSec,
+            ease: "linear",
+            repeat: Infinity,
+          }}
+        >
+          {baseItems.map((item, idx) => (
+            <div key={`set2-${idx}`} className="flex-shrink-0">
+              {renderItem(item, idx)}
+            </div>
+          ))}
+        </motion.div>
+      </div>
     </div>
   );
 }

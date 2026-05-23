@@ -315,7 +315,7 @@
 
     .submit-btn {
         background: linear-gradient(135deg, var(--color-primary), #818cf8);
-        color: #0f0724;
+        color: #ffffff !important;
         border: none;
         padding: 14px 28px;
         border-radius: 8px;
@@ -419,6 +419,7 @@
         border-top: 1px solid rgba(255, 255, 255, 0.03);
         border-right: 1px solid rgba(255, 255, 255, 0.03);
         border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        box-sizing: border-box !important;
     }
     .snippet-card code {
         display: block; 
@@ -437,13 +438,16 @@
     /* Merge Variables Style */
     .var-tag {
         width: 100%;
+        box-sizing: border-box !important;
         display: flex !important;
         align-items: center;
+        justify-content: center;
         padding: 8px 14px !important;
         border-radius: 10px !important;
         font-weight: 500 !important;
         font-size: 12px !important;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        text-align: center;
     }
     .var-tag:hover {
         transform: translateX(4px) scale(1.02);
@@ -719,6 +723,63 @@
             grid-template-columns: 1fr;
         }
     }
+
+    /* Info buttons with elegant glassmorphic tooltips */
+    .info-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(167, 139, 250, 0.15);
+        color: var(--color-primary);
+        font-size: 11px;
+        font-weight: bold;
+        cursor: help;
+        margin-left: 8px;
+        border: 1px solid rgba(167, 139, 250, 0.3);
+        transition: all 0.2s ease;
+        position: relative;
+        vertical-align: middle;
+    }
+    
+    .info-trigger:hover {
+        background: var(--color-primary);
+        color: #0f0724;
+        box-shadow: 0 0 8px var(--color-primary);
+    }
+
+    .info-trigger::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        background: rgba(18, 8, 38, 0.95);
+        backdrop-filter: blur(8px);
+        color: var(--text-primary);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 500;
+        width: 240px;
+        text-transform: none;
+        letter-spacing: 0;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        border: 1px solid var(--border-soft);
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+        line-height: 1.4;
+        text-align: left;
+    }
+
+    .info-trigger:hover::after {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
 </style>
 {% endblock %}
 
@@ -742,7 +803,7 @@
 
             <!-- ═══ DESTINATARIOS ═══ -->
             <div class="form-group">
-                <label class="field-label">🎯 Destinatarios</label>
+                <label class="field-label">🎯 Destinatarios <span class="info-trigger" data-tooltip="Selecciona los grupos a los que deseas enviar el comunicado. Si un asistente pertenece a varios grupos, el sistema deduplica su correo y le enviará el mensaje una sola vez.">?</span></label>
 
                 <!-- Quick buttons -->
                 <div class="quick-btns">
@@ -876,13 +937,13 @@
 
             <!-- ASUNTO -->
             <div class="form-group">
-                <label class="field-label" for="asunto">✉️ Asunto del Email</label>
+                <label class="field-label" for="asunto">✉️ Asunto del Email <span class="info-trigger" data-tooltip="El título o asunto del correo electrónico tal como lo verán los destinatarios en su bandeja de entrada.">?</span></label>
                 <input type="text" name="asunto" id="asunto" placeholder="Ej: Información importante sobre el Congreso 2026" required>
             </div>
 
             <!-- MENSAJE -->
             <div class="form-group">
-                <label class="field-label" for="mensaje">📝 Cuerpo del Mensaje (HTML)</label>
+                <label class="field-label" for="mensaje">📝 Cuerpo del Mensaje (HTML) <span class="info-trigger" data-tooltip="Contenido principal enriquecido de tu correo. Puedes usar la barra superior de Quill para dar formato (negrita, itálica, listas, enlaces, etc.).">?</span></label>
                 <!-- Contenedor del Editor Quill con Estilo Oscuro -->
                 <div id="editor-container" style="min-height: 280px; margin-bottom: 8px;"></div>
                 <textarea name="mensaje" id="mensaje" style="display:none;" required></textarea>
@@ -891,10 +952,10 @@
 
             <!-- CONTROLES ELEGANTES DE ACCION -->
             <div style="display: flex; gap: 16px; margin-top: 30px;">
-                <button type="button" class="submit-btn" style="background: linear-gradient(135deg, var(--color-secondary), #3b82f6); box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35); flex: 1;" onclick="openPreviewModal()">
+                <button type="button" class="submit-btn" style="background: linear-gradient(135deg, var(--color-secondary), #3b82f6); box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35); flex: 1; color: #ffffff !important;" onclick="openPreviewModal()">
                     👁️ Vista Previa Multidispositivo
                 </button>
-                <button type="submit" class="submit-btn" style="flex: 1;" onclick="startSendingSimulation(event)">
+                <button type="submit" class="submit-btn" style="flex: 1; color: #ffffff !important;" onclick="startSendingSimulation(event)">
                     📨 INICIAR TRANSMISIÓN MASIVA
                 </button>
             </div>
@@ -903,7 +964,7 @@
 
     <!-- SIDEBAR -->
     <div class="broadcast-sidebar">
-        <h3 style="color: var(--color-warning); margin-top:0; font-weight: 700; font-size: 15px;">📚 Guía de Estilos HTML</h3>
+        <h3 style="color: var(--color-warning); margin-top:0; font-weight: 700; font-size: 15px;">📚 Guía de Estilos HTML <span class="info-trigger" data-tooltip="Si requieres añadir formato HTML a mano en lugar de usar los botones del editor, haz clic sobre cualquiera de estos bloques y se copiará la etiqueta correspondiente para pegarla donde desees.">?</span></h3>
         <p style="font-size:12px; color: var(--text-secondary); margin-bottom: 15px;">Hacé clic en el código para copiarlo y pegarlo en el editor:</p>
 
         <div class="snippet-card">
@@ -923,7 +984,7 @@
             <code onclick="copySnippet(this)">&lt;h2&gt;Título de sección&lt;/h2&gt;</code>
         </div>
 
-        <h3 style="color: var(--color-secondary); margin-top:24px; font-weight: 700; font-size: 15px; border-top: 1px solid var(--b); padding-top: 20px;">👤 Variables Dinámicas</h3>
+        <h3 style="color: var(--color-secondary); margin-top:24px; font-weight: 700; font-size: 15px; border-top: 1px solid var(--b); padding-top: 20px;">👤 Variables Dinámicas <span class="info-trigger" data-tooltip="Etiquetas especiales personalizables. Haz clic sobre cualquiera de ellas y se insertará automáticamente al final del texto o en la posición del cursor de tu editor Quill. El servidor reemplazará este tag con el dato real de cada asistente al enviar.">?</span></h3>
         <p style="font-size:12px; color: var(--text-secondary); margin-bottom: 15px;">Haz clic en una variable para insertarla automáticamente en el editor en la posición del cursor:</p>
         
         <div class="snippet-card">

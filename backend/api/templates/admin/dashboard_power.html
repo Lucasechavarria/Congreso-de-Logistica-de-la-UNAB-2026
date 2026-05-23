@@ -808,20 +808,67 @@
         </form>
     </div>
 
-    <!-- WIDGET INTERACTIVO DE META DEL CONGRESO -->
-    <div class="glass-panel" style="padding: 20px; margin-bottom: 25px; border-left: 4px solid var(--neon-cyan); background: var(--dark-card);">
+    <!-- WIDGET INTERACTIVO DE META DEL CONGRESO (EDITABLE Y CON HISTORIAL DE EXPANSIONES) -->
+    <div id="congress-goal-widget" class="glass-panel" style="padding: 20px; margin-bottom: 25px; border-left: 4px solid var(--neon-cyan); background: var(--card); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 16px; border: 1px solid var(--b); transition: all 0.3s ease;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
                 <h4 style="margin: 0; font-size: 14px; text-transform: uppercase; color: var(--p); letter-spacing: 1.2px; font-weight: 700;">Objetivo del Congreso 🎯</h4>
-                <span style="font-size: 12px; color: var(--text-secondary);">Progreso global en base a inscripciones de la edición activa</span>
+                <span id="btn-toggle-goal-settings" style="cursor: pointer; font-size: 14px; filter: drop-shadow(0 0 5px var(--p)); transition: transform 0.2s;" title="Configurar Metas y Objetivos">⚙️</span>
             </div>
             <div style="text-align: right;">
-                <span style="font-size: 22px; font-weight: 800; color: #fff;"><span id="meta-actual">0</span> / <span id="meta-total">1000</span></span>
+                <span style="font-size: 22px; font-weight: 800; color: #fff;"><span id="meta-actual">0</span> / <span id="meta-total">0</span></span>
                 <span style="font-size: 11px; color: var(--neon-cyan); display: block; font-weight: 700; margin-top: 2px;" id="meta-porcentaje">0%</span>
             </div>
         </div>
-        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
+        
+        <!-- Barra de Progreso Global -->
+        <div id="goal-progress-container" style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 10px;">
             <div id="meta-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--neon-cyan), var(--p)); border-radius: 4px; transition: width 1.8s cubic-bezier(0.34, 1.56, 0.64, 1);"></div>
+        </div>
+
+        <!-- Desglose de Etapas e Hitos Intermedios -->
+        <div id="meta-stages-breakdown" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; margin-top: 5px;">
+            <!-- Renderizado dinámico de hitos -->
+        </div>
+
+        <!-- PANEL DE CONFIGURACIÓN DE METAS (Oculto por defecto) -->
+        <div id="goal-settings-panel" style="display: none; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+            <h5 style="margin: 0 0 12px 0; font-size: 12px; text-transform: uppercase; color: var(--p); font-weight: 700;">Configuración de Metas e Hitos</h5>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="chk-display-goal-bar" checked style="cursor: pointer;"> Mostrar Barra de Progreso Global
+                </label>
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="chk-show-intermediate-stages" checked style="cursor: pointer;"> Mostrar Desglose de Etapas e Hitos
+                </label>
+            </div>
+
+            <!-- Tabla/Lista de Etapas Actuales -->
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; margin-bottom: 15px;">
+                <span style="font-size: 10px; font-weight: 700; color: var(--p); text-transform: uppercase; display: block; margin-bottom: 8px;">Historial de Expansiones y Hitos</span>
+                <ul id="goal-stages-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Elementos inyectados por JS -->
+                </ul>
+            </div>
+
+            <!-- Formulario de Añadir Expansión -->
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px;">
+                <input type="text" id="input-new-stage-label" placeholder="Nombre de Etapa (Ej: Ampliación A)" style="flex: 2; min-width: 150px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 5px; padding: 5px 8px; color: #fff; font-size: 11px;">
+                <input type="number" id="input-new-stage-target" placeholder="Cupo (+)" style="flex: 1; min-width: 80px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 5px; padding: 5px 8px; color: #fff; font-size: 11px;">
+                <button type="button" class="btn-apply" id="btn-add-goal-stage" style="padding: 6px 12px; font-size: 11px;">+ Añadir Expansión</button>
+            </div>
+
+            <!-- Acciones Finales -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <button type="button" class="btn-apply" id="btn-export-goals" style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981; padding: 5px 12px; font-size: 11px;">
+                    📥 Exportar Hitos a CSV
+                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn-apply" id="btn-cancel-goal-settings" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 5px 12px; font-size: 11px;">Cancelar</button>
+                    <button type="button" class="btn-apply" id="btn-save-goal-settings" style="padding: 5px 15px; font-size: 11px;">Guardar Cambios 💾</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1043,12 +1090,52 @@
         requestAnimationFrame(animate);
     }
 
-    // ── WIDGET DE META DEL CONGRESO INTERACTIVO ────────────────
+    // ── GESTIÓN DE METAS Y EXPANSIONES (LOCALSTORAGE Y MULTI-HITOS) ────────────────
+    const activeEdKey = '{{ edicion_seleccionada.anio|default:"Global" }}';
+    
+    // Cargar objetivos desde localStorage o precargar por defecto
+    let allGoalsConfig = JSON.parse(localStorage.getItem("unab_congress_goals") || "{}");
+    if (!allGoalsConfig[activeEdKey]) {
+        allGoalsConfig[activeEdKey] = {
+            displayGoalsBar: true,
+            showIntermediateStages: true,
+            stages: [
+                { label: "Cupo Base Inicial", target: 500, timestamp: new Date().toISOString().slice(0, 10) },
+                { label: "Ampliación de Cupo", target: 300, timestamp: new Date().toISOString().slice(0, 10) },
+                { label: "Fase de Acreditación Final", target: 200, timestamp: new Date().toISOString().slice(0, 10) }
+            ]
+        };
+        localStorage.setItem("unab_congress_goals", JSON.stringify(allGoalsConfig));
+    }
+
+    const currentGoalConfig = allGoalsConfig[activeEdKey];
+
+    // ── WIDGET DE META DEL CONGRESO INTERACTIVO Y DINÁMICO ────────────────
     function updateCongressMeta(actualVal) {
-        const metaTotal = 1000;
+        const metaTotal = currentGoalConfig.stages.reduce((sum, stage) => sum + parseInt(stage.target), 0);
+        
         const progressFill = document.getElementById('meta-progress-bar');
         const metaActualEl = document.getElementById('meta-actual');
+        const metaTotalEl = document.getElementById('meta-total');
         const percentageEl = document.getElementById('meta-porcentaje');
+        
+        const progressContainer = document.getElementById('goal-progress-container');
+        const breakdownContainer = document.getElementById('meta-stages-breakdown');
+
+        // Ocultar o mostrar widget completo
+        if (!currentGoalConfig.displayGoalsBar) {
+            progressContainer.style.display = "none";
+            breakdownContainer.style.display = "none";
+            percentageEl.style.display = "none";
+            metaTotalEl.parentElement.style.display = "none";
+        } else {
+            progressContainer.style.display = "block";
+            percentageEl.style.display = "block";
+            metaTotalEl.parentElement.style.display = "inline";
+            breakdownContainer.style.display = currentGoalConfig.showIntermediateStages ? "flex" : "none";
+        }
+
+        metaTotalEl.innerText = metaTotal.toLocaleString();
 
         let duration = 1500;
         let startTime = null;
@@ -1074,6 +1161,33 @@
             if (progressFill) progressFill.style.width = percentage + '%';
             if (percentageEl) percentageEl.innerText = percentage + '% COMPLETADO';
         }, 150);
+
+        // Renderizar hitos intermedios con coloración en base a progreso
+        breakdownContainer.innerHTML = "";
+        let runningStageSum = 0;
+        currentGoalConfig.stages.forEach((stage, idx) => {
+            runningStageSum += parseInt(stage.target);
+            
+            const pill = document.createElement("div");
+            pill.style.background = "rgba(255, 255, 255, 0.03)";
+            pill.style.border = "1px solid rgba(255, 255, 255, 0.08)";
+            pill.style.padding = "5px 12px";
+            pill.style.borderRadius = "20px";
+            pill.style.display = "flex";
+            pill.style.alignItems = "center";
+            pill.style.gap = "6px";
+            pill.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
+            
+            const isCompleted = actualVal >= runningStageSum;
+            const markerColor = isCompleted ? "#10b981" : "var(--neon-cyan)";
+            const markerIcon = isCompleted ? "✔" : "🎯";
+
+            pill.innerHTML = `
+                <span style="color: ${markerColor}; font-weight: bold;">${markerIcon} ${stage.label}</span>
+                <span style="color: #cbd5e1; font-weight: 600;">${runningStageSum.toLocaleString()} cupos</span>
+            `;
+            breakdownContainer.appendChild(pill);
+        });
     }
 
     // ── EXPORTACIÓN DE GRÁFICOS A PNG ───────────────────────
@@ -1971,6 +2085,127 @@
             biDataHistory = null;
             addSegment();
         }
+    });
+
+    // --- PANEL DE CONTROL DE OBJETIVOS (JS LISTENERS) ---
+    const btnToggleGoalSettings = document.getElementById("btn-toggle-goal-settings");
+    const goalSettingsPanel = document.getElementById("goal-settings-panel");
+    const goalStagesList = document.getElementById("goal-stages-list");
+    const chkDisplayGoalBar = document.getElementById("chk-display-goal-bar");
+    const chkShowIntermediateStages = document.getElementById("chk-show-intermediate-stages");
+    const inputNewStageLabel = document.getElementById("input-new-stage-label");
+    const inputNewStageTarget = document.getElementById("input-new-stage-target");
+    const btnAddGoalStage = document.getElementById("btn-add-goal-stage");
+    const btnSaveGoalSettings = document.getElementById("btn-save-goal-settings");
+    const btnCancelGoalSettings = document.getElementById("btn-cancel-goal-settings");
+    const btnExportGoals = document.getElementById("btn-export-goals");
+
+    let tempStages = [...currentGoalConfig.stages];
+
+    btnToggleGoalSettings.addEventListener("click", () => {
+        const isHidden = goalSettingsPanel.style.display === "none";
+        goalSettingsPanel.style.display = isHidden ? "block" : "none";
+        if (isHidden) {
+            tempStages = [...currentGoalConfig.stages];
+            chkDisplayGoalBar.checked = currentGoalConfig.displayGoalsBar;
+            chkShowIntermediateStages.checked = currentGoalConfig.showIntermediateStages;
+            renderSettingsStagesList();
+        }
+    });
+
+    btnCancelGoalSettings.addEventListener("click", () => {
+        goalSettingsPanel.style.display = "none";
+    });
+
+    function renderSettingsStagesList() {
+        goalStagesList.innerHTML = "";
+        tempStages.forEach((stage, idx) => {
+            const li = document.createElement("li");
+            li.style.display = "flex";
+            li.style.justifyContent = "space-between";
+            li.style.alignItems = "center";
+            li.style.fontSize = "11px";
+            li.style.background = "rgba(255,255,255,0.02)";
+            li.style.padding = "6px 10px";
+            li.style.borderRadius = "5px";
+            
+            li.innerHTML = `
+                <div>
+                    <span style="font-weight:700; color:#fff;">${idx + 1}. ${stage.label}</span>
+                    <span style="font-size:9px; color:var(--text-secondary); display:block;">Registrado: ${stage.timestamp}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-weight:800; color:var(--neon-cyan);">+${stage.target.toLocaleString()} cupos</span>
+                    <span style="color:var(--neon-magenta); cursor:pointer; font-weight:bold;" onclick="deleteTempStage(${idx})">✕</span>
+                </div>
+            `;
+            goalStagesList.appendChild(li);
+        });
+    }
+
+    window.deleteTempStage = function(idx) {
+        if (tempStages.length <= 1) {
+            alert("⚠️ El objetivo debe tener al menos una etapa configurada.");
+            return;
+        }
+        tempStages.splice(idx, 1);
+        renderSettingsStagesList();
+    };
+
+    btnAddGoalStage.addEventListener("click", () => {
+        const label = inputNewStageLabel.value.trim();
+        const targetVal = parseInt(inputNewStageTarget.value);
+
+        if (!label) {
+            alert("⚠️ Por favor ingrese un nombre para la etapa.");
+            return;
+        }
+        if (isNaN(targetVal) || targetVal <= 0) {
+            alert("⚠️ Por favor ingrese un cupo válido mayor a 0.");
+            return;
+        }
+
+        tempStages.push({
+            label: label,
+            target: targetVal,
+            timestamp: new Date().toISOString().slice(0, 10)
+        });
+
+        inputNewStageLabel.value = "";
+        inputNewStageTarget.value = "";
+        renderSettingsStagesList();
+    });
+
+    btnSaveGoalSettings.addEventListener("click", () => {
+        currentGoalConfig.stages = [...tempStages];
+        currentGoalConfig.displayGoalsBar = chkDisplayGoalBar.checked;
+        currentGoalConfig.showIntermediateStages = chkShowIntermediateStages.checked;
+
+        allGoalsConfig[activeEdKey] = currentGoalConfig;
+        localStorage.setItem("unab_congress_goals", JSON.stringify(allGoalsConfig));
+
+        goalSettingsPanel.style.display = "none";
+        alert("🎯 Configuración de metas guardada exitosamente.");
+        
+        const valInscritos = parseInt(document.getElementById('kpi-inscritos').dataset.value) || 0;
+        updateCongressMeta(valInscritos);
+    });
+
+    btnExportGoals.addEventListener("click", () => {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Nro Etapa,Nombre de Etapa,Cupo Asignado,Fecha Registro\r\n";
+        
+        currentGoalConfig.stages.forEach((stage, idx) => {
+            csvContent += `${idx + 1},"${stage.label}",${stage.target},"${stage.timestamp}"\r\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `historial_metas_congreso_${activeEdKey.toLowerCase()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     });
 
     // Inicializar el Primer Segmento al cargar y renderizar lista de reportes

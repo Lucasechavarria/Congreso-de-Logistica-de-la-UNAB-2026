@@ -24,13 +24,10 @@ def confirm_asistencia(inscripcion: Inscripcion) -> Tuple[Certificado, bool]:
             tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
         )
         
-        # Intentar enviar el certificado por email de forma segura
-        email_success = False
-        try:
-            email_success = send_certificate_email(certificado)
-        except Exception as e:
-            # Capturar y loggear el error para no invalidar la transacción si falla la conexión SMTP
-            logger.error(f"[Services] Error en envío de email de certificado para asistente {inscripcion.asistente.email}: {str(e)}")
+        # Encolar la generación y el envío del certificado asíncronamente (Celery)
+        from .tasks import task_generar_y_enviar_certificado
+        transaction.on_commit(lambda: task_generar_y_enviar_certificado.delay(certificado.id))
+        email_success = True
 
         return certificado, email_success
 

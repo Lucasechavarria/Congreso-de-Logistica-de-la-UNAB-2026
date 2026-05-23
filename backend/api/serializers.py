@@ -791,20 +791,15 @@ class AsistenteSerializer(serializers.ModelSerializer):
             if fallos_miembros:
                 print(f"[WARNING] Errores en integrantes de grupo: {fallos_miembros}")
             
-            # Enviar emails de confirmación
-            try:
-                resultado_envio = send_group_confirmation_emails(asistente)
-                asistente._email_enviado = (resultado_envio['total_fallidos'] == 0)
-            except Exception as e:
-                asistente._email_enviado = False
-                print(f"[ERROR] Error enviando emails grupales: {e}")
+            # Enviar emails de confirmación en segundo plano de forma no-bloqueante (Celery)
+            from .tasks import task_enviar_confirmacion_grupal
+            transaction.on_commit(lambda: task_enviar_confirmacion_grupal.delay(asistente.id))
+            asistente._email_enviado = True
         else:
-            # Para inscripciones individuales
-            try:
-                asistente._email_enviado = send_individual_confirmation_email(asistente)
-            except Exception as e:
-                asistente._email_enviado = False
-                print(f"[ERROR] Error enviando email individual: {e}")
+            # Enviar email de confirmación individual en segundo plano (Celery)
+            from .tasks import task_enviar_confirmacion_individual
+            transaction.on_commit(lambda: task_enviar_confirmacion_individual.delay(asistente.id))
+            asistente._email_enviado = True
         
         return asistente
 

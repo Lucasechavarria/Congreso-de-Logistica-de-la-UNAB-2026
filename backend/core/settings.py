@@ -208,10 +208,20 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
-# Por defecto, ejecutar tareas síncronas para evitar errores 500 si no hay Redis (Broker) disponible.
-# El usuario prefiere que la petición tarde un poco más a que falle.
-CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_TASK_ALWAYS_EAGER', 'True').lower() in ['true', '1', 'yes']
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Detección Dinámica de Redis (Estrategia Local vs Infraestructura)
+try:
+    import redis
+    # Intentar conexión de prueba ultra-rápida (timeout de 0.8s)
+    r = redis.Redis.from_url(CELERY_BROKER_URL, socket_connect_timeout=0.8)
+    r.ping()
+    CELERY_TASK_ALWAYS_EAGER = False
+    print("[INFO] Redis detectado en local. Modo asíncrono ACTIVO (Infraestructura).")
+except Exception:
+    # Si Redis no está disponible en local, modo Eager síncrono (Desarrollo local simplificado)
+    CELERY_TASK_ALWAYS_EAGER = True
+    print("[WARNING] Redis no disponible en local. Modo síncrono ACTIVO (Fallback Local).")
 
 # Configuración de Celery Beat (Desactivado para Newsletter)
 CELERY_BEAT_SCHEDULE = {}

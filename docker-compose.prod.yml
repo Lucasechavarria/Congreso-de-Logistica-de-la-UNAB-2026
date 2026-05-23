@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: congreso_redis
+    expose:
+      - "6379"
+    restart: always
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: congreso_celery
+    command: celery -A core worker --loglevel=info --concurrency=2
+    environment:
+      - DB_HOST=172.17.0.1
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_TASK_ALWAYS_EAGER=False
+    volumes:
+      - /var/www/congreso/media:/app/media
+    depends_on:
+      - redis
+    restart: always
+
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: congreso_django_web
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    ports:
+      - "8080:8000"  # Puerto sombra 8080 en el host para shadow deployment
+    environment:
+      - DB_HOST=172.17.0.1
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_TASK_ALWAYS_EAGER=False
+    volumes:
+      - /var/www/congreso/media:/app/media
+    depends_on:
+      - redis
+    restart: always

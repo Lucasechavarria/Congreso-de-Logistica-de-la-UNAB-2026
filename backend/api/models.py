@@ -33,7 +33,7 @@ class PostulacionDisertante(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='postulaciones_disertantes')
     # Personal & Profesional
     nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
-    dni = models.CharField(max_length=8, verbose_name="DNI / Documento")
+    dni = models.CharField(max_length=8, db_index=True, verbose_name="DNI / Documento")
     email = models.EmailField(verbose_name="Email de contacto")
     telefono = models.CharField(max_length=20, verbose_name="Teléfono")
     ciudad_provincia = models.CharField(max_length=255, verbose_name="Ciudad y Provincia")
@@ -67,7 +67,7 @@ class PostulacionDisertante(models.Model):
     fecha_revision = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de revisión")
     revisada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='postulaciones_revisadas', verbose_name="Revisada por")
     acepta_tyc = models.BooleanField(default=False, verbose_name="Declaro que la información es verídica y acepto TyC")
-    fecha_postulacion = models.DateTimeField(auto_now_add=True)
+    fecha_postulacion = models.DateTimeField(auto_now_add=True, db_index=True)
     history = HistoricalRecords()
 
     def __str__(self):
@@ -128,7 +128,7 @@ class Empresa(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', verbose_name="Estado")
     fecha_registro = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de registro")
     # Main Info
-    nombre_empresa = models.CharField(max_length=255, verbose_name="Nombre de la empresa o institución")
+    nombre_empresa = models.CharField(max_length=255, db_index=True, verbose_name="Nombre de la empresa o institución")
     cuit = models.CharField(max_length=15, blank=True, null=True, verbose_name="CUIT de la empresa")
     direccion = models.CharField(max_length=500, blank=True, null=True, verbose_name="Dirección de la empresa")
     telefono_empresa = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono de la empresa")
@@ -144,7 +144,7 @@ class Empresa(models.Model):
 
     # Contact Person
     nombre_contacto = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nombre completo de la persona de contacto")
-    email_contacto = models.EmailField(unique=False, blank=True, null=True, verbose_name="Correo electrónico de la persona de contacto")
+    email_contacto = models.EmailField(unique=False, blank=True, null=True, db_index=True, verbose_name="Correo electrónico de la persona de contacto")
     celular_contacto = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de celular de contacto")
     cargo_contacto = models.CharField(max_length=255, blank=True, null=True, verbose_name="Cargo que cumple en la empresa / institución")
 
@@ -197,8 +197,8 @@ class Asistente(models.Model):
         OTRO = 'OTRO', 'Otro'
 
     # --- Información Principal (Común a todos) ---
-    first_name = models.CharField(max_length=100, verbose_name="Nombre")
-    last_name = models.CharField(max_length=100, verbose_name="Apellido")
+    first_name = models.CharField(max_length=100, db_index=True, verbose_name="Nombre")
+    last_name = models.CharField(max_length=100, db_index=True, verbose_name="Apellido")
     email = models.EmailField(unique=True, verbose_name="Correo electrónico")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de celular")
     dni = models.CharField(max_length=8, unique=True, null=True, blank=True, verbose_name="DNI")
@@ -445,7 +445,7 @@ class InscripcionPrensa(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='inscripciones_prensa')
     # Identidad
     nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
-    dni = models.CharField(max_length=8, verbose_name="DNI")
+    dni = models.CharField(max_length=8, db_index=True, verbose_name="DNI")
     email = models.EmailField(verbose_name="Email de contacto")
     telefono = models.CharField(max_length=20, verbose_name="Teléfono")
     ciudad_provincia = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ciudad / Provincia")
@@ -467,7 +467,7 @@ class InscripcionPrensa(models.Model):
     # Admin
     notas_admin = models.TextField(null=True, blank=True, verbose_name="Notas internas (solo admin)")
     acepta_tyc = models.BooleanField(default=False, verbose_name="Acepta Términos y Condiciones")
-    fecha_inscripcion = models.DateTimeField(auto_now_add=True)
+    fecha_inscripcion = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def clean(self):
         """Al menos un link es obligatorio."""

@@ -32,7 +32,9 @@
     "react-helmet-async": "^3.0.0",
     "react-icons": "^5.5.0",
     "react-qr-reader": "3.0.0-beta-1",
+    "react-resizable-panels": "^4.11.2",
     "react-select": "^5.10.2",
+    "react-zxing": "^2.1.0",
     "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },

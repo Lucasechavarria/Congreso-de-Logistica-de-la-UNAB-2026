@@ -1,14 +1,57 @@
+# ==========================================
+# ROBOTS.TXT - CONGRESO UNAB 2026
+# Security & SEO Orchestration by LDE-System
+# ==========================================
+
+# 1. Directivas de Seguridad para Motores de Búsqueda Generales y LinkedIn
 User-agent: Googlebot
-Allow: /
-
 User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
+User-agent: LinkedInBot
 User-agent: facebookexternalhit
 Allow: /
+Allow: /ponentes
+Allow: /programa
+Allow: /empresas
+Allow: /bolsa-de-trabajo
 
+# BLOQUEO DE SEGURIDAD (Evitar indexación de datos privados y zonas administrativas)
+Disallow: /admin/
+Disallow: /api/admin/
+Disallow: /verificar-dni/
+Disallow: /actualizar-dni/
+Disallow: /escaneo-qr/
+Disallow: /generar-qrs/
+Disallow: /check-in/
+Disallow: /postular-vacante/
+Disallow: /media/certificados/
+Disallow: /media/qrs/
+Disallow: /docs/
+Disallow: /scripts/
+Disallow: /shared/
+
+# 2. Bloqueo de Scrapers de Inteligencia Artificial y Bots de Descarga Agresivos
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: CCBot
+User-agent: Anthropic-AI
+User-agent: Claude-Web
+User-agent: CohereBot
+User-agent: Google-Extended
+User-agent: Omegabot
+User-agent: Bytespider
+User-agent: MJ12bot
+Disallow: /
+
+# 3. Directiva por Defecto para Resto de Bots (Máxima Restricción)
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /verificar-dni/
+Disallow: /actualizar-dni/
+Disallow: /escaneo-qr/
+Disallow: /generar-qrs/
+Disallow: /check-in/
+
+# Mapa del sitio dinámico provisto por Django
+Sitemap: https://www.congresologistica.unab.edu.ar/sitemap.xml

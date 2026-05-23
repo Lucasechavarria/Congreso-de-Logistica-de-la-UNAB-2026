@@ -56,11 +56,18 @@ gantt
   * Guardarlos de forma física en el directorio de estáticos (`/var/www/congreso/static/qrs/`).
   * Nginx servirá estas imágenes directamente desde el disco, reduciendo a cero el consumo de CPU de Pillow y base64 durante las peticiones masivas del día del evento.
 
+#### 5. Auditoría de Cambios en Base de Datos (django-simple-history)
+* **Objetivo:** Rastrear y auditar cada cambio en los datos críticos del sistema.
+* **Ajuste Técnico:**
+  - Integrar `django-simple-history` para registrar qué administrador editó o modificó campos sensibles.
+  - Rastrear de forma pormenorizada DNI, email de asistentes, estados de sponsors y disertantes.
+
 ### 📦 Entregables del Sprint 1
 - [ ] Cookies Django configuradas de forma estrictamente segura.
 - [ ] Reporte de auditoría de red de salida (Firewall) aprobado.
 - [ ] Script de sincronización semanal automática hacia Google Sheets activo.
 - [ ] Códigos QR estáticos guardados físicamente y servidos por Nginx.
+- [ ] Historial de auditoría y rastreo de cambios integrado para modelos críticos.
 
 ---
 
@@ -123,11 +130,22 @@ gantt
   * Transición de alerta elástica ante errores (leve temblor de vibración horizontal en lila/rojo suave).
   * Efectos de carga suaves dentro de los botones de envío, transformándose en un check SVG animado tras la validación exitosa.
 
+#### 4. Dashboard de Analíticas Interactivas (Tema Oscuro Lila del Admin)
+* **Objetivo:** Enriquecer visualmente el panel de `/admin/dashboard/` integrando gráficos dinámicos.
+* **Ajuste Técnico:**
+  - Cargar **ApexCharts** o **Chart.js** en el template del dashboard, adaptando la estética al tema lila oscuro actual (fondos `#2d1854`, morados y acentos lila brillante).
+  - Diseñar gráficos interactivos para visualizar inscriptos vs. asistentes que confirmaron asistencia autónomamente (QR) y distribución de perfiles de los registrados.
+
+#### 5. Transiciones y Feedback Táctil en Formularios del Admin
+* **Ajuste de UI:** Pulir los formularios del panel de administración añadiendo micro-animaciones (efectos hover estilizados en lila, sutiles transiciones de foco y loaders integrados).
+
 ### 📦 Entregables del Sprint 3
 - [ ] Tipografías estilizadas integradas en el cliente React.
 - [ ] Transiciones de entrada de componentes fluidas implementadas en la homepage.
 - [ ] Carrusel de auspiciantes con pause-on-hover suavizado por hardware.
 - [ ] Formularios de registro con micro-interacciones interactivas operando bajo el tema lila actual.
+- [ ] Dashboard administrativo con gráficos interactivos integrados estéticamente al tema oscuro lila.
+- [ ] Micro-interacciones y feedback de carga refinados en formularios del panel administrativo.
 
 ---
 
@@ -158,7 +176,21 @@ gantt
   * **Error 404 (No Encontrado):** Animación en lila de un camión de logística que toma una salida de ruta equivocada o un paquete extraviado en una estantería infinita.
   * **Error 500 (Fallo de Servidor):** Animación de un motor logístico de cintas transportadoras en mantenimiento temporal, con un mensaje claro e integrando un botón directo de recarga simple.
 
+#### 4. Barra de Progreso Asíncrona (Cola de Certificados y DNI)
+* **Objetivo:** Mostrar retroalimentación en tiempo real al administrador sobre el avance en el envío masivo de correos.
+* **Ajuste Técnico:**
+  - Crear una interfaz reactiva dentro del admin (peticiones AJAX periódicas) para interrogar el estado del proceso en segundo plano.
+  - Mostrar una barra de progreso fluida que elimine la incertidumbre del administrador mientras se procesan certificados o solicitudes de DNI.
+
+#### 5. Pre-validador de Excel en Cliente (Drag & Drop)
+* **Objetivo:** Evitar el procesamiento ineficiente de archivos corruptos o con datos obligatorios vacíos.
+* **Ajuste Técnico:**
+  - Añadir un pre-validador interactivo en Javascript en la vista de carga masiva de Excel.
+  - Comprobar que DNI, email, nombre y apellido contengan datos válidos en el navegador antes de autorizar la subida y procesamiento en Django.
+
 ### 📦 Entregables del Sprint 4
 - [ ] Bolsa de Trabajo optimizada visualmente y con carga segura de CVs en PDF.
 - [ ] Envío masivo de emails encapsulado asíncronamente en segundo plano (solución definitiva al Gateway Timeout 504).
 - [ ] Vistas e ilustraciones animadas de error 404 y 500 completadas.
+- [ ] Barra de progreso reactiva para el monitoreo de envíos masivos en segundo plano.
+- [ ] Pre-validador en cliente con interfaz Drag & Drop para la carga masiva de Excel.

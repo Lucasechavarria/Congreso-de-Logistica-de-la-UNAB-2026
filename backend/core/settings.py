@@ -111,7 +111,7 @@ DATABASES = {
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '6432'),  # Por defecto puerto de PgBouncer
+        'PORT': os.getenv('DB_PORT', '5432'),  # Por defecto puerto estándar de PostgreSQL
         'DISABLE_SERVER_SIDE_CURSORS': True,   # Requerido para Transaction Mode de PgBouncer
     }
 }

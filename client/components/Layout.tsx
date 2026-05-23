@@ -295,7 +295,15 @@ export default function Layout({ children }: LayoutProps) {
             <p>
               &copy; 2026 Universidad Nacional Guillermo Brown. Todos los
               derechos reservados. Desarrollado por{" "}
-              <span className="text-white">LDE-System</span>.
+              <a 
+                href="https://github.com/lucasechavarria" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-white font-semibold hover:text-congress-cyan transition-all duration-300 relative group inline-block"
+              >
+                LDE-System
+                <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-congress-cyan transition-all duration-300 group-hover:w-full"></span>
+              </a>.
             </p>
           </div>
         </div>

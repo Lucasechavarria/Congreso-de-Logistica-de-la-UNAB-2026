@@ -21,6 +21,9 @@ import FloatingParticles from "@/components/FloatingParticles";
 import { motion } from "framer-motion";
 import { EditionSelector } from "@/components/EditionSelector";
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
+import { useEmpresas } from "@/hooks/use-empresas";
+import { ALL_LOGOS } from "@/data/logos";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -182,9 +185,35 @@ function BenefitCard({ benefit }: { benefit: (typeof BENEFITS)[0] }) {
 
 export default function Empresas() {
   const [selectedEditionId, setSelectedEditionId] = useState<number | null>(null);
+  const { logosForCarousel } = useEmpresas(selectedEditionId);
+  const empresasToDisplay = logosForCarousel.length > 0 ? logosForCarousel : ALL_LOGOS;
 
   return (
     <>
+      <Helmet>
+        <title>Empresas Participantes | Congreso de Logística 2026</title>
+        <meta name="description" content="Conoce a las más de 80 empresas del sector logístico e intermodal que apoyan y participan en el Congreso de Logística y Transporte 2026 en la UNAB." />
+        <meta name="keywords" content="empresas logistica, sponsors unab, patrocinadores congreso, empresas transporte" />
+        <link rel="canonical" href="https://www.congresologistica.unab.edu.ar/empresas" />
+        {empresasToDisplay && empresasToDisplay.length > 0 && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": empresasToDisplay.map((logo, idx) => ({
+                "@type": "Organization",
+                "@id": `https://www.congresologistica.unab.edu.ar/empresas#empresa-${idx}`,
+                "name": logo.alt || "Empresa Participante",
+                "image": logo.src,
+                "url": "https://www.congresologistica.unab.edu.ar/empresas",
+                "sponsor": {
+                  "@type": "Event",
+                  "name": "Congreso de Logística y Transporte UNAB 2026"
+                }
+              }))
+            })}
+          </script>
+        )}
+      </Helmet>
       {/* Call to Action - Immersive Neo-Logistics */}
       <section className="py-24 relative overflow-hidden bg-[#0A0514]">
         {/* Dynamic Background */}

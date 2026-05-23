@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { API_HOST } from "@/lib/api";
@@ -89,6 +90,33 @@ export default function Ponentes() {
 
   return (
     <div className="min-h-screen bg-slate-50 relative overflow-hidden py-16 px-4">
+      <Helmet>
+        <title>Disertantes y Ponentes | Congreso de Logística 2026</title>
+        <meta name="description" content="Conoce a los ponentes y disertantes destacados del Congreso de Logística y Transporte 2026 en la UNAB. Expertos líderes en cadena de suministro y transporte sustentable." />
+        <meta name="keywords" content="disertantes congreso logistica, ponentes unab, expertos logistica argentina, congreso logistica 2026" />
+        <link rel="canonical" href="https://www.congresologistica.unab.edu.ar/ponentes" />
+        {disertantes && disertantes.length > 0 && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": disertantes.map((d) => ({
+                "@type": "Person",
+                "@id": `https://www.congresologistica.unab.edu.ar/ponentes#disertante-${d.id}`,
+                "name": d.nombre,
+                "description": d.bio,
+                "jobTitle": d.tema_presentacion,
+                "image": getFotoUrl(d),
+                "sameAs": d.linkedin ? [d.linkedin] : [],
+                "worksFor": {
+                  "@type": "Organization",
+                  "name": "Congreso de Logística y Transporte UNAB 2026",
+                  "url": "https://www.congresologistica.unab.edu.ar"
+                }
+              }))
+            })}
+          </script>
+        )}
+      </Helmet>
       <FloatingParticles count={30} color="rgba(37, 99, 235, 0.2)" />
 
       <div className="max-w-7xl mx-auto relative z-10">

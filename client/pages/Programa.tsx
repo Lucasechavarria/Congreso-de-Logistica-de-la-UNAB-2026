@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { API_HOST } from "@/lib/api";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -528,6 +529,58 @@ export default function Programa() {
 
   return (
     <>
+      <Helmet>
+        <title>Programa y Cronograma | Congreso de Logística 2026</title>
+        <meta name="description" content="Accede al cronograma oficial y las actividades del Congreso de Logística y Transporte 2026 en la UNAB. Talleres prácticos, ponencias y paneles de discusión." />
+        <meta name="keywords" content="cronograma congreso logistica, agenda unab 2026, talleres logistica, conferencias transporte" />
+        <link rel="canonical" href="https://www.congresologistica.unab.edu.ar/programa" />
+        {actividadesToShow && actividadesToShow.length > 0 && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Event",
+              "name": "Congreso de Logística y Transporte UNAB 2026",
+              "startDate": "2026-11-07T09:00:00-03:00",
+              "endDate": "2026-11-07T19:00:00-03:00",
+              "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+              "eventStatus": "https://schema.org/EventScheduled",
+              "location": {
+                "@type": "Place",
+                "name": "Campus Universidad Nacional Guillermo Brown (UNAB)",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "Blas Parera 132",
+                  "addressLocality": "Burzaco",
+                  "addressRegion": "Buenos Aires",
+                  "postalCode": "1852",
+                  "addressCountry": "AR"
+                }
+              },
+              "organizer": {
+                "@type": "Organization",
+                "name": "Universidad Nacional Guillermo Brown",
+                "url": "https://www.unab.edu.ar/"
+              },
+              "subEvent": actividadesToShow.map((act) => ({
+                "@type": "Event",
+                "name": act.titulo,
+                "startDate": `2026-11-07T${act.inicio}:00-03:00`,
+                "endDate": `2026-11-07T${act.fin}:00-03:00`,
+                "location": {
+                  "@type": "Place",
+                  "name": act.aula
+                },
+                "description": act.descripcion || act.titulo,
+                "performer": act.disertantes.map((d) => ({
+                  "@type": "Person",
+                  "name": d.nombre,
+                  "jobTitle": d.tema_presentacion
+                }))
+              }))
+            })}
+          </script>
+        )}
+      </Helmet>
       {!programaDisponible ? (
         <BannerProximamente />
       ) : (

@@ -187,7 +187,7 @@
 
     .c-grid {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
         gap: 30px;
     }
 
@@ -438,6 +438,15 @@
                 <canvas id="c3"></canvas>
             </div>
         </div>
+
+        <!-- Gráfico de Acreditación (Confirmación Autónoma) -->
+        <div class="c-card" style="display:flex; flex-direction: column;">
+            <div class="btn-chart-export" title="Descargar como Imagen" onclick="downloadChart('c4', 'estado_acreditacion')">📥</div>
+            <h3 style="color: var(--p); margin-bottom: 20px; font-size: 14px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Estado de Acreditación (Ingreso QR)</h3>
+            <div style="flex:1; width:100%; position:relative; min-height: 0;">
+                <canvas id="c4"></canvas>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -672,6 +681,35 @@
                 },
                 plugins: {
                     legend: { position: 'top' },
+                    tooltip: darkTooltipConfig
+                }
+            }
+        });
+
+        // Configuración de Acreditación (Confirmados vs. Pendientes) - Chart 4
+        const valConfirmados = parseInt('{{ kpis.total_confirmados }}') || 0;
+        const valPendientes = Math.max(0, valInscritos - valConfirmados);
+
+        chartInstances['c4'] = new Chart(document.getElementById('c4'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Confirmados (Ingreso QR)', 'Pendientes de Ingreso'],
+                datasets: [{
+                    label: 'Acreditación',
+                    data: [valConfirmados, valPendientes],
+                    backgroundColor: ['#06b6d4', 'rgba(43, 20, 84, 0.4)'],
+                    borderColor: ['#06b6d4', '#2d1854'],
+                    borderWidth: 2,
+                    hoverOffset: 12
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { boxWidth: 15, padding: 15 }
+                    },
                     tooltip: darkTooltipConfig
                 }
             }

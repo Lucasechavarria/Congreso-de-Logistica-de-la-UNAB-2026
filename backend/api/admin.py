@@ -1,4 +1,5 @@
 from django.contrib import admin
+from simple_history.admin import SimpleHistoryAdmin
 from django.db import models
 from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
@@ -738,7 +739,7 @@ def manual_certificate_view(request):
     }
     return render(request, 'admin/manual_certificate.html', context)
 
-class InscripcionAdmin(admin.ModelAdmin):
+class InscripcionAdmin(SimpleHistoryAdmin):
     list_display = ('asistente', 'empresa', 'fecha_inscripcion_detalle', 'edicion')
     list_filter = ('edicion', 'fecha_inscripcion')
     search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'empresa__nombre_empresa')
@@ -750,7 +751,7 @@ class InscripcionAdmin(admin.ModelAdmin):
     fecha_inscripcion_detalle.short_description = 'Fecha Inscripción'
     fecha_inscripcion_detalle.admin_order_field = 'fecha_inscripcion'
 
-class AsistenteAdmin(admin.ModelAdmin):
+class AsistenteAdmin(SimpleHistoryAdmin):
     list_display = ('first_name', 'last_name', 'email', 'perfil_badge', 'dni', 'get_ediciones', 'get_asistencia_actual', 'fecha_registro_detalle')
     list_filter = (
         'profile_type',
@@ -1498,7 +1499,7 @@ class DisertanteAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'tema_presentacion', 'edicion', 'linkedin')
     list_filter = ('edicion', 'estado')
 @admin.register(Empresa)
-class EmpresaAdmin(admin.ModelAdmin):
+class EmpresaAdmin(SimpleHistoryAdmin):
     list_display = ('nombre_empresa', 'estado_badge', 'es_sponsor', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro_detalle')
     list_filter = ('estado', 'es_sponsor', 'edicion', 'participo_edicion_anterior')
     search_fields = ('nombre_empresa', 'cuit', 'email_contacto', 'nombre_contacto')
@@ -1581,7 +1582,7 @@ class EmpresaAdmin(admin.ModelAdmin):
 
 
 @admin.register(PostulacionDisertante)
-class PostulacionDisertanteAdmin(admin.ModelAdmin):
+class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
     list_display = ('nombre_apellido', 'email', 'titulo_charla', 'estado', 'edicion', 'fecha_postulacion_detalle')
     list_filter = ('estado', 'edicion', 'modalidad')
     search_fields = ('nombre_apellido', 'dni', 'email', 'titulo_charla')

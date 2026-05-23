@@ -1,4 +1,5 @@
 from django.db import models
+from simple_history.models import HistoricalRecords
 from django.contrib.auth.models import User
 from django.core.files.storage import storages
 from django.core.exceptions import ValidationError
@@ -67,6 +68,7 @@ class PostulacionDisertante(models.Model):
     revisada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='postulaciones_revisadas', verbose_name="Revisada por")
     acepta_tyc = models.BooleanField(default=False, verbose_name="Declaro que la información es verídica y acepto TyC")
     fecha_postulacion = models.DateTimeField(auto_now_add=True)
+    history = HistoricalRecords()
 
     def __str__(self):
         return f"{self.nombre_apellido} - {self.titulo_charla} ({self.get_estado_display()})"
@@ -173,6 +175,7 @@ class Empresa(models.Model):
     notas_admin = models.TextField(null=True, blank=True, verbose_name="Notas internas (solo admin)")
     fecha_revision = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de revisión")
     revisada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='empresas_revisadas', verbose_name="Revisada por")
+    history = HistoricalRecords()
 
     def __str__(self):
         if self.nombre_empresa:
@@ -242,6 +245,7 @@ class Asistente(models.Model):
 
     # --- Términos y Condiciones ---
     terminos_aceptados = models.BooleanField(default=False, verbose_name="Acepta Términos y Condiciones")
+    history = HistoricalRecords()
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -490,6 +494,7 @@ class Inscripcion(models.Model):
     asistencia_confirmada = models.BooleanField(default=False, verbose_name="Asistencia Confirmada")
     fecha_confirmacion = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Confirmación")
     desea_alertas_laborales = models.BooleanField(default=False, verbose_name="¿Desea recibir alertas laborales?")
+    history = HistoricalRecords()
 
     def __str__(self):
         return f"Inscripción de {self.asistente} - {self.edicion}"

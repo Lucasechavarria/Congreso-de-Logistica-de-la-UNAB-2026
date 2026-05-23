@@ -947,6 +947,59 @@
                 </div>
             </div>
 
+            <!-- PASO 2.5: PRE-VALIDACIÓN Y CONTROL DE CALIDAD -->
+            <div id="step-validation" class="step-container">
+                <div class="import-header">
+                    <div class="import-header-icon">🛡️</div>
+                    <div class="import-header-text">
+                        <h2>Control de Calidad del Archivo</h2>
+                        <p>Hemos analizado los registros mapeados en tu navegador antes de iniciar el guardado.</p>
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Éxito de Validación -->
+                <div class="selected-file-card" id="validationSuccessCard" style="display: none; background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3);">
+                    <div class="file-details">
+                        <span class="file-details-icon">✅</span>
+                        <div>
+                            <span class="file-name" style="color: #6ee7b7;">¡Todo en orden! Todos los registros son 100% válidos.</span>
+                            <span class="file-size" style="color: var(--color-success);" id="validationSuccessCount">0 registros listos para importar.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Errores de Validación -->
+                <div class="error-details-card" id="validationErrorsCard" style="display: none; background: rgba(244, 63, 94, 0.05); border-color: rgba(244, 63, 94, 0.25);">
+                    <div class="error-details-title" style="color: #fca5a5; font-size: 16px;">
+                        ⚠️ Detectamos inconsistencias en <span id="validationErrorCount">0</span> registros
+                    </div>
+                    <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 15px;">
+                        Para proteger la base de datos, puedes ignorar los registros con errores y subir solo los correctos, o cancelar para corregir tu archivo Excel.
+                    </p>
+                    <div class="preview-table-wrapper" style="margin-bottom: 0; background: rgba(0, 0, 0, 0.35);">
+                        <div class="preview-table-scroll" style="max-height: 250px;">
+                            <table class="preview-table">
+                                <thead>
+                                    <tr>
+                                        <th style="color: var(--neon-magenta);">Fila Excel</th>
+                                        <th style="color: var(--neon-magenta);">Dato Crítico</th>
+                                        <th style="color: var(--neon-magenta);">Descripción del Error</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="validationErrorsTableBody">
+                                    <!-- Dinámico -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-row" style="margin-top: 30px;">
+                    <button class="btn-secondary" id="btnCancelValidation">&lsaquo; Volver y Corregir</button>
+                    <button class="btn-neon-cyan" id="btnProceedImport">Proceder con la Importación 🚀</button>
+                </div>
+            </div>
+
             <!-- PASO 3: PROCESAMIENTO Y LOGS EN VIVO -->
             <div id="step-importing" class="step-container">
                 <div class="progress-header">
@@ -1064,6 +1117,7 @@
 
     const stepUpload = document.getElementById('step-upload');
     const stepMapping = document.getElementById('step-mapping');
+    const stepValidation = document.getElementById('step-validation');
     const stepImporting = document.getElementById('step-importing');
     const stepSummary = document.getElementById('step-summary');
 
@@ -1295,9 +1349,134 @@
         switchStep(stepMapping, stepUpload);
     });
 
-    // Iniciar importación asíncrona
+    let validRowsToImport = [];
+    let validationErrors = [];
+
+    function validateExcelData() {
+        validationErrors = [];
+        validRowsToImport = [];
+
+        const dniCol = fieldMappings['dni'];
+        const emailCol = fieldMappings['email'];
+        const nombreCol = fieldMappings['nombre'];
+        const apellidoCol = fieldMappings['apellido'];
+        const perfilCol = fieldMappings['perfil'];
+
+        excelDataRows.forEach((row, index) => {
+            const excelRowIndex = index + 2; // Fila Excel real
+            let rowErrors = [];
+
+            // 1. Validar requeridos
+            const rawDni = row[dniCol] !== undefined ? String(row[dniCol]).trim() : '';
+            const rawEmail = row[emailCol] !== undefined ? String(row[emailCol]).trim() : '';
+            const rawNombre = row[nombreCol] !== undefined ? String(row[nombreCol]).trim() : '';
+            const rawApellido = row[apellidoCol] !== undefined ? String(row[apellidoCol]).trim() : '';
+
+            if (!rawDni) rowErrors.push({ field: 'DNI', msg: 'DNI obligatorio vacío.' });
+            if (!rawEmail) rowErrors.push({ field: 'Email', msg: 'Email obligatorio vacío.' });
+            if (!rawNombre) rowErrors.push({ field: 'Nombre', msg: 'Nombre obligatorio vacío.' });
+            if (!rawApellido) rowErrors.push({ field: 'Apellido', msg: 'Apellido obligatorio vacío.' });
+
+            // 2. Validar DNI si está provisto
+            if (rawDni) {
+                let dniLimpio = rawDni.replace(/\D/g, '');
+                if (dniLimpio.length === 9 && dniLimpio.endsWith('0')) {
+                    dniLimpio = dniLimpio.slice(0, 8);
+                }
+                if (dniLimpio.length !== 8) {
+                    rowErrors.push({ field: `DNI (${rawDni})`, msg: 'El DNI debe tener exactamente 8 dígitos numéricos.' });
+                }
+            }
+
+            // 3. Validar Email si está provisto
+            if (rawEmail) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(rawEmail)) {
+                    rowErrors.push({ field: `Email (${rawEmail})`, msg: 'Formato de correo electrónico inválido.' });
+                }
+            }
+
+            // 4. Validar perfil si está provisto
+            if (perfilCol && row[perfilCol]) {
+                const rawPerfil = String(row[perfilCol]).toUpperCase().trim();
+                const sinónimosValidos = ['ESTUDIANTE', 'DOCENTE', 'PROFESIONAL', 'PRENSA', 'VISITANTE', 'GRADUADO', 'OTRO', 'STUDENT', 'GRADUADO', 'TEACHER', 'PROFESSIONAL', 'PRESS', 'GROUP_REPRESENTATIVE', 'VISITOR', 'OTRO'];
+                if (!sinónimosValidos.includes(rawPerfil)) {
+                    rowErrors.push({ field: `Perfil (${row[perfilCol]})`, msg: `Perfil no reconocido (se guardará como 'Visitante' por defecto).` });
+                }
+            }
+
+            if (rowErrors.length > 0) {
+                validationErrors.push({
+                    rowIndex: excelRowIndex,
+                    errors: rowErrors,
+                    rowData: row
+                });
+            } else {
+                validRowsToImport.push(row);
+            }
+        });
+
+        // Actualizar UI de Validación
+        const successCard = document.getElementById('validationSuccessCard');
+        const errorsCard = document.getElementById('validationErrorsCard');
+        const successCount = document.getElementById('validationSuccessCount');
+        const errorCount = document.getElementById('validationErrorCount');
+        const errorsTableBody = document.getElementById('validationErrorsTableBody');
+        const btnProceed = document.getElementById('btnProceedImport');
+
+        errorsTableBody.innerHTML = '';
+
+        if (validationErrors.length === 0) {
+            successCard.style.display = 'flex';
+            errorsCard.style.display = 'none';
+            successCount.innerText = `Todos los ${validRowsToImport.length} registros listos para importar.`;
+            btnProceed.innerText = `Importar todos los registros (${validRowsToImport.length}) 🚀`;
+            btnProceed.disabled = (validRowsToImport.length === 0);
+        } else {
+            successCard.style.display = 'none';
+            errorsCard.style.display = 'block';
+            errorCount.innerText = validationErrors.length;
+            btnProceed.innerText = `Importar solo registros válidos (${validRowsToImport.length}) 🚀`;
+            btnProceed.disabled = (validRowsToImport.length === 0);
+
+            validationErrors.forEach(item => {
+                item.errors.forEach(err => {
+                    const tr = document.createElement('tr');
+                    
+                    const tdRow = document.createElement('td');
+                    tdRow.innerText = `Fila ${item.rowIndex}`;
+                    tdRow.style.fontWeight = 'bold';
+                    tdRow.style.color = 'var(--neon-magenta)';
+                    
+                    const tdField = document.createElement('td');
+                    tdField.innerText = err.field;
+                    
+                    const tdMsg = document.createElement('td');
+                    tdMsg.innerText = err.msg;
+                    
+                    tr.appendChild(tdRow);
+                    tr.appendChild(tdField);
+                    tr.appendChild(tdMsg);
+                    errorsTableBody.appendChild(tr);
+                });
+            });
+        }
+    }
+
+    // Iniciar pre-validación de calidad en cliente
     btnConfirmMapping.addEventListener('click', () => {
-        switchStep(stepMapping, stepImporting);
+        validateExcelData();
+        switchStep(stepMapping, stepValidation);
+    });
+
+    // Controladores de navegación de validación
+    document.getElementById('btnCancelValidation').addEventListener('click', () => {
+        switchStep(stepValidation, stepMapping);
+    });
+
+    document.getElementById('btnProceedImport').addEventListener('click', () => {
+        excelDataRows = [...validRowsToImport];
+        switchStep(stepValidation, stepImporting);
         startBulkImport();
     });
 

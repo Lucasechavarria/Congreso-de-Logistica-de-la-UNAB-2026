@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'api',
     'bolsa_trabajo',
     'django_celery_beat',
+    'simple_history',
 ]
 
 MIDDLEWARE = [
@@ -75,6 +76,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

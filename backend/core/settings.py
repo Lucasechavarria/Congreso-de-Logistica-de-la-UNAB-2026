@@ -102,16 +102,47 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 
-# Database
+# Database Autodetection
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+import socket
+
+def _detect_db_port(host, default_port="5432"):
+    """
+    Detecta dinámicamente si el puerto de PgBouncer (6432) está activo
+    realizando un sondeo rápido por socket en tiempo de inicialización.
+    """
+    env_port = os.getenv('DB_PORT')
+    if env_port:
+        return env_port
+        
+    # Si estamos en pruebas unitarias, usar fallback directo sin sondear red
+    import sys
+    if 'test' in sys.argv:
+        return default_port
+
+    # Sondeo rápido de puertos con socket
+    ports_to_try = ["6432", "5432"]
+    for port in ports_to_try:
+        try:
+            # Crear socket e intentar conexión con timeout ultra-bajo (50ms)
+            with socket.create_connection((host, int(port)), timeout=0.05):
+                return port
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            continue
+            
+    return default_port
+
+_db_host = os.getenv('DB_HOST', '127.0.0.1')
+_db_port = _detect_db_port(_db_host)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME', 'congreso_2026'),
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '5432'),  # Por defecto puerto estándar de PostgreSQL
+        'HOST': _db_host,
+        'PORT': _db_port,
         'DISABLE_SERVER_SIDE_CURSORS': True,   # Requerido para Transaction Mode de PgBouncer
     }
 }

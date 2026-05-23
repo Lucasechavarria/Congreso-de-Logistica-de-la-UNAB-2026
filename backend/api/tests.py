@@ -219,3 +219,45 @@ class CertificateMemoryTests(BaseCongressTest):
         self.assertTrue(success)
         self.assertTrue(mock_send.called)
         self.assertTrue(cert.email_enviado)
+
+    def test_asistencia_y_certificado_multi_edicion(self):
+        """
+        Valida que un asistente con asistencia confirmada en 2025 no interfiera
+        con su estado de asistencia en 2026, y pueda obtener certificados separados para cada edición.
+        """
+        from .services import confirm_asistencia
+        
+        # 1. Crear edición anterior 2025 e inscripción con asistencia confirmada
+        edicion_2025, _ = Edicion.objects.get_or_create(anio=2025, defaults={'nombre': "2025", 'activa': False})
+        asistente = Asistente.objects.create(
+            first_name="Recurrente", last_name="User", dni="99881122",
+            email="recurrente@multi.com", profile_type="VISITOR"
+        )
+        insc_2025 = Inscripcion.objects.create(asistente=asistente, edicion=edicion_2025, asistencia_confirmada=True)
+        cert_2025 = Certificado.objects.create(asistente=asistente, edicion=edicion_2025, tipo_certificado="ASISTENCIA")
+        
+        # 2. Inscribir para edición activa 2026 (heredada de setUp)
+        insc_2026 = Inscripcion.objects.create(asistente=asistente, edicion=self.edicion, asistencia_confirmada=False)
+        
+        # 3. Comprobar que en 2026 su asistencia es pendiente inicialmente
+        self.assertFalse(insc_2026.asistencia_confirmada)
+        self.assertTrue(insc_2025.asistencia_confirmada)
+        
+        # 4. Confirmar asistencia en 2026 y comprobar certificados separados
+        cert_2026, success = confirm_asistencia(insc_2026)
+        
+        # Recargar inscripciones
+        insc_2025.refresh_from_db()
+        insc_2026.refresh_from_db()
+        
+        self.assertTrue(insc_2025.asistencia_confirmada)
+        self.assertTrue(insc_2026.asistencia_confirmada)
+        
+        # Deben existir exactamente 2 certificados independientes
+        self.assertEqual(Certificado.objects.filter(asistente=asistente, tipo_certificado="ASISTENCIA").count(), 2)
+        
+        # El certificado de 2025 debe estar intacto
+        self.assertEqual(cert_2025.edicion, edicion_2025)
+        # El certificado de 2026 debe estar asociado a la edición 2026
+        self.assertEqual(cert_2026.edicion, self.edicion)
+        self.assertNotEqual(cert_2025.id, cert_2026.id)

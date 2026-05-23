@@ -242,10 +242,13 @@ def broadcast_view(request):
                     emails.update(Asistente.objects.values_list('email', flat=True))
 
                 if 'ASISTENTES_CONFIRMADOS' in destinatarios:
-                    emails.update(
-                        Inscripcion.objects.filter(asistencia_confirmada=True)
-                        .values_list('asistente__email', flat=True)
-                    )
+                    from .models import Edicion
+                    edicion_activa = Edicion.objects.filter(activa=True).first()
+                    if edicion_activa:
+                        emails.update(
+                            Inscripcion.objects.filter(edicion=edicion_activa, asistencia_confirmada=True)
+                            .values_list('asistente__email', flat=True)
+                        )
 
                 # ── Disertantes (por estado de postulación) ─────────────────
                 if 'DISERTANTES_PENDIENTE' in destinatarios:

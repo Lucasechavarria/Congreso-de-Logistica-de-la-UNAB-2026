@@ -1343,7 +1343,12 @@ class BroadcastAPIView(views.APIView):
             emails.update(Asistente.objects.values_list('email', flat=True))
         
         if rol == 'ASISTENTES_CONFIRMADOS':
-            emails.update(Inscripcion.objects.filter(asistencia_confirmada=True).values_list('asistente__email', flat=True))
+            edicion_activa = Edicion.objects.filter(activa=True).first()
+            if edicion_activa:
+                emails.update(
+                    Inscripcion.objects.filter(edicion=edicion_activa, asistencia_confirmada=True)
+                    .values_list('asistente__email', flat=True)
+                )
         
         if rol == 'TODOS' or rol == 'DISERTANTES':
             emails.update(PostulacionDisertante.objects.filter(estado='APROBADO').values_list('email', flat=True))

@@ -615,192 +615,18 @@ class AsistenteSerializer(serializers.ModelSerializer):
         insc = obj.inscripciones.filter(edicion=edicion_activa).first()
         return insc.fecha_confirmacion if insc else None
 
-
-    def _upsert_detalles(self, asistente, data):
-        """Helper para crear o actualizar los detalles específicos según el perfil"""
-        from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional, DetalleGrupo
-        
-        profile_type = asistente.profile_type
-        if profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO]:
-            DetalleEstudiante.objects.update_or_create(
-                asistente=asistente,
-                defaults={
-                    'is_unab_student': data.get('is_unab_student') or False,
-                    'institution': data.get('institution'),
-                    'career': data.get('career'),
-                    'year_of_study': data.get('year_of_study'),
-                }
-            )
-        elif profile_type == Asistente.ProfileType.TEACHER:
-            DetalleDocente.objects.update_or_create(
-                asistente=asistente,
-                defaults={
-                    'institution': data.get('institution'),
-                    'career_taught': data.get('career_taught'),
-                }
-            )
-        elif profile_type in [Asistente.ProfileType.PROFESSIONAL, Asistente.ProfileType.OTRO]:
-            DetalleProfesional.objects.update_or_create(
-                asistente=asistente,
-                defaults={
-                    'work_area': data.get('work_area') if profile_type == Asistente.ProfileType.PROFESSIONAL else "Otro",
-                    'occupation': data.get('occupation'),
-                }
-            )
-        elif profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
-            DetalleGrupo.objects.update_or_create(
-                asistente=asistente,
-                defaults={
-                    'group_name': data.get('group_name'),
-                    'group_municipality': data.get('group_municipality'),
-                    'group_size': data.get('group_size') or 0,
-                }
-            )
-
     def create(self, validated_data):
-        from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional, DetalleGrupo
-        from django.db import transaction
-
-        miembros_data = validated_data.pop('miembros_grupo', [])  # Compatibilidad con sistema anterior
-        miembros_nuevos_data = validated_data.pop('miembros_grupo_nuevos', [])  # Nuevo sistema
+        from .services import register_asistente_or_group
         
-        # Extraer campos de Detalle
-        is_unab_student = validated_data.pop('is_unab_student', False)
-        institution = validated_data.pop('institution', None)
-        career = validated_data.pop('career', None)
-        year_of_study = validated_data.pop('year_of_study', None)
-        career_taught = validated_data.pop('career_taught', None)
-        work_area = validated_data.pop('work_area', None)
-        occupation = validated_data.pop('occupation', None)
-        group_name = validated_data.pop('group_name', None)
-        group_municipality = validated_data.pop('group_municipality', None)
-        group_size = validated_data.pop('group_size', 0)
-        tipo_grupo = validated_data.get('tipo_grupo')
-
-        dni = validated_data.get('dni')
-        email = validated_data.get('email')
-
-        # 1. Registro del REPRESENTANTE (Atomico para el individuo)
-        edicion_activa = Edicion.objects.filter(activa=True).first()
-        try:
-            with transaction.atomic():
-                asistente = None
-                if dni:
-                    asistente = Asistente.objects.filter(dni=dni).first()
-                if not asistente and email:
-                    asistente = Asistente.objects.filter(email=email).first()
-
-                if asistente:
-                    for attr, value in validated_data.items():
-                        setattr(asistente, attr, value)
-                    asistente.save()
-                else:
-                    asistente = Asistente.objects.create(**validated_data)
-
-                # Detalles del representante
-                self._upsert_detalles(asistente, {
-                    'is_unab_student': is_unab_student,
-                    'institution': institution,
-                    'career': career,
-                    'year_of_study': year_of_study,
-                    'career_taught': career_taught,
-                    'work_area': work_area,
-                    'occupation': occupation,
-                    'group_name': group_name,
-                    'group_municipality': group_municipality,
-                    'group_size': group_size
-                })
-
-        except Exception as e:
-            # Si falla el representante, no tiene sentido seguir con el grupo
-            raise serializers.ValidationError({"detail": f"Error al registrar representante: {str(e)}"})
-
-        # Para que el serializer pueda mostrar los valores, los asignamos dinámicamente
-        asistente.is_unab_student = is_unab_student
-        asistente.institution = institution
-        asistente.career = career
-        asistente.year_of_study = year_of_study
-        asistente.career_taught = career_taught
-        asistente.work_area = work_area
-        asistente.occupation = occupation
-        asistente.group_name = group_name
-        asistente.group_municipality = group_municipality
-        asistente.group_size = group_size
+        # Extraer los datos de miembros grupales
+        validated_data.pop('miembros_grupo', [])  # Compatibilidad legacy
+        integrantes_data = validated_data.pop('miembros_grupo_nuevos', [])
         
-        if asistente.profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
-            # 2. Registro de MIEMBROS (Independientes entre sí)
-            
-            # Sistema anterior - mantenemos compatibilidad
-            for miembro_data in miembros_data:
-                try:
-                    with transaction.atomic():
-                        MiembroGrupo.objects.get_or_create(representante=asistente, dni=miembro_data.get('dni'), defaults=miembro_data)
-                except:
-                    pass # Silencioso para compatibilidad heredada
-            
-            # Nuevo sistema - crear/actualizar asistentes individuales
-            fallos_miembros = []
-            for miembro_data in miembros_nuevos_data:
-                try:
-                    with transaction.atomic():
-                        m_dni = miembro_data.get('dni')
-                        m_email = miembro_data.get('email')
-                        
-                        if not m_dni and not m_email:
-                            raise ValueError("Nombre, Email o DNI faltantes en integrante.")
-
-                        m_asistente = None
-                        if m_dni:
-                            m_asistente = Asistente.objects.filter(dni=m_dni).first()
-                        if not m_asistente and m_email:
-                            m_asistente = Asistente.objects.filter(email=m_email).first()
-                        
-                        m_profile = miembro_data.get('profile_type', Asistente.ProfileType.VISITOR)
-                        m_defaults = {
-                            'first_name': miembro_data['first_name'],
-                            'last_name': miembro_data['last_name'],
-                            'email': m_email,
-                            'dni': m_dni,
-                            'phone': miembro_data.get('phone'),
-                            'profile_type': m_profile,
-                            'representante_grupo': asistente,
-                            'comision': miembro_data.get('comision') or validated_data.get('comision'),
-                            'terminos_aceptados': True,
-                        }
-
-                        if m_asistente:
-                            for attr, value in m_defaults.items():
-                                setattr(m_asistente, attr, value)
-                            m_asistente.save()
-                        else:
-                            m_asistente = Asistente.objects.create(**m_defaults)
-                        
-                        # Guardar detalles del integrante si aplica
-                        self._upsert_detalles(m_asistente, {
-                            'institution': miembro_data.get('institution'),
-                            'career': miembro_data.get('career'),
-                        })
-
-                        # Vincular miembro a Edición Activa
-                        if edicion_activa:
-                            Inscripcion.objects.get_or_create(asistente=m_asistente, edicion=edicion_activa)
-
-                except Exception as e:
-                    fallos_miembros.append(f"{miembro_data.get('first_name', 'Fila')} - {str(e)}")
-
-            if fallos_miembros:
-                print(f"[WARNING] Errores en integrantes de grupo: {fallos_miembros}")
-            
-            # Enviar emails de confirmación en segundo plano de forma no-bloqueante (Celery)
-            from .tasks import task_enviar_confirmacion_grupal
-            transaction.on_commit(lambda: task_enviar_confirmacion_grupal.delay(asistente.id))
-            asistente._email_enviado = True
-        else:
-            # Enviar email de confirmación individual en segundo plano (Celery)
-            from .tasks import task_enviar_confirmacion_individual
-            transaction.on_commit(lambda: task_enviar_confirmacion_individual.delay(asistente.id))
-            asistente._email_enviado = True
+        # Invocar la capa de servicios (Lógica de Dominio)
+        asistente = register_asistente_or_group(validated_data, integrantes_data)
         
+        # Marcar bandera para respuesta del Serializer
+        asistente._email_enviado = True 
         return asistente
 
     def validate_dni(self, value):
@@ -872,46 +698,7 @@ class InscripcionSerializer(serializers.ModelSerializer):
         read_only_fields = ['fecha_inscripcion', 'edicion']
 
 
-    def _upsert_detalles(self, asistente, data):
-        """Helper para crear o actualizar los detalles específicos según el perfil"""
-        from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional, DetalleGrupo
-        
-        profile_type = asistente.profile_type
-        if profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO]:
-            DetalleEstudiante.objects.update_or_create(
-                asistente=asistente,
-                defaults={
-                    'is_unab_student': data.get('is_unab_student') or False,
-                    'institution': data.get('institution'),
-                    'career': data.get('career'),
-                    'year_of_study': data.get('year_of_study'),
-                }
-            )
-        elif profile_type == Asistente.ProfileType.TEACHER:
-            DetalleDocente.objects.update_or_create(
-                asistente=asistente,
-                defaults={
-                    'institution': data.get('institution'),
-                    'career_taught': data.get('career_taught'),
-                }
-            )
-        elif profile_type in [Asistente.ProfileType.PROFESSIONAL, Asistente.ProfileType.OTRO]:
-            DetalleProfesional.objects.update_or_create(
-                asistente=asistente,
-                defaults={
-                    'work_area': data.get('work_area') if profile_type == Asistente.ProfileType.PROFESSIONAL else "Otro",
-                    'occupation': data.get('occupation'),
-                }
-            )
-        elif profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
-            DetalleGrupo.objects.update_or_create(
-                asistente=asistente,
-                defaults={
-                    'group_name': data.get('group_name'),
-                    'group_municipality': data.get('group_municipality'),
-                    'group_size': data.get('group_size') or 0,
-                }
-            )
+
 
     def create(self, validated_data):
         from .models import Edicion

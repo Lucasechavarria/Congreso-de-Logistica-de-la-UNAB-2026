@@ -836,16 +836,11 @@ class CargaMasivaAsistentesCompletaView(views.APIView):
                             }
                         })
 
-                        # Enviar email de confirmación si está habilitado
+                        # Enviar email de confirmación si está habilitado en segundo plano (Celery)
                         if enviar_emails:
-                            try:
-                                if send_bulk_confirmation_email(asistente, es_carga_masiva=True):
-                                    emails_enviados += 1
-                                else:
-                                    emails_fallidos += 1
-                            except Exception as e:
-                                emails_fallidos += 1
-                                print(f"[ERROR] Error enviando email a {email}: {e}")
+                            from .tasks import task_enviar_confirmacion_individual
+                            transaction.on_commit(lambda a_id=asistente.id: task_enviar_confirmacion_individual.delay(a_id))
+                            emails_enviados += 1
 
                     except Exception as e:
                         errores += 1
@@ -1057,16 +1052,11 @@ class CargaMasivaAsistentesView(views.APIView):
                             'estado': 'creado'
                         })
 
-                        # Enviar email si está habilitado
+                        # Enviar email si está habilitado en segundo plano (Celery)
                         if enviar_emails:
-                            try:
-                                if send_bulk_confirmation_email(asistente, es_carga_masiva=True, fecha_evento='2026-11-07'):
-                                    emails_enviados += 1
-                                else:
-                                    emails_fallidos += 1
-                            except Exception as e:
-                                emails_fallidos += 1
-                                print(f"[ERROR] Error enviando email a {email}: {e}")
+                            from .tasks import task_enviar_confirmacion_individual
+                            transaction.on_commit(lambda a_id=asistente.id: task_enviar_confirmacion_individual.delay(a_id))
+                            emails_enviados += 1
 
                     except Exception as e:
                         errores += 1

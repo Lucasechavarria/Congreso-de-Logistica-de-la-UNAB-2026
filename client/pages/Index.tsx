@@ -226,7 +226,7 @@ export default function Index() {
                     size="lg"
                     className="bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-6 text-lg backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 w-full md:w-auto hover:-translate-y-1"
                   >
-                    Postulate como Disertante
+                    Disertantes (Futuras Ediciones)
                   </Button>
                 </Link>
                 <Link to="/registro-participantes">
@@ -295,16 +295,13 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Convocatoria Abierta Section */}
+      {/* TODO: Descomentar para la edición del próximo año
       <section aria-labelledby="convocatoria-titulo" className="py-20 relative overflow-hidden bg-[#0a0514] border-y border-white/5">
-        {/* Cinematic 8-second looping video feel (Intermodal ecosystem & glassmorphism) */}
         <div className="absolute inset-0 z-0">
           <FloatingParticles count={30} color="rgba(176, 126, 238, 0.4)" />
-          {/* Neon routing lines */}
           <div className="absolute top-1/3 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#9c62de] to-transparent opacity-50 shadow-[0_0_15px_rgba(156,98,222,0.8)]"></div>
           <div className="absolute top-2/3 right-0 w-full h-[1px] bg-gradient-to-l from-transparent via-[#b07eee] to-transparent opacity-30 shadow-[0_0_15px_rgba(176,126,238,0.8)]"></div>
 
-          {/* Deep violet / vibrant purple glowing orbs */}
           <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#3a1b77] rounded-full mix-blend-screen filter blur-[120px] opacity-60 animate-pulse"></div>
           <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#210d51] rounded-full mix-blend-screen filter blur-[120px] opacity-80 animate-pulse" style={{ animationDelay: '2s' }}></div>
         </div>
@@ -329,11 +326,11 @@ export default function Index() {
                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
                   <Link to="/registro-disertante">
                     <Button
-  size="lg"
-  className="bg-congress-cyan hover:bg-congress-cyan-light text-white font-bold px-8 py-6 text-lg shadow-lg hover:shadow-2xl transition-all duration-300 w-full sm:w-auto"
->
-  Postular Ponencia
-</Button>
+                      size="lg"
+                      className="bg-congress-cyan hover:bg-congress-cyan-light text-white font-bold px-8 py-6 text-lg shadow-lg hover:shadow-2xl transition-all duration-300 w-full sm:w-auto"
+                    >
+                      Postular Ponencia
+                    </Button>
                   </Link>
                   <Link to="/registro-empresas">
                     <Button
@@ -346,30 +343,26 @@ export default function Index() {
                 </div>
               </motion.div>
 
-              {/* Decorative graphic side (Glassmorphism & Logistics) */}
               <motion.div variants={scaleIn} className="hidden lg:flex flex-1 justify-center relative">
                 <div className="relative w-72 h-72">
-                  {/* Glowing rings */}
                   <div className="absolute inset-0 rounded-full border-2 border-[#9c62de]/30 animate-[spin_10s_linear_infinite]"></div>
                   <div className="absolute inset-4 rounded-full border border-[#b07eee]/50 animate-[spin_15s_linear_infinite_reverse]"></div>
 
-                  {/* Floating Glass panels */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-white/5 backdrop-blur-md rounded-2xl border border-white/20 shadow-[0_0_30px_rgba(176,126,238,0.2)] flex items-center justify-center transform rotate-12 hover:rotate-0 transition-transform duration-500">
                     <svg className="w-20 h-20 text-[#b07eee]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                     </svg>
                   </div>
 
-                  {/* Floating elements */}
                   <div className="absolute top-0 right-10 w-16 h-16 bg-gradient-to-br from-[#9c62de] to-[#210d51] rounded-xl flex items-center justify-center shadow-lg animate-[float-orb_4s_ease-in-out_infinite]">
-                  <div className="text-white text-xl">
-                    <FiUsers size="100%" />
-                  </div>
+                    <div className="text-white text-xl">
+                      <FiUsers size="100%" />
+                    </div>
                   </div>
                   <div className="absolute bottom-10 left-0 w-20 h-20 bg-gradient-to-br from-congress-cyan-light to-congress-blue rounded-full flex items-center justify-center shadow-lg animate-[float-orb_6s_ease-in-out_infinite_1s]">
-                  <div className="text-white text-2xl">
-                    <FiAward size="100%" />
-                  </div>
+                    <div className="text-white text-2xl">
+                      <FiAward size="100%" />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -378,8 +371,11 @@ export default function Index() {
           </motion.div>
         </div>
       </section>
+      */}
 
+      {/* TODO: Descomentar cuando haya sponsors para esta edición
       <SponsorsSection />
+      */}
 
       <EmpresasCarousel2026 />
 
@@ -761,7 +757,7 @@ export default function Index() {
                 size="xxl"
                 className="bg-white/10 hover:bg-white/20 text-white font-black px-12 py-8 text-xl backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 w-full md:w-auto hover:-translate-y-1"
               >
-                Ser Disertante
+                Ser Disertante (Futuro)
               </Button>
             </Link>
             <Link to="/registro-participantes">

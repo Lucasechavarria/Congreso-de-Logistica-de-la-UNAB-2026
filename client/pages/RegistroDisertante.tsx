@@ -373,6 +373,9 @@ const RegistroDisertante: React.FC = () => {
                     title="Call for Papers - Disertantes"
                     description={
                         <div className="flex flex-col gap-4 mt-3">
+                            <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 text-base rounded-xl shadow-sm text-center font-medium">
+                                📢 <strong>Convocatoria Cerrada:</strong> La convocatoria oficial de disertantes ha cerrado. Sin embargo, mantenemos el formulario de recepción abierto para recibir y tener en cuenta propuestas para futuras ediciones del congreso.
+                            </div>
                             <span>Detalles técnicos y estructuración de su disertación.</span>
                             <div className="p-4 bg-blue-50 border border-blue-200 text-blue-700 text-base sm:text-lg font-semibold rounded-xl shadow-sm text-center">
                                 La Comisión Académica evaluará las postulaciones recibidas y comunicará a cada disertante, vía correo electrónico, la confirmación oficial de su participación en el Congreso.

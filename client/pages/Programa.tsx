@@ -423,11 +423,19 @@ export default function Programa() {
         >
 
 
+          {/* TODO: Descomentar para la edición del próximo año
           <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
             CONVOCATORIA <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9c62de] to-[#b07eee]">ABIERTA</span>
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto font-light">
             Sé parte del mayor evento de logística y transporte. Presentá tu propuesta innovadora o exhibí tu marca ante los líderes del sector.
+          </p>
+          */}
+          <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+            PROGRAMA EN <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9c62de] to-[#b07eee]">CONSTRUCCIÓN</span>
+          </h1>
+          <p className="text-xl text-slate-300 max-w-2xl mx-auto font-light">
+            Estamos diseñando la agenda para esta edición. Conoce las opciones de participación vigentes.
           </p>
         </motion.div>
 
@@ -448,23 +456,28 @@ export default function Programa() {
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#9c62de] to-[#b07eee] flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(156,98,222,0.5)] group-hover:scale-110 transition-transform duration-500">
                   <Person className="text-white text-3xl" />
                 </div>
-                <h2 className="text-3xl font-bold text-white mb-4">Ser Disertante</h2>
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <h2 className="text-3xl font-bold text-white">Ser Disertante</h2>
+                  <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-full font-semibold">
+                    Futuras Ediciones
+                  </span>
+                </div>
                 <p className="text-slate-300 text-lg mb-6 leading-relaxed">
-                  ¿Tenés un proyecto innovador, una investigación o desarrollos tecnológicos? Compartí tu experiencia en nuestro ciclo de conferencias.
+                  La convocatoria oficial de disertantes ha cerrado. Sin embargo, mantenemos el formulario abierto para recibir y considerar propuestas para futuras ediciones del congreso.
                 </p>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center text-slate-200">
-                    <Lightbulb className="text-[#b07eee] mr-3 text-sm" /> Exposición dinámica
+                    <Lightbulb className="text-[#b07eee] mr-3 text-sm" /> Propuestas para próximos años
                   </li>
                   <li className="flex items-center text-slate-200">
-                    <Group className="text-[#b07eee] mr-3 text-sm" /> Networking con referentes
+                    <Group className="text-[#b07eee] mr-3 text-sm" /> Base de disertantes estratégica
                   </li>
                 </ul>
               </div>
 
               <Link to="/registro-disertante" className="block w-full">
                 <button className="w-full py-4 rounded-xl bg-white/10 hover:bg-[#9c62de] text-white font-bold tracking-wide transition-all duration-300 border border-white/20 hover:border-transparent group-hover:shadow-[0_0_30px_rgba(156,98,222,0.6)] flex items-center justify-center gap-2 mt-auto">
-                  Postular Ponencia
+                  Enviar Propuesta (Futuro)
                   <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                 </button>
               </Link>

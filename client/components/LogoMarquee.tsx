@@ -25,9 +25,9 @@ export default function LogoMarquee({
 
   return (
     <div className="relative flex overflow-hidden w-full select-none">
-      <div className="flex flex-row w-max gap-12">
+      <div className="flex flex-row w-max">
         <motion.div
-          className="flex flex-row shrink-0 gap-12 items-center py-2"
+          className="flex flex-row shrink-0 gap-12 items-center py-2 pr-12"
           animate={{
             x: direction === "rtl" ? [0, "-100%"] : ["-100%", 0],
           }}
@@ -45,7 +45,7 @@ export default function LogoMarquee({
         </motion.div>
         
         <motion.div
-          className="flex flex-row shrink-0 gap-12 items-center py-2"
+          className="flex flex-row shrink-0 gap-12 items-center py-2 pr-12"
           animate={{
             x: direction === "rtl" ? [0, "-100%"] : ["-100%", 0],
           }}

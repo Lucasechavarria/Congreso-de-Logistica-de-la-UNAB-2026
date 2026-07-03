@@ -136,7 +136,7 @@ export default function Ponentes() {
 
         </motion.div>
 
-        {/* Call to Action Section (Glassmorphism + Cinematic) */}
+        {/* TODO: Descomentar para la edición del próximo año
         {!loading && (
           <motion.div
             className="mb-16 max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(58,27,119,0.3)] border border-congress-blue/20 relative"
@@ -146,10 +146,8 @@ export default function Ponentes() {
             transition={{ duration: 0.8 }}
           >
             <div className="absolute inset-0 z-0">
-              {/* Glowing orbs */}
               <div className="absolute top-0 right-0 w-80 h-80 bg-congress-cyan/30 rounded-full mix-blend-screen filter blur-[100px] opacity-70 animate-pulse"></div>
               <div className="absolute bottom-0 left-0 w-80 h-80 bg-congress-blue/40 rounded-full mix-blend-screen filter blur-[100px] opacity-70 animate-pulse" style={{ animationDelay: '2s' }}></div>
-              {/* Grid overlay */}
               <div className="absolute inset-0 z-0 opacity-20 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:30px_30px] mask-image-[radial-gradient(ellipse_at_center,black_40%,transparent_100%)]"></div>
             </div>
 
@@ -172,7 +170,6 @@ export default function Ponentes() {
                 </a>
               </div>
               <div className="hidden lg:flex flex-1 justify-center relative">
-                {/* Light rings decoration */}
                 <div className="w-56 h-56 relative flex justify-center items-center">
                   <div className="absolute inset-0 rounded-full border-2 border-congress-cyan/30 animate-[spin_12s_linear_infinite]"></div>
                   <div className="absolute inset-4 rounded-full border border-congress-cyan-light/40 animate-[spin_8s_linear_infinite_reverse]"></div>
@@ -184,6 +181,7 @@ export default function Ponentes() {
             </div>
           </motion.div>
         )}
+        */}
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -194,6 +192,37 @@ export default function Ponentes() {
             <p className="font-bold mb-2">Aviso</p>
             <p className="text-sm opacity-80">{error}</p>
           </div>
+        ) : disertantes.length === 0 ? (
+          <motion.div
+            className="text-center max-w-3xl mx-auto rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(58,27,119,0.3)] border border-congress-blue/20 relative"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            {/* Elementos decorativos internos de la tarjeta */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+              {/* Glowing orbs */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-congress-cyan/20 rounded-full mix-blend-screen filter blur-[80px] opacity-70 animate-pulse"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-congress-blue/30 rounded-full mix-blend-screen filter blur-[80px] opacity-70 animate-pulse" style={{ animationDelay: '2s' }}></div>
+              {/* Grid overlay */}
+              <div className="absolute inset-0 z-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+            </div>
+
+            <div className="bg-gradient-to-br from-congress-blue-dark/95 to-congress-blue/90 backdrop-blur-xl p-10 md:p-14 relative z-10 flex flex-col items-center text-center">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#9c62de] to-[#b07eee] flex items-center justify-center mb-6 shadow-[0_0_25px_rgba(156,98,222,0.5)]">
+                <Users className="w-10 h-10 text-white animate-pulse" />
+              </div>
+              <span className="inline-block px-4 py-1 rounded-full bg-white/10 border border-white/20 text-congress-cyan-light font-bold text-xs tracking-widest uppercase mb-4 shadow-[0_0_15px_rgba(176,126,238,0.2)]">
+                Edición 2026
+              </span>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4 tracking-tight leading-tight">
+                Agenda de Disertantes en <span className="text-transparent bg-clip-text bg-gradient-to-r from-congress-cyan-light to-white">Preparación</span>
+              </h2>
+              <p className="text-slate-300 text-lg leading-relaxed max-w-2xl font-light">
+                La grilla de disertantes destacados y el cronograma de ponencias para esta edición estarán disponibles muy pronto. Estamos diseñando una agenda académica de primer nivel.
+              </p>
+            </div>
+          </motion.div>
         ) : (
           <motion.div
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"

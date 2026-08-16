@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { API_HOST } from "@/lib/api";
@@ -26,17 +26,21 @@ import {
   Group,
   Close,
   AccessTime,
-  LocationOn
+  LocationOn,
+  CloudUpload
 } from '@mui/icons-material';
+import Button from '@mui/material/Button';
 import { motion, AnimatePresence } from "framer-motion";
 import FloatingParticles from "@/components/FloatingParticles";
 import { EditionSelector } from "@/components/EditionSelector";
 import { useEdiciones } from "@/hooks/use-ediciones";
+import { ImportProgramaModal } from "@/components/ImportProgramaModal";
 
 // Información completa del disertante
 type DisertanteInfo = {
   nombre: string;
-  bio: string;
+  empresa_institucion?: string;
+  bio?: string;
   foto_url: string;
   tema_presentacion: string;
   linkedin?: string;
@@ -54,23 +58,11 @@ type ActividadCalendar = {
   categoria: string; // Categoría del track
 };
 
-// Aulas de ejemplo (sin Aula 8 y Aula 9)
-const AULAS = [
-  "Aula Magna",
-  "Aula 1",
-  "Aula 2",
-  "Aula 3",
-  "Aula 4",
-  "Aula 5",
-  "Aula 6",
-  "Aula 7",
-];
-
-// Generar horarios fijos cada 15 minutos de 10:00 a 19:00
+// Generar horarios fijos cada 15 minutos de 10:00 a 17:00
 function getHorariosFijos() {
   const horarios: string[] = [];
   let h = 10, m = 0;
-  while (h < 19 || (h === 19 && m === 0)) {
+  while (h < 17 || (h === 17 && m === 0)) {
     const hora = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
     horarios.push(hora);
     m += 15;
@@ -95,7 +87,7 @@ const TRACK_CATEGORIES = {
   "TRANSPORTE": { bg: "#0ea5e9", text: "#ffffff", icon: DirectionsCar }, // azul claro
 } as const;
 
-// Paleta para aulas (más suave para el fondo de las tarjetas)
+// Paleta para aulas por defecto y fallback dinámico
 const AULA_COLORS: Record<
   string,
   { border: string; bg: string; text: string }
@@ -110,6 +102,23 @@ const AULA_COLORS: Record<
   "Aula 7": { border: "#059669", bg: "#ecfdf5", text: "#059669" }, // esmeralda
   "Aula 8": { border: "#be185d", bg: "#fdf2f8", text: "#be185d" }, // rosa
 };
+
+function getAulaColor(aulaName: string): { border: string; bg: string; text: string } {
+  if (AULA_COLORS[aulaName]) return AULA_COLORS[aulaName];
+  const PALETA_FALLBACK = [
+    { border: "#2563eb", bg: "#eff6ff", text: "#1e40af" },
+    { border: "#0ea5e9", bg: "#f0f9ff", text: "#0369a1" },
+    { border: "#f59e42", bg: "#fffbeb", text: "#d97706" },
+    { border: "#22c55e", bg: "#f0fdf4", text: "#16a34a" },
+    { border: "#dc2626", bg: "#fef2f2", text: "#dc2626" },
+    { border: "#7c3aed", bg: "#f5f3ff", text: "#7c3aed" },
+    { border: "#059669", bg: "#ecfdf5", text: "#059669" },
+    { border: "#be185d", bg: "#fdf2f8", text: "#be185d" },
+  ];
+  let hash = 0;
+  for (let i = 0; i < aulaName.length; i++) hash += aulaName.charCodeAt(i);
+  return PALETA_FALLBACK[hash % PALETA_FALLBACK.length];
+}
 
 // Función para generar colores únicos basados en el nombre del disertante
 function getDisertanteColor(disertante: string): string {
@@ -199,18 +208,10 @@ export default function Programa() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedEditionId, setSelectedEditionId] = useState<number | null>(null);
-  const { ediciones } = useEdiciones();
+  const [reloadCounter, setReloadCounter] = useState(0);
   
-  // Encontrar la edición seleccionada o la activa
-  const currentEdition = ediciones.find(e => e.id === selectedEditionId) || 
-                         ediciones.find(e => e.activa) || 
-                         ediciones[0];
-
-  // Variable para controlar si se muestra el programa completo o el banner "Convocatoria"
-  // Solo mostramos convocatoria si es la edición activa (2026) y el programa no está listo
-  const isActiveEdition = currentEdition?.activa;
-  const programaDisponible = !isActiveEdition || false; 
+  // El programa estará disponible siempre que existan actividades publicadas para la edición activa
+  const programaDisponible = Boolean(actividades && actividades.length > 0); 
 
   // Fetch de la API de Django
   useEffect(() => {
@@ -218,9 +219,7 @@ export default function Programa() {
       try {
         setLoading(true);
         const apiUrl = API_HOST;
-        const url = selectedEditionId 
-          ? `${apiUrl}/api/programa/?edicion_id=${selectedEditionId}`
-          : `${apiUrl}/api/programa/`;
+        const url = `${apiUrl}/api/programa/`;
         const response = await fetch(url);
         if (!response.ok)
           throw new Error("No se pudo cargar la agenda desde el backend.");
@@ -258,7 +257,7 @@ export default function Programa() {
       }
     };
     fetchPrograma();
-  }, [selectedEditionId]);
+  }, [reloadCounter]);
 
   // Para calcular el número de filas que ocupa una actividad
   // Cada fila representa 15 minutos
@@ -273,6 +272,26 @@ export default function Programa() {
 
   // Usar solo los datos reales de la base de datos
   const actividadesToShow = actividades || [];
+
+  // Extraer aulas dinámicamente según las charlas reales de la base de datos
+  const AULAS = useMemo<string[]>(() => {
+    if (!actividadesToShow || actividadesToShow.length === 0) {
+      return ["Aula Magna", "Aula 1", "Aula 2", "Aula 4", "Aula 5", "Aula 6"];
+    }
+
+    const aulasUnicas: string[] = (Array.from(new Set(actividadesToShow.map((a) => a.aula))) as string[]).filter(Boolean);
+
+    if (aulasUnicas.length === 0) {
+      return ["Aula Magna", "Aula 1", "Aula 2", "Aula 4", "Aula 5", "Aula 6"];
+    }
+
+    return aulasUnicas.sort((a, b) => {
+      if (a.toLowerCase().includes("magna")) return -1;
+      if (b.toLowerCase().includes("magna")) return 1;
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+    });
+  }, [actividadesToShow]);
+
   // Usar horarios fijos cada 30 minutos de 10:00 a 19:00
   const HORARIOS = getHorariosFijos();
 
@@ -328,10 +347,15 @@ export default function Programa() {
   const categorias = Object.keys(TRACK_CATEGORIES);
 
   // Disertantes únicos para el filtro
-  const disertantesUnicos = Array.from(new Set(
+  const disertantesUnicos: string[] = (Array.from(new Set(
     actividadesToShow.flatMap(act => act.disertantes.map(d => d.nombre))
-  )).filter((d: string) => d && d.length > 0);
+  )) as string[]).filter((d: string) => Boolean(d && d.length > 0));
   const [filtroDisertante, setFiltroDisertante] = useState<string>("TODOS");
+  const hasActiveFilters = filtroCategoria !== "TODOS" || filtroAula !== "TODAS" || filtroDisertante !== "TODOS";
+
+  // Estado para el modo de vista (Timeline vs Acordeón por Aula)
+  const [modoVista, setModoVista] = useState<"TIMELINE" | "ACCORDION">("TIMELINE");
+  const [aulaExpandida, setAulaExpandida] = useState<string | null>(null);
 
   // Estado para el modal
   const [modalActividad, setModalActividad] = useState<ActividadCalendar | null>(null);
@@ -611,11 +635,11 @@ export default function Programa() {
                 transition={{ duration: 0.8 }}
                 className="text-center"
               >
-                <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg">
-                  Agenda_
+                <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-3 tracking-tight drop-shadow-lg">
+                  Programa
                 </h1>
                 <p className="text-xl md:text-2xl text-white/90 max-w-4xl mx-auto font-light drop-shadow-md">
-                  de 10:00 a 18:00 hs
+                  2° Congreso de Logística y Transporte UNAB
                 </p>
 
                 {loading && (
@@ -626,270 +650,449 @@ export default function Programa() {
             </div>
           </div>
 
-          {/* Filtros Modernos con MUI */}
-          <Box sx={{ position: 'sticky', top: 144, zIndex: 40, background: 'transparent', py: 0, display: 'flex', justifyContent: 'center' }}>
-            <Card sx={{ maxWidth: 1200, width: '100%', boxShadow: 6, borderRadius: 4, background: '#fff', px: { xs: 2, md: 6 }, py: { xs: 2, md: 3 } }}>
-              <CardContent sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 2, md: 3 }, alignItems: 'center', justifyContent: 'center', px: 0, mx: 'auto', width: '100%' }}>
-                <Box sx={{
-                  display: 'flex',
-                  flexDirection: { xs: 'column', md: 'row' },
-                  flexWrap: 'wrap',
-                  gap: { xs: 2, md: 3 },
-                  alignItems: { xs: 'stretch', md: 'center' },
-                  justifyContent: 'center',
-                  width: '100%'
-                }}>
+          {/* Barra Flotante de Filtros Moderna */}
+          <div className="sticky top-20 z-30 py-4 px-4 container mx-auto max-w-6xl">
+            <div className="bg-white/95 backdrop-blur-md border border-gray-200/90 rounded-2xl shadow-xl shadow-slate-200/50 p-5 transition-all duration-300">
+              <div className="flex flex-col gap-4 w-full">
+                
+                {/* Fila Superior: Controles de Filtro (3 Columnas Anchas) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                  
                   {/* Categoría */}
-                  <FormControl sx={{ minWidth: { xs: '100%', md: 200 } }} size="small" variant="outlined">
-                    <InputLabel id="categoria-label" sx={{ background: '#fff', px: 0.5, ml: -0.5 }}><Category sx={{ mr: 1, fontSize: 18 }} />Categoría</InputLabel>
-                    <Select
-                      labelId="categoria-label"
-                      value={filtroCategoria}
-                      label="Categoría"
-                      onChange={(e) => setFiltroCategoria(e.target.value)}
-                      sx={{ borderRadius: 2, fontWeight: 500 }}
-                    >
-                      <MenuItem value="TODOS">
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Category sx={{ color: '#666', fontSize: 18 }} />
-                          Todos los tracks
-                        </Box>
-                      </MenuItem>
-                      {categorias.map(cat => {
-                        const IconComponent = TRACK_CATEGORIES[cat as keyof typeof TRACK_CATEGORIES]?.icon;
-                        return (
-                          <MenuItem key={cat} value={cat}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              {IconComponent && <IconComponent sx={{ color: TRACK_CATEGORIES[cat as keyof typeof TRACK_CATEGORIES]?.bg, fontSize: 18 }} />}
-                              {cat}
-                            </Box>
-                          </MenuItem>
-                        );
-                      })}
-                    </Select>
-                  </FormControl>
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+                      <Category className="text-congress-blue" style={{ fontSize: 16 }} />
+                      Categoría
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={filtroCategoria}
+                        onChange={(e) => setFiltroCategoria(e.target.value)}
+                        className="w-full bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-800 text-sm font-semibold rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-congress-blue/30 focus:border-congress-blue transition-all duration-200 cursor-pointer appearance-none pr-8"
+                      >
+                        <option value="TODOS">Todas las categorías</option>
+                        {categorias.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+                        ▼
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Aula */}
-                  <FormControl sx={{ minWidth: { xs: '100%', md: 180 } }} size="small" variant="outlined">
-                    <InputLabel id="aula-label" sx={{ background: '#fff', px: 0.5, ml: -0.5 }}><School sx={{ mr: 1, fontSize: 18 }} />Aula</InputLabel>
-                    <Select
-                      labelId="aula-label"
-                      value={filtroAula}
-                      label="Aula"
-                      onChange={(e) => setFiltroAula(e.target.value)}
-                      sx={{ borderRadius: 2, fontWeight: 500 }}
-                    >
-                      <MenuItem value="TODAS">Todas las aulas</MenuItem>
-                      {AULAS.slice(0, 9).map(aula => (
-                        <MenuItem key={aula} value={aula}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <School sx={{ color: AULA_COLORS[aula]?.border, fontSize: 18 }} />
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+                      <School className="text-congress-blue" style={{ fontSize: 16 }} />
+                      Aula
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={filtroAula}
+                        onChange={(e) => setFiltroAula(e.target.value)}
+                        className="w-full bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-800 text-sm font-semibold rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-congress-blue/30 focus:border-congress-blue transition-all duration-200 cursor-pointer appearance-none pr-8"
+                      >
+                        <option value="TODAS">Todas las aulas</option>
+                        {AULAS.map((aula) => (
+                          <option key={aula} value={aula}>
                             {aula}
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+                        ▼
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Disertante */}
-                  <Autocomplete
-                    options={["TODOS", ...disertantesUnicos]}
-                    value={filtroDisertante}
-                    onChange={(_, value) => setFiltroDisertante(value || "TODOS")}
-                    size="small"
-                    sx={{ minWidth: { xs: '100%', md: 220 } }}
-                    renderInput={(params) => (
-                      <TextField {...params} label={<><Person sx={{ mr: 1, fontSize: 18 }} />Disertante</>} variant="outlined" sx={{ background: '#fff' }} />
-                    )}
-                  />
-                  {/* Chips de filtros activos */}
-                  <Box sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 1,
-                    alignItems: 'center',
-                    width: { xs: '100%', md: 'auto' },
-                    justifyContent: { xs: 'flex-start', md: 'center' }
-                  }}>
-                    {filtroCategoria !== "TODOS" && (() => {
-                      const IconComponent = TRACK_CATEGORIES[filtroCategoria as keyof typeof TRACK_CATEGORIES]?.icon;
-                      return (
-                        <Chip
-                          icon={IconComponent ? <IconComponent sx={{ color: '#fff !important', fontSize: 16 }} /> : undefined}
-                          label={filtroCategoria}
-                          color="primary"
-                          size="small"
-                          sx={{ bgcolor: TRACK_CATEGORIES[filtroCategoria as keyof typeof TRACK_CATEGORIES]?.bg, color: '#fff', fontWeight: 500 }}
-                          onDelete={() => setFiltroCategoria("TODOS")}
-                        />
-                      );
-                    })()}
-                    {filtroAula !== "TODAS" && (
-                      <Chip
-                        icon={<School sx={{ color: '#fff !important', fontSize: 16 }} />}
-                        label={filtroAula}
-                        color="secondary"
-                        size="small"
-                        sx={{ bgcolor: AULA_COLORS[filtroAula]?.border, color: '#fff', fontWeight: 500 }}
-                        onDelete={() => setFiltroAula("TODAS")}
-                      />
-                    )}
-                    {filtroDisertante !== "TODOS" && (
-                      <Chip
-                        icon={<Person sx={{ color: '#fff !important', fontSize: 16 }} />}
-                        label={filtroDisertante}
-                        color="default"
-                        size="small"
-                        sx={{ bgcolor: '#374151', color: '#fff', fontWeight: 500 }}
-                        onDelete={() => setFiltroDisertante("TODOS")}
-                      />
-                    )}
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+                      <Person className="text-congress-blue" style={{ fontSize: 16 }} />
+                      Disertante
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={filtroDisertante}
+                        onChange={(e) => setFiltroDisertante(e.target.value)}
+                        className="w-full bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-800 text-sm font-semibold rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-congress-blue/30 focus:border-congress-blue transition-all duration-200 cursor-pointer appearance-none pr-8"
+                      >
+                        <option value="TODOS">Todos los disertantes</option>
+                        {disertantesUnicos.map((dis) => (
+                          <option key={dis} value={dis}>
+                            {dis}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+                        ▼
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Fila Inferior: Modo de Vista Centrado + Badges de Filtros Activos */}
+                <div className="flex flex-col items-center justify-center gap-3 pt-3 border-t border-slate-100 w-full text-center">
+                  {/* Selector de Modo de Vista Centrado */}
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                    <button
+                      onClick={() => setModoVista("TIMELINE")}
+                      className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        modoVista === "TIMELINE"
+                          ? "bg-white text-congress-blue shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      📐 Grilla Cronograma
+                    </button>
+                    <button
+                      onClick={() => setModoVista("ACCORDION")}
+                      className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        modoVista === "ACCORDION"
+                          ? "bg-white text-congress-blue shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      🏛️ por Aula
+                    </button>
+                  </div>
+
+                  {/* Badges de Filtros Activos y Limpiar */}
+                  {hasActiveFilters && (
+                    <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
+                      {filtroCategoria !== "TODOS" && (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-xs"
+                          style={{ backgroundColor: TRACK_CATEGORIES[filtroCategoria as keyof typeof TRACK_CATEGORIES]?.bg || '#2563eb' }}
+                        >
+                          {filtroCategoria}
+                          <button
+                            onClick={() => setFiltroCategoria("TODOS")}
+                            className="hover:bg-black/20 rounded-full p-0.5 transition-colors cursor-pointer"
+                          >
+                            <Close className="text-xs" />
+                          </button>
+                        </span>
+                      )}
+
+                      {filtroAula !== "TODAS" && (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-xs"
+                          style={{ backgroundColor: getAulaColor(filtroAula).border }}
+                        >
+                          {filtroAula}
+                          <button
+                            onClick={() => setFiltroAula("TODAS")}
+                            className="hover:bg-black/20 rounded-full p-0.5 transition-colors cursor-pointer"
+                          >
+                            <Close className="text-xs" />
+                          </button>
+                        </span>
+                      )}
+
+                      {filtroDisertante !== "TODOS" && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-white shadow-xs">
+                          {filtroDisertante}
+                          <button
+                            onClick={() => setFiltroDisertante("TODOS")}
+                            className="hover:bg-white/20 rounded-full p-0.5 transition-colors cursor-pointer"
+                          >
+                            <Close className="text-xs" />
+                          </button>
+                        </span>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          setFiltroCategoria("TODOS");
+                          setFiltroAula("TODAS");
+                          setFiltroDisertante("TODOS");
+                        }}
+                        className="text-xs font-extrabold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-xl transition-all duration-200 cursor-pointer"
+                      >
+                        Limpiar Filtros
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* Vista por Aula (ideal para teléfonos móviles y pantallas reducidas) */}
+          {modoVista === "ACCORDION" && (
+            <div className="bg-slate-50 min-h-screen py-6 px-4">
+              <div className="max-w-4xl mx-auto space-y-4">
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-200/80 rounded-2xl p-4 mb-2">
+                  <div className="flex items-center gap-2">
+                    <School className="text-congress-blue" />
+                    <div>
+                      <h3 className="font-extrabold text-slate-900 text-base">Vista por Aula</h3>
+                      <p className="text-xs text-slate-600">Haz clic en cualquier aula para desplegar sus charlas ordenadas por horario</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setAulaExpandida(aulaExpandida === "TODAS" ? null : "TODAS")}
+                    className="text-xs font-bold text-congress-blue bg-white border border-congress-blue/30 px-3 py-1.5 rounded-xl hover:bg-congress-blue/10 transition-colors cursor-pointer"
+                  >
+                    {aulaExpandida === "TODAS" ? "Plegar Todas" : "Desplegar Todas"}
+                  </button>
+                </div>
+
+                {AULAS.map((aula) => {
+                  const charlasEnAula = actividadesFiltradas.filter((a) => a.aula === aula);
+                  if (charlasEnAula.length === 0) return null;
+                  const colorAula = getAulaColor(aula);
+                  const isOpen = aulaExpandida === aula || aulaExpandida === "TODAS";
+
+                  return (
+                    <div key={aula} className="bg-white rounded-2xl shadow-md border border-slate-200/90 overflow-hidden transition-all duration-300">
+                      <button
+                        onClick={() => setAulaExpandida(isOpen ? null : aula)}
+                        className="w-full p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none"
+                        style={{ borderLeft: `6px solid ${colorAula.border}` }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-xs" style={{ backgroundColor: colorAula.border }}>
+                            <School style={{ fontSize: 20 }} />
+                          </div>
+                          <div className="text-left">
+                            <h3 className="font-extrabold text-slate-900 text-lg">{aula}</h3>
+                            <span className="text-xs font-semibold text-slate-500">{charlasEnAula.length} charlas agendadas</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="hidden sm:inline-block text-xs font-extrabold px-3 py-1 rounded-full shadow-2xs" style={{ backgroundColor: colorAula.bg, color: colorAula.text, border: `1px solid ${colorAula.border}` }}>
+                            {charlasEnAula[0]?.inicio} - {charlasEnAula[charlasEnAula.length - 1]?.fin} hs
+                          </span>
+                          <span className="text-slate-400 font-extrabold text-xl transition-transform duration-300">
+                            {isOpen ? "▲" : "▼"}
+                          </span>
+                        </div>
+                      </button>
+
+                      {isOpen && (
+                        <div className="p-4 bg-slate-50/60 border-t border-slate-100 space-y-3">
+                          {charlasEnAula.map((actividad, idx) => {
+                            const trackColor = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES];
+                            const disertanteColor = getDisertanteColor(actividad.disertantes[0]?.nombre || "");
+
+                            return (
+                              <motion.div
+                                key={`${actividad.titulo}-${idx}`}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.2, delay: idx * 0.05 }}
+                                className="bg-white p-4 rounded-xl shadow-xs border-l-4 hover:shadow-md hover:scale-[1.005] transition-all cursor-pointer group flex flex-col justify-between"
+                                style={{ borderLeftColor: disertanteColor }}
+                                onClick={() => abrirModal(actividad)}
+                              >
+                                <div>
+                                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                    <span
+                                      className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide flex items-center gap-1 shadow-2xs"
+                                      style={{
+                                        backgroundColor: trackColor?.bg || colorAula.border,
+                                        color: trackColor?.text || 'white'
+                                      }}
+                                    >
+                                      {actividad.categoria}
+                                    </span>
+                                    <span className="text-xs font-extrabold text-congress-blue font-mono bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
+                                      ⏰ {actividad.inicio} - {actividad.fin} hs
+                                    </span>
+                                  </div>
+
+                                  <h4 className="font-extrabold text-slate-900 text-base mb-1.5 group-hover:text-congress-blue transition-colors leading-snug">
+                                    {actividad.titulo}
+                                  </h4>
+
+                                  {actividad.descripcion && (
+                                    <p className="text-xs text-slate-600 line-clamp-2 mb-3 leading-relaxed">
+                                      {actividad.descripcion}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {actividad.disertantes && actividad.disertantes.length > 0 && (
+                                  <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-100">
+                                    <Person style={{ fontSize: 14, color: disertanteColor }} />
+                                    {actividad.disertantes.map((d, dIdx) => (
+                                      <span
+                                        key={d.nombre + dIdx}
+                                        className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold text-slate-800 bg-slate-100 border border-slate-200 shadow-2xs"
+                                      >
+                                        {d.nombre}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Vista Desktop - Grilla */}
-          <div className="hidden md:block bg-gray-50 min-h-screen py-8">
+          {modoVista === "TIMELINE" && (
+            <div className="hidden md:block bg-gray-50 min-h-screen py-8">
             <div className="w-full px-4">
               <div className="w-full max-w-full mx-auto">
 
-                {/* Grilla Principal - Usando tabla para mejor control de rowspan */}
-                <div className="bg-white rounded-2xl shadow-xl overflow-hidden w-full">
-                  <div className="w-full">
-                    <table className="w-full table-fixed"
-                      style={{ minWidth: 'auto' }}>
+                {/* Grilla Principal - Timeline por Posicionamiento Absoluto de Alta Legibilidad */}
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden w-full border border-gray-200">
+                  {/* Header de Aulas */}
+                  <div className="flex border-b border-gray-200 bg-gradient-to-r from-congress-blue to-congress-cyan text-white sticky top-0 z-20 shadow-md">
+                    <div className="w-24 p-4 font-bold text-center border-r border-white/20 text-sm flex-shrink-0">
+                      Horario
+                    </div>
+                    <div className="grid w-full divide-x divide-white/20" style={{ gridTemplateColumns: `repeat(${AULAS.length}, minmax(0, 1fr))` }}>
+                      {AULAS.map((aula) => (
+                        <div key={aula} className="p-4 font-bold text-center text-sm truncate">
+                          {aula}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-                      {/* Header de aulas */}
-                      <thead>
-                        <tr className="bg-gradient-to-r from-congress-blue to-congress-cyan text-white">
-                          <th className="w-32 p-4 font-bold text-center border-r border-white/20">
-                            Horario
-                          </th>
-                          {AULAS.filter(aula => aula !== "Aula 8").slice(0, 8).map((aula) => (
-                            <th key={aula} className="p-4 font-bold text-center border-r border-white/20 last:border-r-0 text-sm">
-                              {aula}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
+                  {/* Cuerpo del Cronograma Timeline (2712px alto total para 7hs + buffers 35px/45px) */}
+                  <div className="flex relative bg-slate-50/40" style={{ height: '2712px' }}>
+                    {/* Eje de Horarios (Izquierda) */}
+                    <div className="w-24 flex-shrink-0 border-r border-gray-200 bg-gray-50/90 relative z-10 select-none">
+                      {["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"].map((hora, idx) => (
+                        <div
+                          key={hora}
+                          className="absolute w-full text-center pr-2 -translate-y-3"
+                          style={{ top: `${35 + idx * 188}px` }}
+                        >
+                          <span className="text-xs font-extrabold text-congress-blue font-mono bg-white px-2 py-1 rounded-md shadow-xs border border-gray-200/90">
+                            {hora}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
 
-                      {/* Filas de horarios */}
-                      <tbody>
-                        {HORARIOS.map((hora, rowIdx) => (
-                          <tr key={hora} className="border-b border-gray-200 min-h-[80px]">
-                            {/* Columna de horario */}
-                            <td className="w-32 bg-gray-50 p-4 text-center border-r border-gray-200 align-middle">
-                              <div className="text-center">
-                                <div className="text-xl font-bold text-congress-blue font-mono">
-                                  {hora}
-                                </div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wide">
-                                  GMT -3
-                                </div>
-                              </div>
-                            </td>
+                    {/* Área de Grilla y Aulas */}
+                    <div className="w-full relative h-[2712px]">
+                      {/* Líneas horizontales guiadoras de tiempo (cada 30 min) */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        {Array.from({ length: 15 }).map((_, idx) => (
+                          <div
+                            key={idx}
+                            className="absolute w-full border-b border-gray-200/80 border-dashed"
+                            style={{ top: `${35 + idx * 188}px` }}
+                          />
+                        ))}
+                      </div>
 
-                            {/* Columnas de aulas */}
-                            {AULAS.filter(aula => aula !== "Aula 8").slice(0, 8).map((aula) => {
-                              if (isCellCoveredFiltrado(aula, hora)) return null;
+                      {/* Columnas por Aula */}
+                      <div className="grid w-full h-full divide-x divide-gray-200/80 relative" style={{ gridTemplateColumns: `repeat(${AULAS.length}, minmax(0, 1fr))` }}>
+                        {AULAS.map((aula) => {
+                          // Actividades de este aula en particular
+                          const actividadesEnAula = actividadesFiltradas.filter((act) => act.aula === aula);
 
-                              const actividad = gridFiltrada[aula] && gridFiltrada[aula][hora];
-                              if (actividad) {
-                                const rowSpan = getRowSpan(actividad.inicio, actividad.fin);
+                          return (
+                            <div key={aula} className="relative h-full">
+                              {actividadesEnAula.map((actividad, idx) => {
+                                // Cálculo de posición en minutos exactos desde las 10:00 hs con buffer top 35px
+                                const [h1, m1] = actividad.inicio.split(":").map(Number);
+                                const [h2, m2] = actividad.fin.split(":").map(Number);
+                                const startMin = (h1 * 60 + m1) - (10 * 60);
+                                const endMin = (h2 * 60 + m2) - (10 * 60);
+                                const durMin = endMin - startMin;
+
+                                const top = 35 + (startMin / 30) * 188;
+                                const height = Math.max((durMin / 30) * 188 - 6, 75);
+
                                 const trackColor = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES];
-                                const aulaColor = AULA_COLORS[actividad.color] || AULA_COLORS["Aula Magna"];
+                                const aulaColor = getAulaColor(actividad.aula);
                                 const disertanteColor = getDisertanteColor(actividad.disertantes[0]?.nombre || "");
 
                                 return (
-                                  <td
-                                    key={aula + hora}
-                                    rowSpan={rowSpan}
-                                    className="border-r border-gray-200 p-2 align-top"
+                                  <motion.div
+                                    key={`${actividad.titulo}-${actividad.inicio}-${idx}`}
+                                    initial={{ opacity: 0, scale: 0.96 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="absolute left-1 right-1 bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-3 border-l-4 hover:scale-[1.01] cursor-pointer group flex flex-col justify-between overflow-hidden z-10"
+                                    onClick={() => abrirModal(actividad)}
                                     style={{
-                                      minHeight: `${rowSpan * 80}px`,
+                                      top: `${top}px`,
+                                      height: `${height}px`,
+                                      borderLeftColor: disertanteColor,
+                                      boxShadow: `0 8px 14px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04), -4px 0 6px -1px ${disertanteColor}25`
                                     }}
                                   >
-                                    <motion.div
-                                      initial={{ opacity: 0, scale: 0.95 }}
-                                      animate={{ opacity: 1, scale: 1 }}
-                                      transition={{ duration: 0.3 }}
-                                      className="h-full"
-                                    >
-                                      <div
-                                        className="w-full h-full bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-3 border-l-4 hover:scale-[1.02] cursor-pointer group"
-                                        onClick={() => abrirModal(actividad)}
-                                        style={{
-                                          borderLeftColor: disertanteColor,
-                                          minHeight: `${Math.max(rowSpan * 76, 100)}px`,
-                                          boxShadow: `0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), -4px 0 6px -1px ${disertanteColor}20`
-                                        }}>
-
-                                        {/* Categoría Tag */}
-                                        <div className="flex items-center mb-2">
-                                          <span
-                                            className="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1"
-                                            style={{
-                                              backgroundColor: trackColor?.bg || aulaColor.border,
-                                              color: trackColor?.text || 'white'
-                                            }}
-                                          >
-                                            {(() => {
-                                              const IconComponent = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES]?.icon;
-                                              return IconComponent ? <IconComponent style={{ fontSize: 14, color: trackColor?.text || 'white' }} /> : null;
-                                            })()}
-                                            {actividad.categoria}
-                                          </span>
-                                        </div>
-
-                                        {/* Título */}
-                                        <h3 className="font-bold text-sm text-gray-900 mb-2 group-hover:text-congress-blue transition-colors overflow-hidden leading-tight"
+                                    <div>
+                                      {/* Header de tarjeta: Categoría Tag */}
+                                      <div className="flex items-center mb-1.5">
+                                        <span
+                                          className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide flex items-center gap-1 shadow-2xs truncate"
                                           style={{
-                                            display: '-webkit-box',
-                                            WebkitLineClamp: 2,
-                                            WebkitBoxOrient: 'vertical'
-                                          }}>
-                                          {actividad.titulo.replace(/\s*\(\d+h\)/gi, "")}
-                                        </h3>
-
-                                        {/* Speakers */}
-                                        <div className="text-xs font-semibold text-gray-700 mb-1 truncate flex flex-wrap gap-1">
-                                          {actividad.disertantes.map((d, idx) => (
-                                            <span key={d.nombre + idx}>{d.nombre}{idx < actividad.disertantes.length - 1 ? ',' : ''}</span>
-                                          ))}
-                                        </div>
-
-                                        {/* Descripción */}
-                                        {actividad.descripcion && (
-                                          <p className="text-xs text-gray-600 overflow-hidden leading-tight"
-                                            style={{
-                                              display: '-webkit-box',
-                                              WebkitLineClamp: rowSpan > 2 ? 3 : 2,
-                                              WebkitBoxOrient: 'vertical'
-                                            }}>
-                                            {actividad.descripcion}
-                                          </p>
-                                        )}
+                                            backgroundColor: trackColor?.bg || aulaColor.border,
+                                            color: trackColor?.text || 'white'
+                                          }}
+                                        >
+                                          {(() => {
+                                            const IconComponent = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES]?.icon;
+                                            return IconComponent ? <IconComponent style={{ fontSize: 13, color: trackColor?.text || 'white' }} /> : null;
+                                          })()}
+                                          {actividad.categoria}
+                                        </span>
                                       </div>
-                                    </motion.div>
-                                  </td>
+
+                                      {/* Título Completo de la Charla */}
+                                      <h3 className="font-extrabold text-xs md:text-sm text-slate-900 group-hover:text-congress-blue transition-colors leading-snug">
+                                        {actividad.titulo.replace(/\s*\(\d+h\)/gi, "")}
+                                      </h3>
+
+                                      {/* Descripción si queda espacio suficiente (para charlas largas) */}
+                                      {actividad.descripcion && durMin >= 45 && (
+                                        <p className="text-[11px] text-gray-500 leading-tight mt-1 line-clamp-2">
+                                          {actividad.descripcion}
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    {/* Speakers / Disertantes Resaltados */}
+                                    {actividad.disertantes && actividad.disertantes.length > 0 && (
+                                      <div className="mt-auto pt-1.5 border-t border-slate-100 flex items-center gap-1 flex-wrap">
+                                        <Person style={{ fontSize: 13, color: disertanteColor }} />
+                                        {actividad.disertantes.map((d, dIdx) => (
+                                          <span
+                                            key={d.nombre + dIdx}
+                                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold text-slate-800 bg-slate-100 border border-slate-200/90 shadow-2xs hover:bg-slate-200 transition-colors"
+                                          >
+                                            {d.nombre}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </motion.div>
                                 );
-                              } else {
-                                return (
-                                  <td key={aula + hora} className="border-r border-gray-200 p-3 text-center align-middle">
-                                    <span className="text-gray-300 text-sm">-</span>
-                                  </td>
-                                );
-                              }
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        )}
 
           {/* Vista Móvil - Lista por Horarios (estilo Nerdear.la) */}
           <div className="md:hidden bg-gray-50 min-h-screen py-4">
@@ -910,7 +1113,7 @@ export default function Programa() {
                       className="sticky top-20 z-10 bg-gradient-to-r from-congress-blue to-congress-cyan rounded-xl p-4 shadow-lg"
                     >
                       <h3 className="text-2xl font-bold text-white">
-                        {hora} <span className="text-sm font-normal opacity-90">(GMT -3)</span>
+                        {hora} hs
                       </h3>
                     </motion.div>
 
@@ -971,12 +1174,19 @@ export default function Programa() {
                               </h4>
 
                               {/* Disertantes */}
-                              <div className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2 flex-wrap">
-                                <Person style={{ fontSize: 16, color: disertanteColor }} />
-                                {actividad.disertantes.map((d, idx) => (
-                                  <span key={d.nombre + idx}>{d.nombre}{idx < actividad.disertantes.length - 1 ? ',' : ''}</span>
-                                ))}
-                              </div>
+                              {actividad.disertantes && actividad.disertantes.length > 0 && (
+                                <div className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5 flex-wrap">
+                                  <Person style={{ fontSize: 16, color: disertanteColor }} />
+                                  {actividad.disertantes.map((d, idx) => (
+                                    <span
+                                      key={d.nombre + idx}
+                                      className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold text-slate-800 bg-slate-100 border border-slate-200"
+                                    >
+                                      {d.nombre}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
 
                               {/* Descripción */}
                               {actividad.descripcion && (
@@ -1152,6 +1362,11 @@ export default function Programa() {
                             <h3 className="text-lg font-semibold text-gray-800">
                               {d.nombre}
                             </h3>
+                            {d.empresa_institucion && (
+                              <p className="text-congress-blue font-medium text-xs mb-1">
+                                Representante de {d.empresa_institucion}
+                              </p>
+                            )}
                             {d.bio ? (
                               <p className="text-gray-600 text-sm leading-relaxed mb-2">
                                 {d.bio}

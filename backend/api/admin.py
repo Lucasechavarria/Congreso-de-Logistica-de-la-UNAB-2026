@@ -1795,13 +1795,152 @@ class CertificadoAdmin(admin.ModelAdmin):
     enviar_por_email_accion.short_description = "Re-enviar certificados seleccionados por Email" # type: ignore
 
 class ProgramaAdmin(admin.ModelAdmin):
+    change_list_template = "admin/api/programa/change_list.html"
+
     class Media:
         js = ('admin/js/multiselect_filters.js',)
 
-    list_display = ('titulo', 'categoria', 'aula', 'dia', 'hora_inicio', 'hora_fin', 'edicion')
-    list_filter = ('edicion', 'dia', 'categoria', 'aula')
-    search_fields = ('titulo',)
-    list_editable = ('categoria',)
+    list_display = ('titulo', 'estado', 'categoria', 'aula', 'hora_inicio', 'hora_fin', 'dia', 'edicion')
+    list_filter = ('estado', 'edicion', 'dia', 'categoria', 'aula')
+    search_fields = ('titulo', 'descripcion', 'aula', 'categoria')
+    list_editable = ('estado', 'aula', 'categoria', 'hora_inicio', 'hora_fin')
+    filter_horizontal = ('disertantes',)
+    save_on_top = True
+
+    fieldsets = (
+        ('Información General de la Charla', {
+            'fields': ('titulo', 'edicion', 'estado', 'categoria', 'aula')
+        }),
+        ('Horarios y Fecha', {
+            'fields': (('hora_inicio', 'hora_fin'), 'dia')
+        }),
+        ('Contenido y Disertantes', {
+            'fields': ('descripcion', 'disertantes')
+        }),
+    )
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('importar-excel/', self.admin_site.admin_view(self.importar_excel_view), name='api_programa_importar_excel'),
+            path('exportar-excel/', self.admin_site.admin_view(self.exportar_excel_view), name='api_programa_exportar_excel'),
+            path('plantilla-excel/', self.admin_site.admin_view(self.descargar_plantilla_view), name='api_programa_plantilla_excel'),
+        ]
+        return custom_urls + urls
+
+    def descargar_plantilla_view(self, request):
+        from .services_programa import generar_plantilla_excel_programa
+        return generar_plantilla_excel_programa()
+
+    def exportar_excel_view(self, request):
+        from .services_programa import exportar_excel_programa
+        return exportar_excel_programa()
+
+    def importar_excel_view(self, request):
+        from django.shortcuts import render, redirect
+        from django.contrib import messages
+        from io import BytesIO
+        import base64
+        from .models import Edicion
+        from .services_programa import analizar_y_procesar_excel_programa
+
+        context = self.admin_site.each_context(request)
+        ediciones = Edicion.objects.all().order_by('-anio')
+
+        if request.method == 'POST':
+            action = request.POST.get('action')
+
+            if action == 'preview':
+                file_obj = request.FILES.get('file')
+                if not file_obj:
+                    self.message_user(request, "Debe seleccionar un archivo Excel (.xlsx).", messages.ERROR)
+                    return redirect('admin:api_programa_importar_excel')
+
+                # Procesar o Crear Edición seleccionada
+                edicion_id = request.POST.get('edicion_id')
+                edicion_obj = None
+
+                if edicion_id == 'NUEVA':
+                    nuevo_anio_raw = request.POST.get('nuevo_anio')
+                    nuevo_nombre = request.POST.get('nuevo_nombre', '').strip()
+                    hacer_activa = request.POST.get('hacer_activa') == 'true'
+
+                    if not nuevo_anio_raw or not nuevo_anio_raw.isdigit():
+                        self.message_user(request, "Debe ingresar un año válido para la nueva edición.", messages.ERROR)
+                        return redirect('admin:api_programa_importar_excel')
+
+                    anio_int = int(nuevo_anio_raw)
+                    nombre_ed = nuevo_nombre or f"Congreso de Logística UNAB {anio_int}"
+                    edicion_obj, created = Edicion.objects.get_or_create(
+                        anio=anio_int,
+                        defaults={'nombre': nombre_ed, 'activa': hacer_activa}
+                    )
+                    if hacer_activa:
+                        edicion_obj.activa = True
+                        edicion_obj.save()
+                    if created:
+                        self.message_user(request, f"Edición '{nombre_ed}' ({anio_int}) creada exitosamente.", messages.INFO)
+                elif edicion_id and edicion_id.isdigit():
+                    edicion_obj = Edicion.objects.filter(id=int(edicion_id)).first()
+
+                if not edicion_obj:
+                    edicion_obj = Edicion.objects.filter(activa=True).first()
+
+                if not edicion_obj:
+                    edicion_obj = Edicion.objects.create(anio=2026, nombre="Congreso de Logística UNAB 2026", activa=True)
+
+                request.session['excel_edicion_id'] = edicion_obj.id
+
+                # Guardar contenido del archivo en la sesión para la confirmación
+                file_bytes = file_obj.read()
+                file_obj.seek(0)
+                request.session['excel_file_b64'] = base64.b64encode(file_bytes).decode('utf-8')
+
+                resultado = analizar_y_procesar_excel_programa(file_obj, edicion=edicion_obj, commit=False)
+                if not resultado.get('success'):
+                    self.message_user(request, resultado.get('error', 'Error al analizar archivo.'), messages.ERROR)
+                    return redirect('admin:api_programa_importar_excel')
+
+                context.update({
+                    'resumen': resultado['resumen'],
+                    'filas': resultado['filas'],
+                    'edicion_seleccionada': edicion_obj,
+                    'ediciones': ediciones,
+                    'title': f'Pre-flight Analysis - {edicion_obj.nombre}'
+                })
+                return render(request, 'admin/api/programa/importar_excel.html', context)
+
+            elif action == 'commit':
+                b64_file = request.session.get('excel_file_b64')
+                ed_id = request.session.get('excel_edicion_id')
+                if not b64_file:
+                    self.message_user(request, "La sesión expiró. Por favor vuelva a cargar el archivo.", messages.ERROR)
+                    return redirect('admin:api_programa_importar_excel')
+
+                edicion_obj = Edicion.objects.filter(id=ed_id).first() if ed_id else Edicion.objects.filter(activa=True).first()
+
+                file_bytes = base64.b64decode(b64_file)
+                file_obj = BytesIO(file_bytes)
+
+                filas_aprobadas_raw = request.POST.getlist('filas_aprobadas')
+                filas_aprobadas = [int(f) for f in filas_aprobadas_raw if f.isdigit()]
+
+                resultado = analizar_y_procesar_excel_programa(file_obj, edicion=edicion_obj, commit=True, filas_aprobadas=filas_aprobadas)
+                if resultado.get('success'):
+                    self.message_user(request, f"{resultado.get('mensaje', 'Importación completada.')} (Edición: {edicion_obj.nombre})", messages.SUCCESS)
+                    request.session.pop('excel_file_b64', None)
+                    request.session.pop('excel_edicion_id', None)
+                    return redirect('admin:api_programa_changelist')
+                else:
+                    self.message_user(request, resultado.get('error', 'Error en la importación.'), messages.ERROR)
+                    return redirect('admin:api_programa_importar_excel')
+
+        context.update({
+            'title': 'Ingesta e Importación del Programa (.xlsx)',
+            'ediciones': ediciones
+        })
+        return render(request, 'admin/api/programa/importar_excel.html', context)
 
     def get_queryset(self, request):
         get_copy = request.GET.copy()
@@ -1828,7 +1967,27 @@ class ProgramaAdmin(admin.ModelAdmin):
             qs = qs.filter(**custom_filters).distinct()
         return qs
     
-    actions = ['set_logistica', 'set_tecnologia']
+    actions = ['aprobar_y_publicar', 'marcar_borrador', 'exportar_excel', 'descargar_plantilla_modelo', 'set_logistica', 'set_tecnologia']
+
+    def aprobar_y_publicar(self, request, queryset):
+        updated = queryset.update(estado='PUBLICADO')
+        self.message_user(request, f"{updated} actividad(es) aprobada(s) y publicada(s) en la web.")
+    aprobar_y_publicar.short_description = "Aprobar y publicar actividades en la web" # type: ignore
+
+    def marcar_borrador(self, request, queryset):
+        updated = queryset.update(estado='BORRADOR')
+        self.message_user(request, f"{updated} actividad(es) cambiadas a borrador.")
+    marcar_borrador.short_description = "Cambiar estado a Borrador" # type: ignore
+
+    def exportar_excel(self, request, queryset):
+        from .services_programa import exportar_programa_excel
+        return exportar_programa_excel(queryset)
+    exportar_excel.short_description = "Exportar agenda seleccionada a Excel / CSV" # type: ignore
+
+    def descargar_plantilla_modelo(self, request, queryset):
+        from .services_programa import generar_plantilla_excel_programa
+        return generar_plantilla_excel_programa()
+    descargar_plantilla_modelo.short_description = "Descargar Plantilla Oficial Excel (.xlsx)" # type: ignore
 
     def set_logistica(self, request, queryset):
         queryset.update(categoria='LOGISTICA')
@@ -1842,15 +2001,16 @@ class ProgramaAdmin(admin.ModelAdmin):
 class DisertanteAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
-            'fields': ('nombre', 'foto', 'foto_url', 'tema_presentacion', 'linkedin')
+            'fields': ('nombre', 'empresa_institucion', 'foto', 'foto_url', 'tema_presentacion', 'linkedin')
         }),
         ('Información opcional', {
             'classes': ('collapse',),
             'fields': ('bio',),
         }),
     )
-    list_display = ('nombre', 'tema_presentacion', 'edicion', 'linkedin')
+    list_display = ('nombre', 'empresa_institucion', 'tema_presentacion', 'edicion', 'linkedin')
     list_filter = ('edicion', 'estado')
+    search_fields = ('nombre', 'empresa_institucion', 'tema_presentacion')
 @admin.register(Empresa)
 class EmpresaAdmin(SimpleHistoryAdmin):
     class Media:
@@ -1997,9 +2157,15 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
     list_filter = ('estado', 'edicion', EjeTematicoFilter, 'modalidad')
     search_fields = ('nombre_apellido', 'dni', 'email', 'titulo_charla')
     list_editable = ('estado',)
-    actions = ['aprobar_postulaciones', 'rechazar_postulaciones']
+    actions = ['aprobar_postulaciones', 'generar_borrador_programa', 'rechazar_postulaciones']
     readonly_fields = ('fecha_postulacion', 'fecha_revision', 'revisada_por')
     ordering = ['-fecha_postulacion']
+
+    def generar_borrador_programa(self, request, queryset):
+        from .services_programa import generar_borrador_programa_desde_postulaciones
+        progs, disertantes = generar_borrador_programa_desde_postulaciones(queryset)
+        self.message_user(request, f'Se crearon/actualizaron {progs} borrador(es) de actividades en Programa con {disertantes} disertante(s) asignado(s).')
+    generar_borrador_programa.short_description = 'Generar borrador en el Programa (unificando ponencias)'  # type: ignore
 
     def fecha_postulacion_detalle(self, obj):
         return obj.fecha_postulacion.strftime("%d/%m/%Y %H:%M") if obj.fecha_postulacion else "-"
@@ -2033,15 +2199,33 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
             obj.fecha_revision = timezone.now()
             obj.revisada_por = request.user
         super().save_model(request, obj, form, change)
+        from .services import sync_postulacion_a_disertante
+        sync_postulacion_a_disertante(obj)
 
     def aprobar_postulaciones(self, request, queryset):
-        updated = queryset.update(estado='APROBADO', fecha_revision=timezone.now(), revisada_por=request.user)
-        self.message_user(request, f'{updated} postulacion(es) de disertante aprobada(s).')
+        from .services import sync_postulacion_a_disertante
+        count = 0
+        for obj in queryset:
+            obj.estado = 'APROBADO'
+            obj.fecha_revision = timezone.now()
+            obj.revisada_por = request.user
+            obj.save()
+            sync_postulacion_a_disertante(obj)
+            count += 1
+        self.message_user(request, f'{count} postulacion(es) de disertante aprobada(s).')
     aprobar_postulaciones.short_description = 'Aprobar postulaciones seleccionadas'  # type: ignore
 
     def rechazar_postulaciones(self, request, queryset):
-        updated = queryset.update(estado='RECHAZADO', fecha_revision=timezone.now(), revisada_por=request.user)
-        self.message_user(request, f'{updated} postulacion(es) de disertante rechazada(s).')
+        from .services import sync_postulacion_a_disertante
+        count = 0
+        for obj in queryset:
+            obj.estado = 'RECHAZADO'
+            obj.fecha_revision = timezone.now()
+            obj.revisada_por = request.user
+            obj.save()
+            sync_postulacion_a_disertante(obj)
+            count += 1
+        self.message_user(request, f'{count} postulacion(es) de disertante rechazada(s).')
     rechazar_postulaciones.short_description = 'Rechazar postulaciones seleccionadas'  # type: ignore
 
     def get_queryset(self, request):

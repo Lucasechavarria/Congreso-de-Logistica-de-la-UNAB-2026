@@ -1,4 +1,5 @@
 from rest_framework import viewsets, mixins, status, views, serializers, permissions
+from rest_framework.decorators import action
 from typing import Any
 from . import services, selectors
 from .security import DNIVerificationThrottle, FormRegistrationThrottle, sanitize_xss_payload
@@ -74,19 +75,70 @@ class DisertanteViewSet(viewsets.ReadOnlyModelViewSet):
 class ProgramaViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Un ViewSet para ver el programa del congreso, ordenado por día y hora.
-    Soporta filtrado por edición.
+    Soporta filtrado por edición e importación/exportación de planillas Excel.
     """
     serializer_class = ProgramaSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
         edicion_id = self.request.query_params.get('edicion_id')
-        queryset = Programa.objects.all().prefetch_related('disertantes').order_by('dia', 'hora_inicio')
+        queryset = Programa.objects.filter(estado='PUBLICADO').prefetch_related('disertantes').order_by('dia', 'hora_inicio')
         if edicion_id:
             queryset = queryset.filter(edicion_id=edicion_id)
         else:
             queryset = queryset.filter(edicion__activa=True)
         return queryset
+
+    @action(detail=False, methods=['get'], url_path='plantilla-excel', permission_classes=[AllowAny])
+    def plantilla_excel(self, request):
+        """Descarga la plantilla oficial en formato .xlsx para cargar actividades."""
+        from .services_programa import generar_plantilla_excel_programa
+        return generar_plantilla_excel_programa()
+
+    @action(detail=False, methods=['get'], url_path='exportar-excel', permission_classes=[permissions.IsAdminUser])
+    def exportar_excel(self, request):
+        """Exporta el programa actual a una planilla Excel con sus identificadores."""
+        from .services_programa import exportar_programa_excel
+        queryset = Programa.objects.filter(edicion__activa=True).prefetch_related('disertantes').order_by('dia', 'hora_inicio')
+        return exportar_programa_excel(queryset)
+
+    @action(detail=False, methods=['post'], url_path='preview-excel', permission_classes=[permissions.IsAdminUser])
+    def preview_excel(self, request):
+        """Analiza la planilla Excel y devuelve la validación Pre-flight / Delta Analysis (dry-run)."""
+        from .services_programa import analizar_y_procesar_excel_programa
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'success': False, 'error': 'No se proporcionó ningún archivo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        resultado = analizar_y_procesar_excel_programa(file_obj, commit=False)
+        return Response(resultado)
+
+    @action(detail=False, methods=['post'], url_path='import-excel', permission_classes=[permissions.IsAdminUser])
+    def import_excel(self, request):
+        """Procesa e ingesta las filas aprobadas del archivo Excel a la base de datos."""
+        from .services_programa import analizar_y_procesar_excel_programa
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'success': False, 'error': 'No se proporcionó ningún archivo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        filas_aprobadas_raw = request.data.get('filas_aprobadas')
+        filas_aprobadas = None
+        if filas_aprobadas_raw:
+            try:
+                import json
+                if isinstance(filas_aprobadas_raw, str):
+                    filas_aprobadas = json.loads(filas_aprobadas_raw)
+                else:
+                    filas_aprobadas = list(filas_aprobadas_raw)
+            except Exception:
+                filas_aprobadas = None
+
+        resultado = analizar_y_procesar_excel_programa(
+            file_obj, 
+            commit=True, 
+            filas_aprobadas=filas_aprobadas
+        )
+        return Response(resultado)
 
 class RegistroEmpresasView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """

@@ -11,7 +11,8 @@ import { EditionSelector } from "@/components/EditionSelector";
 type Disertante = {
   id: number;
   nombre: string;
-  bio: string;
+  empresa_institucion?: string;
+  bio?: string;
   foto_url: string;
   foto?: string;
   tema_presentacion: string;
@@ -263,12 +264,19 @@ export default function Ponentes() {
                       <h3 className="text-xl font-bold text-congress-blue mb-1 group-hover:text-congress-cyan transition-colors">
                         {disertante.nombre}
                       </h3>
+                      {disertante.empresa_institucion && (
+                        <p className="text-congress-blue/70 font-semibold text-xs mb-2 tracking-wide">
+                          Representante de <span className="text-congress-cyan-dark font-bold">{disertante.empresa_institucion}</span>
+                        </p>
+                      )}
                       <p className="text-congress-cyan-dark font-bold text-sm mb-3 uppercase tracking-wider">
                         {disertante.tema_presentacion}
                       </p>
-                      <p className="text-gray-600 text-sm line-clamp-3 leading-relaxed mb-4">
-                        {disertante.bio}
-                      </p>
+                      {disertante.bio && (
+                        <p className="text-gray-600 text-sm line-clamp-3 leading-relaxed mb-4">
+                          {disertante.bio}
+                        </p>
+                      )}
                       {disertante.linkedin && (
                         <a
                           href={disertante.linkedin}

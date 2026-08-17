@@ -162,83 +162,110 @@ def _register_integrantes(representante: Asistente, integrantes_data: list, edic
     return fallos_miembros
 
 
+def _extract_detalles_data(validated_data: dict) -> dict:
+    """Extrae y retorna los campos de detalle del payload validado."""
+    return {
+        'is_unab_student': validated_data.pop('is_unab_student', False),
+        'institution': validated_data.pop('institution', None),
+        'career': validated_data.pop('career', None),
+        'year_of_study': validated_data.pop('year_of_study', None),
+        'career_taught': validated_data.pop('career_taught', None),
+        'work_area': validated_data.pop('work_area', None),
+        'occupation': validated_data.pop('occupation', None),
+        'group_name': validated_data.pop('group_name', None),
+        'group_municipality': validated_data.pop('group_municipality', None),
+        'group_size': validated_data.pop('group_size', 0)
+    }
+
+
+def _upsert_asistente_principal(validated_data: dict) -> Asistente:
+    """Busca y actualiza un asistente existente por DNI o Email, o crea uno nuevo."""
+    from .models import Asistente
+    dni = validated_data.get('dni')
+    email = validated_data.get('email')
+
+    asistente = None
+    if dni:
+        asistente = Asistente.objects.filter(dni=dni).first()
+    if not asistente and email:
+        asistente = Asistente.objects.filter(email=email).first()
+
+    if asistente:
+        for attr, value in validated_data.items():
+            setattr(asistente, attr, value)
+        asistente.save()
+    else:
+        asistente = Asistente.objects.create(**validated_data)
+    return asistente
+
+
 def register_asistente_or_group(validated_data: dict, integrantes_data: list = None) -> Asistente:
     """
     Caso de Uso Principal: Registra a un asistente (o representante de grupo),
     crea su inscripción para la edición activa y sus respectivos integrantes.
-    Todo de forma transaccional y atómica.
     """
-    from .models import Asistente, Edicion, Inscripcion
+    from .models import Asistente, Edicion
     from .tasks import task_enviar_confirmacion_grupal, task_enviar_confirmacion_individual
-    
+
     edicion_activa = Edicion.objects.filter(activa=True).first()
     if not edicion_activa:
         raise ValueError("No hay una edición activa configurada en el sistema.")
 
     with transaction.atomic():
-        # Extraer campos de Detalle
-        is_unab_student = validated_data.pop('is_unab_student', False)
-        institution = validated_data.pop('institution', None)
-        career = validated_data.pop('career', None)
-        year_of_study = validated_data.pop('year_of_study', None)
-        career_taught = validated_data.pop('career_taught', None)
-        work_area = validated_data.pop('work_area', None)
-        occupation = validated_data.pop('occupation', None)
-        group_name = validated_data.pop('group_name', None)
-        group_municipality = validated_data.pop('group_municipality', None)
-        group_size = validated_data.pop('group_size', 0)
-        
-        dni = validated_data.get('dni')
-        email = validated_data.get('email')
+        detalles_data = _extract_detalles_data(validated_data)
+        asistente = _upsert_asistente_principal(validated_data)
 
-        asistente = None
-        if dni:
-            asistente = Asistente.objects.filter(dni=dni).first()
-        if not asistente and email:
-            asistente = Asistente.objects.filter(email=email).first()
+        # Registrar detalles del asistente
+        _upsert_detalles(asistente, detalles_data)
 
-        if asistente:
-            for attr, value in validated_data.items():
-                setattr(asistente, attr, value)
-            asistente.save()
-        else:
-            asistente = Asistente.objects.create(**validated_data)
+        # Asignar propiedades dinámicas en memoria para la respuesta del serializer
+        for attr, value in detalles_data.items():
+            setattr(asistente, attr, value)
 
-        # Detalles del representante/asistente
-        _upsert_detalles(asistente, {
-            'is_unab_student': is_unab_student,
-            'institution': institution,
-            'career': career,
-            'year_of_study': year_of_study,
-            'career_taught': career_taught,
-            'work_area': work_area,
-            'occupation': occupation,
-            'group_name': group_name,
-            'group_municipality': group_municipality,
-            'group_size': group_size
-        })
-
-        # Para que el serializer pueda mostrar los valores, los asignamos dinámicamente al objeto en memoria
-        asistente.is_unab_student = is_unab_student
-        asistente.institution = institution
-        asistente.career = career
-        asistente.year_of_study = year_of_study
-        asistente.career_taught = career_taught
-        asistente.work_area = work_area
-        asistente.occupation = occupation
-        asistente.group_name = group_name
-        asistente.group_municipality = group_municipality
-        asistente.group_size = group_size
-
-        # Si es un grupo
         if asistente.profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
             if integrantes_data:
                 _register_integrantes(asistente, integrantes_data, edicion_activa)
-            
-            # Encolar email grupal asíncronamente post-commit
             transaction.on_commit(lambda: task_enviar_confirmacion_grupal.delay(asistente.id))
         else:
-            # Encolar email individual asíncronamente post-commit
             transaction.on_commit(lambda: task_enviar_confirmacion_individual.delay(asistente.id))
 
     return asistente
+
+
+def sync_postulacion_a_disertante(postulacion) -> None:
+    """
+    Sincroniza una PostulacionDisertante aprobada hacia el modelo público Disertante.
+    Si el estado es APROBADO, crea o actualiza el objeto Disertante.
+    Si el estado cambia a PENDIENTE o RECHAZADO, actualiza su estado en Disertante a PENDIENTE
+    para removerlo de la grilla pública.
+    """
+    from .models import Disertante, Edicion
+    
+    edicion = postulacion.edicion or Edicion.objects.filter(activa=True).first()
+    nombre = postulacion.nombre_apellido.strip()
+    
+    if postulacion.estado == 'APROBADO':
+        disertante, created = Disertante.objects.get_or_create(
+            nombre=nombre,
+            edicion=edicion,
+            defaults={
+                'empresa_institucion': postulacion.empresa_institucion or '',
+                'bio': postulacion.resumen_charla or '',
+                'tema_presentacion': postulacion.titulo_charla or 'Disertación',
+                'linkedin': postulacion.linkedin,
+                'foto': postulacion.foto_perfil if postulacion.foto_perfil else None,
+                'estado': 'APROBADO'
+            }
+        )
+        if not created:
+            disertante.empresa_institucion = postulacion.empresa_institucion or ''
+            disertante.bio = postulacion.resumen_charla or ''
+            disertante.tema_presentacion = postulacion.titulo_charla or 'Disertación'
+            disertante.linkedin = postulacion.linkedin
+            if postulacion.foto_perfil:
+                disertante.foto = postulacion.foto_perfil
+            disertante.estado = 'APROBADO'
+            disertante.save()
+    else:
+        Disertante.objects.filter(nombre=nombre, edicion=edicion).update(estado='PENDIENTE')
+

@@ -17,7 +17,8 @@ class Disertante(models.Model):
     ESTADO_CHOICES = [('PENDIENTE', 'Pendiente'), ('APROBADO', 'Aprobado'), ('RECHAZADO', 'Rechazado')]
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', verbose_name="Estado")
     nombre = models.CharField(max_length=200)
-    bio = models.TextField(verbose_name="Biografía")
+    empresa_institucion = models.CharField(max_length=255, blank=True, default="", verbose_name="Empresa / Institución (Representante de)")
+    bio = models.TextField(blank=True, default="", verbose_name="Biografía (opcional)")
     foto_url = models.CharField(max_length=300, blank=True, verbose_name="URL de la Foto")
     foto = models.ImageField(upload_to='ponencias/', blank=True, null=True, verbose_name="Foto (subida)")
     linkedin = models.CharField(max_length=500, blank=True, null=True, verbose_name='Perfil de LinkedIn')
@@ -101,17 +102,26 @@ class Programa(models.Model):
         ("RADIO", "Radio"),
         ("SUSTENTABILIDAD", "Sustentabilidad"),
         ("TRANSPORTE", "Transporte"),
+        ("INSTITUCIONAL", "Institucional / Apertura / Cierre"),
+        ("NETWORKING", "Networking / Coffee Break"),
+        ("WORKSHOP", "Taller / Demo en vivo"),
     ]
     
+    ESTADO_CHOICES = [
+        ('BORRADOR', 'Borrador'),
+        ('PUBLICADO', 'Publicado'),
+    ]
+
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='programas')
     titulo = models.CharField(max_length=255, verbose_name="Título del Evento")
     disertantes = models.ManyToManyField(Disertante, blank=True, verbose_name="Disertantes", related_name="programas")
-    hora_inicio = models.TimeField(verbose_name="Hora de Inicio")
-    hora_fin = models.TimeField(verbose_name="Hora de Fin")
-    dia = models.DateField(verbose_name="Día del Evento")
+    hora_inicio = models.TimeField(null=True, blank=True, verbose_name="Hora de Inicio")
+    hora_fin = models.TimeField(null=True, blank=True, verbose_name="Hora de Fin")
+    dia = models.DateField(default="2026-11-07", verbose_name="Día del Evento")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
-    aula = models.CharField(max_length=30, choices=AULA_CHOICES, verbose_name="Aula")
-    categoria = models.CharField(max_length=30, choices=CATEGORIA_CHOICES, default="LOGÍSTICA", verbose_name="Categoría")
+    aula = models.CharField(max_length=30, choices=AULA_CHOICES, default="Aula Magna", blank=True, verbose_name="Aula")
+    categoria = models.CharField(max_length=30, choices=CATEGORIA_CHOICES, default="LOGISTICA", verbose_name="Categoría")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PUBLICADO', verbose_name="Estado de publicación")
 
     def __str__(self):
         return f"{self.titulo} - {self.dia} {self.hora_inicio}"

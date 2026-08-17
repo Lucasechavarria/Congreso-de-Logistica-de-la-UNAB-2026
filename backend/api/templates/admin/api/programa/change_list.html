@@ -1,0 +1,20 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+  <li style="margin-right: 8px;">
+    <a href="exportar-excel/" class="button" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff !important; font-weight: 700; font-size: 13px; border-radius: 8px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #065f46; box-shadow: 0 2px 4px rgba(5,150,105,0.25); text-decoration: none; transition: all 0.2s ease;">
+      <span style="font-size: 14px;">📥</span> Exportar Programa (.xlsx)
+    </a>
+  </li>
+  <li style="margin-right: 8px;">
+    <a href="plantilla-excel/" class="button" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: #ffffff !important; font-weight: 700; font-size: 13px; border-radius: 8px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #0f172a; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-decoration: none; transition: all 0.2s ease;">
+      <span style="font-size: 14px;">📄</span> Descargar Plantilla (.xlsx)
+    </a>
+  </li>
+  <li style="margin-right: 8px;">
+    <a href="importar-excel/" class="button" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff !important; font-weight: 700; font-size: 13px; border-radius: 8px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #1e40af; box-shadow: 0 2px 4px rgba(37,99,235,0.25); text-decoration: none; transition: all 0.2s ease;">
+      <span style="font-size: 14px;">📤</span> Subir Planilla (.xlsx)
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}

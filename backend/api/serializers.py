@@ -231,7 +231,7 @@ class DisertanteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Disertante
-        fields = ['nombre', 'bio', 'foto_url', 'tema_presentacion', 'linkedin']
+        fields = ['id', 'nombre', 'empresa_institucion', 'bio', 'foto_url', 'tema_presentacion', 'linkedin']
 
     def get_foto_url(self, obj):
         """

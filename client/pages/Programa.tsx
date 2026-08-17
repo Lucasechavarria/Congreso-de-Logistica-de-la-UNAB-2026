@@ -46,6 +46,28 @@ type DisertanteInfo = {
   linkedin?: string;
 };
 
+interface DisertanteBackendItem {
+  nombre?: string;
+  bio?: string;
+  foto_url?: string;
+  tema_presentacion?: string;
+  linkedin?: string;
+}
+
+interface ProgramaBackendItem {
+  id?: number;
+  titulo: string;
+  descripcion?: string;
+  hora_inicio?: string;
+  hora_fin?: string;
+  dia?: string;
+  aula?: string;
+  sala?: string;
+  categoria?: string;
+  estado?: string;
+  disertantes?: DisertanteBackendItem[];
+}
+
 // Nueva estructura de datos para actividades con hora de inicio y fin
 type ActividadCalendar = {
   aula: string;
@@ -225,10 +247,10 @@ export default function Programa() {
           throw new Error("No se pudo cargar la agenda desde el backend.");
         const data = await response.json();
         // Mapear los datos del backend al formato visual
-        const mapped: ActividadCalendar[] = data.map((item: any) => {
+        const mapped: ActividadCalendar[] = data.map((item: ProgramaBackendItem) => {
           const aula = item.aula || item.sala || "Aula Magna";
           // Si no hay disertantes, poner array vacío
-          const disertantes: DisertanteInfo[] = Array.isArray(item.disertantes) ? item.disertantes.map((d: any) => ({
+          const disertantes: DisertanteInfo[] = Array.isArray(item.disertantes) ? item.disertantes.map((d: DisertanteBackendItem) => ({
             nombre: d.nombre || "",
             bio: d.bio || "",
             foto_url: d.foto_url || "",

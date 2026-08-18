@@ -717,9 +717,15 @@ class InscripcionSerializer(serializers.ModelSerializer):
         if not edicion:
             raise serializers.ValidationError({"edicion": "No hay una edición activa disponible."})
 
-        # Prevenir duplicidad de inscripción a la misma edición pero confirmar actualización de datos
-        if Inscripcion.objects.filter(asistente=asistente, edicion=edicion).exists():
-            raise serializers.ValidationError({"detail": "Ya estás inscripto/a en el Congreso 2026. Tus datos de contacto fueron actualizados."})
+        # Si ya existe la inscripción a la misma edición, actualizamos datos y marcamos la bandera de re-inscripción exitosa
+        inscripcion_existente = Inscripcion.objects.filter(asistente=asistente, edicion=edicion).first()
+        if inscripcion_existente:
+            desea_alertas = validated_data.get('desea_alertas_laborales')
+            if desea_alertas is not None:
+                inscripcion_existente.desea_alertas_laborales = desea_alertas
+                inscripcion_existente.save()
+            asistente._ya_registrado = True
+            return inscripcion_existente
 
         inscripcion = Inscripcion.objects.create(asistente=asistente, edicion=edicion, **validated_data)
         return inscripcion

@@ -299,18 +299,27 @@ class RegistroViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 # Email de confirmación se maneja dentro de AsistenteSerializer
                 asistente = inscripcion.asistente
                 email_success = getattr(asistente, '_email_enviado', False)
-                
-                msg = 'Registro de participante realizado correctamente.'
-                fallos = getattr(asistente, '_fallos_miembros', [])
-                if fallos:
-                    msg += f" (Atención: no se pudieron inscribir {len(fallos)} integrante(s): {', '.join(fallos)})"
-                elif email_success:
-                    msg += ' Se ha enviado un email de confirmación.'
+                ya_registrado = getattr(asistente, '_ya_registrado', False)
+
+                if ya_registrado:
+                    msg = 'Ya estás inscripto/a en el Congreso 2026. Tus datos de contacto fueron actualizados.'
                 else:
-                    msg += ' Registro guardado, pero ocurrió un problema al enviar el correo.'
+                    msg = 'Registro de participante realizado correctamente.'
+                    fallos = getattr(asistente, '_fallos_miembros', [])
+                    if fallos:
+                        msg += f" (Atención: no se pudieron inscribir {len(fallos)} integrante(s): {', '.join(fallos)})"
+                    elif email_success:
+                        msg += ' Se ha enviado un email de confirmación.'
+                    else:
+                        msg += ' Registro guardado, pero ocurrió un problema al enviar el correo.'
                 
                 headers = self.get_success_headers(serializer.data)
-                return Response({'status': 'success', 'message': msg, 'id': inscripcion.id}, status=status.HTTP_201_CREATED, headers=headers)
+                return Response({
+                    'status': 'success',
+                    'message': msg,
+                    'already_registered': ya_registrado,
+                    'id': inscripcion.id
+                }, status=status.HTTP_200_OK if ya_registrado else status.HTTP_201_CREATED, headers=headers)
         except serializers.ValidationError as e:
             error_messages: dict[str, Any] = {}
             if isinstance(e.detail, dict):

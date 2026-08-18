@@ -629,18 +629,22 @@ class AsistenteSerializer(serializers.ModelSerializer):
         asistente._email_enviado = True 
         return asistente
 
+    def validate_email(self, value):
+        if value:
+            return value.strip().lower()
+        return value
+
     def validate_dni(self, value):
-        """Valida que el DNI tenga exactamente 8 dígitos numéricos"""
+        """Valida que el DNI tenga entre 7 y 8 dígitos numéricos"""
         if value:
             # Limpiar caracteres no numéricos
             dni_limpio = re.sub(r'\D', '', value)
             # Si tiene 9 dígitos y termina en 0, eliminar el último 0
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
-                # Usar slice explícito para evitar confusiones del linter
                 dni_limpio = dni_limpio[:8]
-            # Validar que tenga exactamente 8 dígitos
-            if len(dni_limpio) != 8 or not dni_limpio.isdigit():
-                raise serializers.ValidationError('El DNI debe tener exactamente 8 dígitos numéricos.')
+            # Validar que tenga entre 7 y 8 dígitos (DNI argentinos válidos)
+            if len(dni_limpio) not in (7, 8) or not dni_limpio.isdigit():
+                raise serializers.ValidationError('El DNI debe tener 7 u 8 dígitos numéricos.')
             return dni_limpio
         return value
 
@@ -713,9 +717,9 @@ class InscripcionSerializer(serializers.ModelSerializer):
         if not edicion:
             raise serializers.ValidationError({"edicion": "No hay una edición activa disponible."})
 
-        # Prevenir duplicidad de inscripción a la misma edición
+        # Prevenir duplicidad de inscripción a la misma edición pero confirmar actualización de datos
         if Inscripcion.objects.filter(asistente=asistente, edicion=edicion).exists():
-            raise serializers.ValidationError({"detail": f"Ya te encuentras registrado/a en la edición {edicion.nombre}."})
+            raise serializers.ValidationError({"detail": "Ya estás inscripto/a en el Congreso 2026. Tus datos de contacto fueron actualizados."})
 
         inscripcion = Inscripcion.objects.create(asistente=asistente, edicion=edicion, **validated_data)
         return inscripcion

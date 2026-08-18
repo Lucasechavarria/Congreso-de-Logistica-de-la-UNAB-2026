@@ -4,7 +4,8 @@ from .models import Asistente, Certificado
 from .email import (
     send_individual_confirmation_email,
     send_group_confirmation_emails,
-    send_certificate_email
+    send_certificate_email,
+    send_admin_email_failure_alert
 )
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ def task_enviar_confirmacion_individual(self, asistente_id):
     """
     Envía el email de confirmación de inscripción individual de fondo.
     Soporta reintentos automáticos ante fallas temporales de red o del SMTP universitario.
+    Si agota los reintentos, envía un auto-email de alerta a la administración.
     """
     try:
         asistente = Asistente.objects.get(id=asistente_id)
@@ -23,7 +25,14 @@ def task_enviar_confirmacion_individual(self, asistente_id):
         logger.info(f"[SUCCESS] Email de confirmación individual enviado a {asistente.email}")
         return True
     except Exception as exc:
-        logger.error(f"[ERROR] Falló el envío individual para asistente {asistente_id}: {exc}. Reintentando...")
+        logger.error(f"[ERROR] Falló el envío individual para asistente {asistente_id}: {exc}.")
+        if self.request.retries >= self.max_retries:
+            try:
+                asistente = Asistente.objects.get(id=asistente_id)
+                send_admin_email_failure_alert(asistente, exc)
+            except Exception as alert_err:
+                logger.error(f"[CRITICAL] No se pudo enviar la auto-alerta a administración: {alert_err}")
+            return False
         self.retry(exc=exc)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=90)
@@ -41,7 +50,14 @@ def task_enviar_confirmacion_grupal(self, representante_id):
         )
         return resultado
     except Exception as exc:
-        logger.error(f"[ERROR] Falló el envío de correos grupales para representante {representante_id}: {exc}. Reintentando...")
+        logger.error(f"[ERROR] Falló el envío de correos grupales para representante {representante_id}: {exc}.")
+        if self.request.retries >= self.max_retries:
+            try:
+                representante = Asistente.objects.get(id=representante_id)
+                send_admin_email_failure_alert(representante, exc)
+            except Exception as alert_err:
+                logger.error(f"[CRITICAL] No se pudo enviar la auto-alerta a administración: {alert_err}")
+            return False
         self.retry(exc=exc)
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=120)

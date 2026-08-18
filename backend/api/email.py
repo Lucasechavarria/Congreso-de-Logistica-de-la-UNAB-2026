@@ -850,3 +850,64 @@ def send_broadcast_batch_email(recipient_list, subject, body_html):
             time.sleep(2)
             
     return enviados, errores
+
+
+def send_admin_email_failure_alert(asistente, error_reason):
+    """
+    Envía una auto-alerta por correo electrónico a la casilla oficial del congreso
+    cuando la entrega de email a un participante falla de forma definitiva.
+    """
+    try:
+        subject = f"⚠️ [ALERTA DE CORREO] Fallo de envío a: {asistente.first_name} {asistente.last_name}"
+        
+        dni_val = getattr(asistente, 'dni', None) or 'Sin DNI'
+        profile_display = asistente.get_profile_type_display() if hasattr(asistente, 'get_profile_type_display') else str(asistente.profile_type)
+        
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #d9534f; margin-top: 0;">⚠️ Alerta de Fallo en Envío de Confirmación</h2>
+            <p>Se ha registrado un participante en el Congreso de Logística 2026, pero el correo automático de confirmación no pudo ser entregado tras agotar los reintentos del servidor.</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr style="background-color: #f8f9fa;">
+                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Nombre Completo:</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">{asistente.first_name} {asistente.last_name}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Email del Participante:</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #0275d8;">{asistente.email}</td>
+                </tr>
+                <tr style="background-color: #f8f9fa;">
+                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">DNI:</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">{dni_val}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Tipo de Perfil:</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">{profile_display}</td>
+                </tr>
+                <tr style="background-color: #f8f9fa;">
+                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Causa / Error:</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; color: #c9302c;">{str(error_reason)}</td>
+                </tr>
+            </table>
+
+            <p style="margin-top: 20px; font-size: 13px; color: #666; background-color: #fff3cd; padding: 10px; border-radius: 4px;">
+                ℹ️ <strong>Acción recomendada:</strong> Verifique si la dirección de correo ingresada por el asistente tiene algún error tipográfico o reenvíe su credencial manualmente desde el panel de administración.
+            </p>
+        </div>
+        """
+        text_content = f"Alerta de fallo en envío de confirmación para {asistente.first_name} {asistente.last_name} ({asistente.email}). Error: {str(error_reason)}"
+
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=f"Sistema Congreso UNAB <{CONGRESO_EMAIL}>",
+            to=[CONGRESO_EMAIL]
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+        print(f"[ALERTA ADMIN] Auto-email enviado a {CONGRESO_EMAIL} por fallo de entrega a {asistente.email}")
+        return True
+    except Exception as e:
+        print(f"[ERROR] Ocurrió una falla al enviar el auto-email de alerta a la administración: {e}")
+        return False

@@ -301,7 +301,10 @@ class RegistroViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 email_success = getattr(asistente, '_email_enviado', False)
                 
                 msg = 'Registro de participante realizado correctamente.'
-                if email_success:
+                fallos = getattr(asistente, '_fallos_miembros', [])
+                if fallos:
+                    msg += f" (Atención: no se pudieron inscribir {len(fallos)} integrante(s): {', '.join(fallos)})"
+                elif email_success:
                     msg += ' Se ha enviado un email de confirmación.'
                 else:
                     msg += ' Registro guardado, pero ocurrió un problema al enviar el correo.'

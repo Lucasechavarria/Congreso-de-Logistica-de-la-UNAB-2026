@@ -569,13 +569,21 @@ const RegistroParticipantes: React.FC = () => {
           duration: 8000, // Más tiempo para leer errores múltiples
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error en la inscripción:", error);
+      const isNetworkError = (error instanceof TypeError) && (
+        error.message?.includes('fetch') || 
+        error.message?.includes('NetworkError') ||
+        error.message?.includes('Failed to fetch')
+      );
+
       toast({
-        title: "Error de conexión",
-        description: "No se pudo conectar con el servidor. Por favor verifica tu conexión a internet y vuelve a intentarlo.",
+        title: isNetworkError ? "Error de conexión" : "Atención",
+        description: isNetworkError
+          ? "No se pudo conectar con el servidor. Por favor verifica tu conexión a internet y vuelve a intentarlo."
+          : (error?.message || "No se pudo completar la inscripción. Por favor revisa los datos e intenta nuevamente."),
         variant: "destructive",
-        duration: 6000,
+        duration: 8000,
       });
     }
   };

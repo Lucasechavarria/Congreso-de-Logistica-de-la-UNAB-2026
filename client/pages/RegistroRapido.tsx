@@ -117,9 +117,18 @@ export default function RegistroRapido() {
         });
       }
     } catch (error: any) {
+      console.error("Error en el registro rápido:", error);
+      const isNetworkError = (error instanceof TypeError) && (
+        error.message?.includes('fetch') || 
+        error.message?.includes('NetworkError') ||
+        error.message?.includes('Failed to fetch')
+      );
+
       toast({
-        title: "Error de conexión",
-        description: error?.message || "No se pudo conectar con el servidor. Por favor, verifica tu conexión a internet e intenta nuevamente.",
+        title: isNetworkError ? "Error de conexión" : "Atención",
+        description: isNetworkError
+          ? "No se pudo conectar con el servidor. Por favor, verifica tu conexión a internet e intenta nuevamente."
+          : (error?.message || "No se pudo completar el registro."),
         variant: "destructive",
       });
     }

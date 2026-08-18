@@ -181,6 +181,8 @@ def _extract_detalles_data(validated_data: dict) -> dict:
 def _upsert_asistente_principal(validated_data: dict) -> Asistente:
     """Busca y actualiza un asistente existente por DNI o Email, o crea uno nuevo."""
     from .models import Asistente
+    from rest_framework import serializers
+
     dni = validated_data.get('dni')
     email = validated_data.get('email')
 
@@ -191,10 +193,23 @@ def _upsert_asistente_principal(validated_data: dict) -> Asistente:
         asistente = Asistente.objects.filter(email=email).first()
 
     if asistente:
+        # Verificar que el email no pertenezca a otro participante distinto
+        if email and Asistente.objects.filter(email=email).exclude(pk=asistente.pk).exists():
+            raise serializers.ValidationError({
+                "email": "El correo electrónico ingresado ya se encuentra registrado por otro participante."
+            })
         for attr, value in validated_data.items():
             setattr(asistente, attr, value)
         asistente.save()
     else:
+        if email and Asistente.objects.filter(email=email).exists():
+            raise serializers.ValidationError({
+                "email": "El correo electrónico ya se encuentra registrado por otro participante."
+            })
+        if dni and Asistente.objects.filter(dni=dni).exists():
+            raise serializers.ValidationError({
+                "dni": "El DNI ya se encuentra registrado por otro participante."
+            })
         asistente = Asistente.objects.create(**validated_data)
     return asistente
 
@@ -209,7 +224,8 @@ def register_asistente_or_group(validated_data: dict, integrantes_data: list = N
 
     edicion_activa = Edicion.objects.filter(activa=True).first()
     if not edicion_activa:
-        raise ValueError("No hay una edición activa configurada en el sistema.")
+        from rest_framework import serializers
+        raise serializers.ValidationError({"edicion": "No hay una edición activa configurada en el sistema."})
 
     with transaction.atomic():
         detalles_data = _extract_detalles_data(validated_data)
@@ -224,10 +240,18 @@ def register_asistente_or_group(validated_data: dict, integrantes_data: list = N
 
         if asistente.profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
             if integrantes_data:
-                _register_integrantes(asistente, integrantes_data, edicion_activa)
-            transaction.on_commit(lambda: task_enviar_confirmacion_grupal.delay(asistente.id))
+                fallos = _register_integrantes(asistente, integrantes_data, edicion_activa)
+                if fallos:
+                    asistente._fallos_miembros = fallos
+            try:
+                transaction.on_commit(lambda: task_enviar_confirmacion_grupal.delay(asistente.id))
+            except Exception as e:
+                logger.error(f"[Celery] Error al encolar confirmación grupal: {e}")
         else:
-            transaction.on_commit(lambda: task_enviar_confirmacion_individual.delay(asistente.id))
+            try:
+                transaction.on_commit(lambda: task_enviar_confirmacion_individual.delay(asistente.id))
+            except Exception as e:
+                logger.error(f"[Celery] Error al encolar confirmación individual: {e}")
 
     return asistente
 

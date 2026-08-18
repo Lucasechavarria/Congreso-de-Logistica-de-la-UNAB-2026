@@ -163,10 +163,60 @@ async function parseResponse(response: Response): Promise<any> {
         throw new Error(errorData.message);
       }
 
-      const firstError = Object.values(errorObj)[0];
-      const errorMessage = Array.isArray(firstError) 
-        ? firstError[0] 
-        : (typeof firstError === 'string' ? firstError : JSON.stringify(firstError));
+      const fieldTranslations: Record<string, string> = {
+        'email': 'Correo electrónico',
+        'dni': 'DNI',
+        'first_name': 'Nombre',
+        'last_name': 'Apellido',
+        'phone': 'Teléfono',
+        'group_size': 'Cantidad de miembros',
+        'institution': 'Institución',
+        'career': 'Carrera',
+        'year_of_study': 'Año de cursada',
+        'work_area': 'Área de trabajo',
+        'occupation': 'Cargo',
+        'group_name': 'Nombre del grupo',
+        'profile_type': 'Tipo de participante'
+      };
+
+      const formatErrors = (obj: any, parentKey = ''): string[] => {
+        let lines: string[] = [];
+        if (typeof obj === 'string') {
+          lines.push(obj);
+        } else if (Array.isArray(obj)) {
+          obj.forEach(item => {
+            if (typeof item === 'object' && item !== null) {
+              lines.push(...formatErrors(item, parentKey));
+            } else {
+              lines.push(String(item));
+            }
+          });
+        } else if (typeof obj === 'object' && obj !== null) {
+          for (const [key, val] of Object.entries(obj)) {
+            if (key === 'detail' && typeof val === 'string') {
+              lines.push(val);
+            } else {
+              const label = fieldTranslations[key] || fieldTranslations[parentKey] || key;
+              const subMsgs = formatErrors(val, key);
+              subMsgs.forEach(msg => {
+                if (key === 'detail' || key === 'non_field_errors') {
+                  lines.push(msg);
+                } else if (msg.includes(':')) {
+                  lines.push(msg);
+                } else {
+                  lines.push(`${label}: ${msg}`);
+                }
+              });
+            }
+          }
+        }
+        return lines;
+      };
+
+      const formattedLines = Array.from(new Set(formatErrors(errorObj)));
+      const errorMessage = formattedLines.length > 0
+        ? formattedLines.join('\n')
+        : 'Error al procesar la solicitud.';
       
       throw new Error(errorMessage);
     }

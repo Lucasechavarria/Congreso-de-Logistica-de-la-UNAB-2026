@@ -124,6 +124,7 @@ class InscripcionPrensaSerializer(serializers.ModelSerializer):
 
 
 class PostulacionDisertanteSerializer(serializers.ModelSerializer):
+    empresa_institucion = serializers.CharField(required=False, allow_blank=True, default="")
     ejes_tematicos = serializers.JSONField(required=False)
     publico_dirigido = serializers.JSONField(required=False)
     modalidad = serializers.JSONField(required=False)

@@ -39,7 +39,7 @@ class PostulacionDisertante(models.Model):
     telefono = models.CharField(max_length=20, verbose_name="Teléfono")
     ciudad_provincia = models.CharField(max_length=255, verbose_name="Ciudad y Provincia")
     profesion_cargo = models.CharField(max_length=255, verbose_name="Profesión / Cargo actual")
-    empresa_institucion = models.CharField(max_length=255, verbose_name="Empresa / Institución a la que pertenece")
+    empresa_institucion = models.CharField(max_length=255, blank=True, default="", verbose_name="Empresa / Institución a la que pertenece (opcional)")
     linkedin = models.CharField(max_length=500, blank=True, null=True, verbose_name="LinkedIn u otra red profesional")
     
     # Propuesta de Charla

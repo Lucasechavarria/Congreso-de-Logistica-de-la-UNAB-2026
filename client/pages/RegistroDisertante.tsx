@@ -49,7 +49,7 @@ const disertanteSchema = z.object({
     telefono: z.string().min(1, "El teléfono es requerido"),
     ciudadProvincia: z.string().min(1, "La ciudad y provincia son requeridas"),
     profesionCargo: z.string().min(1, "La profesión o cargo es requerido"),
-    empresaInstitucion: z.string().min(1, "La institución a la que pertenece es requerida"),
+    empresaInstitucion: z.string().optional(),
     linkedin: z.string().optional(),
 
     // Propuesta de Charla
@@ -461,9 +461,9 @@ const RegistroDisertante: React.FC = () => {
                                     error={errors.profesionCargo?.message}
                                 />
                                 <FormInput
-                                    label="Empresa o Institución"
+                                    label="Empresa o Institución (opcional)"
                                     icon={<Building2 className="h-4 w-4" />}
-                                    placeholder="EJ: Universidad Nacional Guillermo Brown"
+                                    placeholder="EJ: Universidad Nacional Guillermo Brown (opcional)"
                                     {...register("empresaInstitucion")}
                                     error={errors.empresaInstitucion?.message}
                                 />

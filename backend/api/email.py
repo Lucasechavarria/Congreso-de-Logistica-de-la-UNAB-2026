@@ -10,6 +10,23 @@ import io
 import pandas as pd
 from xhtml2pdf import pisa
 
+import unicodedata
+import re
+
+def sanitize_email_subject(text: str) -> str:
+    """
+    Sanitiza y limpia el asunto de un correo para prevenir HeaderParseError o UnicodeEncodeError.
+    Reemplaza comillas inteligentes, guiones largos, símbolos de redirección y normaliza a UTF-8.
+    """
+    if not text:
+        return ""
+    s = str(text)
+    s = unicodedata.normalize('NFC', s)
+    s = s.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'")
+    s = s.replace('—', '-').replace('–', '-').replace('\xa0', ' ')
+    s = re.sub(r'[\r\n\t]', ' ', s)
+    return s.strip()
+
 # Email oficial del congreso (remitente y copia interna)
 CONGRESO_EMAIL = "congresologisticaytransporte@unab.edu.ar"
 # Logo negro del congreso (para embeber en templates de email)
@@ -24,6 +41,7 @@ def get_logo_path():
     # Fallback: intentar ruta directa desde BASE_DIR
     fallback = os.path.join(settings.BASE_DIR, logo_env)
     return fallback
+
 
 
 def get_tyc_path(pdf_type='asistente'):
@@ -742,7 +760,7 @@ def send_admin_postulation_alert(instance, tipo):
         
         email = EmailMultiAlternatives(
             # Título dinámico según el tipo
-            subject=f'NUEVA POSTULACIÓN: {tipo} - {subject_name}',
+            subject=sanitize_email_subject(f'NUEVA POSTULACIÓN: {tipo} - {subject_name}'),
             body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[CONGRESO_EMAIL]

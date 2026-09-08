@@ -301,7 +301,13 @@ def sync_postulacion_a_disertante(postulacion) -> None:
                 disertante.linkedin = linkedin if linkedin else None
                 if postulacion.foto_perfil:
                     try:
-                        disertante.foto = postulacion.foto_perfil
+                        if hasattr(postulacion.foto_perfil, 'storage') and postulacion.foto_perfil.name:
+                            if postulacion.foto_perfil.storage.exists(postulacion.foto_perfil.name):
+                                disertante.foto = postulacion.foto_perfil
+                            else:
+                                logger.warning(f"Foto {postulacion.foto_perfil.name} no existe en almacenamiento. Omitiendo asignación.")
+                        else:
+                            disertante.foto = postulacion.foto_perfil
                     except Exception as e:
                         logger.warning(f"No se pudo asignar foto_perfil al disertante {nombre}: {e}")
                 disertante.estado = 'APROBADO'
@@ -318,10 +324,17 @@ def sync_postulacion_a_disertante(postulacion) -> None:
                 )
                 if postulacion.foto_perfil:
                     try:
-                        disertante.foto = postulacion.foto_perfil
+                        if hasattr(postulacion.foto_perfil, 'storage') and postulacion.foto_perfil.name:
+                            if postulacion.foto_perfil.storage.exists(postulacion.foto_perfil.name):
+                                disertante.foto = postulacion.foto_perfil
+                            else:
+                                logger.warning(f"Foto {postulacion.foto_perfil.name} no existe en almacenamiento. Omitiendo asignación.")
+                        else:
+                            disertante.foto = postulacion.foto_perfil
                     except Exception as e:
                         logger.warning(f"No se pudo asignar foto_perfil al crear disertante {nombre}: {e}")
                 disertante.save()
+
             
             # Sincronizar automáticamente con el Programa de esa edición
             try:

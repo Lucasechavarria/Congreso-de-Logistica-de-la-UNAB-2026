@@ -71,11 +71,22 @@ class PostulacionDisertante(models.Model):
     fecha_postulacion = models.DateTimeField(auto_now_add=True, db_index=True)
     history = HistoricalRecords()
 
+    def save(self, *args, **kwargs):
+        import unicodedata
+        if self.nombre_apellido:
+            self.nombre_apellido = unicodedata.normalize('NFC', str(self.nombre_apellido)).replace('\xa0', ' ').strip()[:200]
+        if self.titulo_charla:
+            self.titulo_charla = unicodedata.normalize('NFC', str(self.titulo_charla)).replace('\xa0', ' ').strip()[:255]
+        if self.empresa_institucion:
+            self.empresa_institucion = unicodedata.normalize('NFC', str(self.empresa_institucion)).replace('\xa0', ' ').strip()[:255]
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.nombre_apellido} - {self.titulo_charla} ({self.get_estado_display()})"
 
     class Meta:
         ordering = ['-fecha_postulacion']
+
 
 class Programa(models.Model):
     AULA_CHOICES = [

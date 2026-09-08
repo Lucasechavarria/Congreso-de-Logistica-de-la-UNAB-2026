@@ -489,3 +489,90 @@ def exportar_excel_programa(edicion=None) -> HttpResponse:
     wb.save(response)
     return response
 
+
+def crear_o_actualizar_programa_desde_postulacion(postulacion, disertante) -> Programa:
+    """
+    Crea o actualiza una entrada en el modelo Programa para una postulación aprobada,
+    asociando el disertante y mapeando la categoría a partir de los ejes temáticos.
+    """
+    edicion = postulacion.edicion or Edicion.objects.filter(activa=True).first()
+    titulo = postulacion.titulo_charla.strip() if postulacion.titulo_charla else "Disertación"
+    categoria = _mapear_categoria(postulacion.ejes_tematicos)
+    
+    programa = Programa.objects.filter(titulo=titulo, edicion=edicion).first()
+    
+    if not programa:
+        programa = Programa.objects.create(
+            edicion=edicion,
+            titulo=titulo,
+            descripcion=postulacion.resumen_charla or "",
+            categoria=categoria,
+            estado='PUBLICADO'
+        )
+    else:
+        if postulacion.resumen_charla:
+            programa.descripcion = postulacion.resumen_charla
+        programa.categoria = categoria
+        programa.estado = 'PUBLICADO'
+        programa.save()
+        
+    if disertante and disertante not in programa.disertantes.all():
+        programa.disertantes.add(disertante)
+        
+    return programa
+
+
+def generar_borrador_programa_desde_postulaciones(queryset) -> Tuple[int, int]:
+    """
+    Recorre un QuerySet de PostulacionDisertante, las sincroniza como Disertante
+    y genera/actualiza sus correspondientes actividades en el Programa de esa edición.
+    Devuelve una tupla (cantidad_programas, cantidad_disertantes).
+    """
+    progs_count = 0
+    disertantes_count = 0
+    
+    for postulacion in queryset:
+        sync_postulacion_a_disertante(postulacion)
+        edicion = postulacion.edicion or Edicion.objects.filter(activa=True).first()
+        disertante = Disertante.objects.filter(nombre=postulacion.nombre_apellido.strip(), edicion=edicion).first()
+        if disertante:
+            disertantes_count += 1
+            prog = crear_o_actualizar_programa_desde_postulacion(postulacion, disertante)
+            if prog:
+                progs_count += 1
+                
+    return progs_count, disertantes_count
+
+
+def sincronizar_disertante_manual_a_programa(disertante) -> Programa | None:
+    """
+    Sincroniza un Disertante creado o editado manualmente en el Admin hacia el Programa.
+    Solo si el disertante está APROBADO y tiene un tema_presentacion definido.
+    """
+    if not disertante or disertante.estado != 'APROBADO' or not disertante.tema_presentacion:
+        return None
+        
+    edicion = disertante.edicion or Edicion.objects.filter(activa=True).first()
+    titulo = disertante.tema_presentacion.strip()
+    
+    programa = Programa.objects.filter(titulo=titulo, edicion=edicion).first()
+    if not programa:
+        programa = Programa.objects.create(
+            edicion=edicion,
+            titulo=titulo,
+            descripcion=disertante.bio or "",
+            categoria="LOGISTICA",
+            estado='PUBLICADO'
+        )
+    else:
+        if disertante.bio:
+            programa.descripcion = disertante.bio
+        programa.estado = 'PUBLICADO'
+        programa.save()
+        
+    if disertante not in programa.disertantes.all():
+        programa.disertantes.add(disertante)
+        
+    return programa
+
+

@@ -258,38 +258,49 @@ def register_asistente_or_group(validated_data: dict, integrantes_data: list = N
 
 def sync_postulacion_a_disertante(postulacion) -> None:
     """
-    Sincroniza una PostulacionDisertante aprobada hacia el modelo público Disertante.
-    Si el estado es APROBADO, crea o actualiza el objeto Disertante.
-    Si el estado cambia a PENDIENTE o RECHAZADO, actualiza su estado en Disertante a PENDIENTE
-    para removerlo de la grilla pública.
+    Sincroniza una PostulacionDisertante aprobada hacia el modelo público Disertante y el Programa.
+    Aislado por edición: si pertenece a la misma edición actualiza sus datos, si es de otra edición no la modifica.
     """
     from .models import Disertante, Edicion
+    from .services_programa import crear_o_actualizar_programa_desde_postulacion
     
     edicion = postulacion.edicion or Edicion.objects.filter(activa=True).first()
     nombre = postulacion.nombre_apellido.strip()
     
     if postulacion.estado == 'APROBADO':
-        disertante, created = Disertante.objects.get_or_create(
-            nombre=nombre,
-            edicion=edicion,
-            defaults={
-                'empresa_institucion': postulacion.empresa_institucion or '',
-                'bio': postulacion.resumen_charla or '',
-                'tema_presentacion': postulacion.titulo_charla or 'Disertación',
-                'linkedin': postulacion.linkedin,
-                'foto': postulacion.foto_perfil if postulacion.foto_perfil else None,
-                'estado': 'APROBADO'
-            }
-        )
-        if not created:
+        # Búsqueda defensiva aislada por edición usando .filter().first() para evitar MultipleObjectsReturned (Error 500)
+        disertantes = Disertante.objects.filter(nombre=nombre, edicion=edicion)
+        if disertantes.exists():
+            disertante = disertantes.first()
             disertante.empresa_institucion = postulacion.empresa_institucion or ''
             disertante.bio = postulacion.resumen_charla or ''
             disertante.tema_presentacion = postulacion.titulo_charla or 'Disertación'
             disertante.linkedin = postulacion.linkedin
             if postulacion.foto_perfil:
-                disertante.foto = postulacion.foto_perfil
+                try:
+                    disertante.foto = postulacion.foto_perfil
+                except Exception as e:
+                    logger.warning(f"No se pudo asignar foto_perfil al disertante {nombre}: {e}")
             disertante.estado = 'APROBADO'
             disertante.save()
+        else:
+            disertante = Disertante.objects.create(
+                nombre=nombre,
+                edicion=edicion,
+                empresa_institucion=postulacion.empresa_institucion or '',
+                bio=postulacion.resumen_charla or '',
+                tema_presentacion=postulacion.titulo_charla or 'Disertación',
+                linkedin=postulacion.linkedin,
+                foto=postulacion.foto_perfil if postulacion.foto_perfil else None,
+                estado='APROBADO'
+            )
+        
+        # Sincronizar automáticamente con el Programa de esa edición
+        try:
+            crear_o_actualizar_programa_desde_postulacion(postulacion, disertante)
+        except Exception as e:
+            logger.error(f"Error al sincronizar programa para disertante {nombre}: {e}")
     else:
         Disertante.objects.filter(nombre=nombre, edicion=edicion).update(estado='PENDIENTE')
+
 

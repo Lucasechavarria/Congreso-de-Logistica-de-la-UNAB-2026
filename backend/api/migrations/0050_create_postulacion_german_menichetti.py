@@ -1,9 +1,9 @@
-# Generated manually to update fields and insert postulación for GERMAN MENICHETTI
+# Generated manually to update fields and insert/update postulación for GERMAN MENICHETTI
 
 from django.db import migrations, models
 
 
-def crear_postulacion_german_menichetti(apps, schema_editor):
+def crear_o_actualizar_postulacion_german_menichetti(apps, schema_editor):
     PostulacionDisertante = apps.get_model('api', 'PostulacionDisertante')
     Edicion = apps.get_model('api', 'Edicion')
 
@@ -17,23 +17,31 @@ def crear_postulacion_german_menichetti(apps, schema_editor):
     titulo = "Infraestructura vial inteligente: cómo la telemetría transforma la gestión urbana a nivel municipal"
     resumen = "evidencia para la planificación y gestión de infraestructura vial urbana en municipios bonaerenses"
 
-    postulacion, created = PostulacionDisertante.objects.get_or_create(
-        nombre_apellido=nombre,
-        titulo_charla=titulo,
-        defaults={
-            'edicion': edicion,
-            'resumen_charla': resumen,
-            'objetivos_charla': resumen,
-            'estado': 'PENDIENTE',
-            'acepta_tyc': True,
-        }
-    )
+    # Buscar primero por ID 13 o por nombre
+    postulacion = PostulacionDisertante.objects.filter(id=13).first()
+    if not postulacion:
+        postulacion = PostulacionDisertante.objects.filter(nombre_apellido__icontains="GERMAN MENICHETTI").first()
 
-    if not created:
-        postulacion.edicion = edicion
+    if postulacion:
+        postulacion.nombre_apellido = nombre
+        postulacion.titulo_charla = titulo
         postulacion.resumen_charla = resumen
         postulacion.objetivos_charla = resumen
+        postulacion.edicion = edicion
+        if not postulacion.estado:
+            postulacion.estado = 'PENDIENTE'
+        postulacion.acepta_tyc = True
         postulacion.save()
+    else:
+        PostulacionDisertante.objects.create(
+            nombre_apellido=nombre,
+            titulo_charla=titulo,
+            resumen_charla=resumen,
+            objetivos_charla=resumen,
+            edicion=edicion,
+            estado='PENDIENTE',
+            acepta_tyc=True,
+        )
 
 
 class Migration(migrations.Migration):
@@ -78,5 +86,5 @@ class Migration(migrations.Migration):
             name='objetivos_charla',
             field=models.TextField(blank=True, default='', verbose_name='Objetivos de la exposición'),
         ),
-        migrations.RunPython(crear_postulacion_german_menichetti, reverse_code=migrations.RunPython.noop),
+        migrations.RunPython(crear_o_actualizar_postulacion_german_menichetti, reverse_code=migrations.RunPython.noop),
     ]

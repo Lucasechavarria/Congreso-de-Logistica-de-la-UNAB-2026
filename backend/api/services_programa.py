@@ -15,30 +15,34 @@ def _mapear_categoria(ejes_raw: str) -> str:
     if not ejes_raw or str(ejes_raw).strip() in ('—', '-', '', 'None'):
         return "LOGISTICA"
     
-    ejes_lower = str(ejes_raw).lower()
+    import unicodedata
+    raw_str = str(ejes_raw).lower()
+    raw_clean = unicodedata.normalize('NFD', raw_str)
+    ejes_clean = "".join(c for c in raw_clean if unicodedata.category(c) != 'Mn')
     
-    if "puerto" in ejes_lower or "comex" in ejes_lower or "comercio" in ejes_lower or "transporte" in ejes_lower or "movilidad" in ejes_lower:
+    if any(w in ejes_clean for w in ["puerto", "comex", "comercio", "transporte", "movilidad"]):
         return "PUERTOS/COMERCIO EXTERIOR"
-    elif "tecnolog" in ejes_lower or "ia" in ejes_lower or "digital" in ejes_lower or "data" in ejes_lower or "wms" in ejes_lower:
+    elif any(w in ejes_clean for w in ["tecnolog", "ia", "digital", "data", "wms", "inteligencia"]):
         return "TECNOLOGIA"
-    elif "e-com" in ejes_lower or "comercio electronico" in ejes_lower:
+    elif any(w in ejes_clean for w in ["e-com", "comercio electronico", "ecommerce"]):
         return "E-COMMERS"
-    elif "supply" in ejes_lower or "cadena" in ejes_lower or "operaciones" in ejes_lower or "lean" in ejes_lower:
+    elif any(w in ejes_clean for w in ["supply", "cadena", "operaciones", "lean", "suministro"]):
         return "SUPPLY CHAIN"
-    elif "humano" in ejes_lower or "talento" in ejes_lower or "recursos" in ejes_lower or "management" in ejes_lower or "persona" in ejes_lower or "estrategia" in ejes_lower:
+    elif any(w in ejes_clean for w in ["humano", "talento", "recursos", "management", "persona", "estrategia"]):
         return "CAPITAL HUMANO"
-    elif "radio" in ejes_lower:
+    elif "radio" in ejes_clean:
         return "RADIO"
-    elif "sustentab" in ejes_lower or "verde" in ejes_lower or "ecolog" in ejes_lower or "innovacion" in ejes_lower or "offshore" in ejes_lower or "caso" in ejes_lower:
+    elif any(w in ejes_clean for w in ["sustentab", "verde", "ecolog", "innovacion", "offshore", "caso"]):
         return "SUSTENTABILIDAD"
-    elif "apertura" in ejes_lower or "cierre" in ejes_lower or "institucional" in ejes_lower or "general" in ejes_lower:
+    elif any(w in ejes_clean for w in ["apertura", "cierre", "institucional", "general"]):
         return "INSTITUCIONAL"
-    elif "coffee" in ejes_lower or "networking" in ejes_lower:
+    elif any(w in ejes_clean for w in ["coffee", "networking"]):
         return "NETWORKING"
-    elif "taller" in ejes_lower or "demo" in ejes_lower or "hackaton" in ejes_lower:
+    elif any(w in ejes_clean for w in ["taller", "demo", "hackaton", "workshop"]):
         return "WORKSHOP"
     else:
         return "LOGISTICA"
+
 
 
 def _mapear_aula(aula_raw: str) -> str:
@@ -494,9 +498,12 @@ def crear_o_actualizar_programa_desde_postulacion(postulacion, disertante) -> Pr
     """
     Crea o actualiza una entrada en el modelo Programa para una postulación aprobada,
     asociando el disertante y mapeando la categoría a partir de los ejes temáticos.
+    Soporta texto latino con caracteres especiales y acentos.
     """
+    from .services import clean_unicode_text
     edicion = postulacion.edicion or Edicion.objects.filter(activa=True).first()
-    titulo = postulacion.titulo_charla.strip() if postulacion.titulo_charla else "Disertación"
+    titulo = clean_unicode_text(postulacion.titulo_charla, max_len=255) or "Disertación"
+    descripcion = clean_unicode_text(postulacion.resumen_charla)
     categoria = _mapear_categoria(postulacion.ejes_tematicos)
     
     programa = Programa.objects.filter(titulo=titulo, edicion=edicion).first()
@@ -505,13 +512,13 @@ def crear_o_actualizar_programa_desde_postulacion(postulacion, disertante) -> Pr
         programa = Programa.objects.create(
             edicion=edicion,
             titulo=titulo,
-            descripcion=postulacion.resumen_charla or "",
+            descripcion=descripcion,
             categoria=categoria,
             estado='PUBLICADO'
         )
     else:
-        if postulacion.resumen_charla:
-            programa.descripcion = postulacion.resumen_charla
+        if descripcion:
+            programa.descripcion = descripcion
         programa.categoria = categoria
         programa.estado = 'PUBLICADO'
         programa.save()
@@ -520,6 +527,7 @@ def crear_o_actualizar_programa_desde_postulacion(postulacion, disertante) -> Pr
         programa.disertantes.add(disertante)
         
     return programa
+
 
 
 def generar_borrador_programa_desde_postulaciones(queryset) -> Tuple[int, int]:

@@ -256,27 +256,49 @@ def register_asistente_or_group(validated_data: dict, integrantes_data: list = N
     return asistente
 
 
+import unicodedata
+
+def clean_unicode_text(text: Any, max_len: int | None = None) -> str:
+    """
+    Limpia y normaliza cadenas de texto para asegurar compatibilidad total
+    con caracteres latinos (á, é, í, ó, ú, ñ, Ñ, ü, Ü), elimina espacios
+    indeseados (como non-breaking spaces \\xa0) y trunca a max_len si es necesario.
+    """
+    if not text:
+        return ""
+    s = str(text)
+    s = unicodedata.normalize('NFC', s)
+    s = s.replace('\xa0', ' ').replace('\r', '').strip()
+    if max_len and len(s) > max_len:
+        s = s[:max_len].strip()
+    return s
+
+
 def sync_postulacion_a_disertante(postulacion) -> None:
     """
     Sincroniza una PostulacionDisertante aprobada hacia el modelo público Disertante y el Programa.
     Aislado por edición: si pertenece a la misma edición actualiza sus datos, si es de otra edición no la modifica.
-    Completamente defensivo contra errores de archivos faltantes o inconsistencias de DB.
+    Completamente defensivo contra errores de caracteres especiales latinos, archivos faltantes o inconsistencias de DB.
     """
     from .models import Disertante, Edicion
     from .services_programa import crear_o_actualizar_programa_desde_postulacion
     
     try:
         edicion = postulacion.edicion or Edicion.objects.filter(activa=True).first()
-        nombre = postulacion.nombre_apellido.strip() if postulacion.nombre_apellido else "Disertante"
+        nombre = clean_unicode_text(postulacion.nombre_apellido, max_len=200) or "Disertante"
+        empresa = clean_unicode_text(postulacion.empresa_institucion, max_len=255)
+        bio = clean_unicode_text(postulacion.resumen_charla)
+        tema = clean_unicode_text(postulacion.titulo_charla, max_len=255) or "Disertación"
+        linkedin = clean_unicode_text(postulacion.linkedin, max_len=500)
         
         if postulacion.estado == 'APROBADO':
             disertantes = Disertante.objects.filter(nombre=nombre, edicion=edicion)
             if disertantes.exists():
                 disertante = disertantes.first()
-                disertante.empresa_institucion = postulacion.empresa_institucion or ''
-                disertante.bio = postulacion.resumen_charla or ''
-                disertante.tema_presentacion = postulacion.titulo_charla or 'Disertación'
-                disertante.linkedin = postulacion.linkedin
+                disertante.empresa_institucion = empresa
+                disertante.bio = bio
+                disertante.tema_presentacion = tema
+                disertante.linkedin = linkedin if linkedin else None
                 if postulacion.foto_perfil:
                     try:
                         disertante.foto = postulacion.foto_perfil
@@ -288,10 +310,10 @@ def sync_postulacion_a_disertante(postulacion) -> None:
                 disertante = Disertante(
                     nombre=nombre,
                     edicion=edicion,
-                    empresa_institucion=postulacion.empresa_institucion or '',
-                    bio=postulacion.resumen_charla or '',
-                    tema_presentacion=postulacion.titulo_charla or 'Disertación',
-                    linkedin=postulacion.linkedin,
+                    empresa_institucion=empresa,
+                    bio=bio,
+                    tema_presentacion=tema,
+                    linkedin=linkedin if linkedin else None,
                     estado='APROBADO'
                 )
                 if postulacion.foto_perfil:
@@ -310,6 +332,7 @@ def sync_postulacion_a_disertante(postulacion) -> None:
             Disertante.objects.filter(nombre=nombre, edicion=edicion).update(estado='PENDIENTE')
     except Exception as e:
         logger.error(f"Error general en sync_postulacion_a_disertante para postulacion ID {getattr(postulacion, 'id', None)}: {e}", exc_info=True)
+
 
 
 

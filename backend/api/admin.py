@@ -2218,8 +2218,13 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
             obj.fecha_revision = timezone.now()
             obj.revisada_por = request.user
         super().save_model(request, obj, form, change)
-        from .services import sync_postulacion_a_disertante
-        sync_postulacion_a_disertante(obj)
+        try:
+            from .services import sync_postulacion_a_disertante
+            sync_postulacion_a_disertante(obj)
+        except Exception as e:
+            logger.error(f"Error al sincronizar postulación {obj.id} a disertante: {e}")
+            messages.warning(request, f"La postulación se guardó correctamente, pero ocurrió un aviso en la sincronización: {e}")
+
 
     def aprobar_postulaciones(self, request, queryset):
         from .services import sync_postulacion_a_disertante

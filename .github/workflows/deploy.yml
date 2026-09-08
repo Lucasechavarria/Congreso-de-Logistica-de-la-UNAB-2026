@@ -115,6 +115,10 @@ jobs:
         run: |
           /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py migrate --noinput
 
+      - name: Collect Static Files
+        run: |
+          /var/www/congreso/backend/venv/bin/python /var/www/congreso/backend/manage.py collectstatic --noinput
+
       - name: Validate Python Syntax (Pre-restart)
         run: |
           /var/www/congreso/backend/venv/bin/python -m compileall -q /var/www/congreso/backend/

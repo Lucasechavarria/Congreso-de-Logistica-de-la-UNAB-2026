@@ -55,22 +55,48 @@ class EdicionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = EdicionSerializer
     permission_classes = [AllowAny]
 
-class DisertanteViewSet(viewsets.ReadOnlyModelViewSet):
+class DisertanteViewSet(viewsets.ModelViewSet):
     """
-    Un ViewSet para ver la lista de disertantes y los detalles de uno específico.
-    Filtra por edición activa y estado APROBADO.
+    ViewSet para listar y gestionar disertantes públicos.
+    Filtra por edición activa y estado APROBADO en lecturas GET.
+    Permite creación manual directa.
     """
     serializer_class = DisertanteSerializer
-    permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
 
     def get_queryset(self):
-        edicion_id = self.request.query_params.get('edicion_id')
+        edicion_id = self.request.query_params.get('edicion_id') or self.request.query_params.get('edicion')
         queryset = Disertante.objects.filter(estado='APROBADO')
         if edicion_id:
             queryset = queryset.filter(edicion_id=edicion_id)
         else:
             queryset = queryset.filter(edicion__activa=True)
         return queryset
+
+    def perform_create(self, serializer):
+        from .services_programa import sincronizar_disertante_manual_a_programa
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        disertante = serializer.save(
+            edicion=serializer.validated_data.get('edicion') or edicion_activa,
+            estado=serializer.validated_data.get('estado') or 'APROBADO'
+        )
+        try:
+            sincronizar_disertante_manual_a_programa(disertante)
+        except Exception:
+            pass
+
+    def perform_update(self, serializer):
+        from .services_programa import sincronizar_disertante_manual_a_programa
+        disertante = serializer.save()
+        try:
+            sincronizar_disertante_manual_a_programa(disertante)
+        except Exception:
+            pass
+
 
 class ProgramaViewSet(viewsets.ReadOnlyModelViewSet):
     """

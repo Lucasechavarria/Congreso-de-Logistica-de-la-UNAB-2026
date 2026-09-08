@@ -2001,16 +2001,35 @@ class ProgramaAdmin(admin.ModelAdmin):
 class DisertanteAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
-            'fields': ('nombre', 'empresa_institucion', 'foto', 'foto_url', 'tema_presentacion', 'linkedin')
+            'fields': ('edicion', 'estado', 'nombre', 'empresa_institucion', 'foto', 'foto_url', 'tema_presentacion', 'linkedin')
         }),
         ('Información opcional', {
             'classes': ('collapse',),
-            'fields': ('bio',),
+            'fields': ('bio', 'usuario'),
         }),
     )
-    list_display = ('nombre', 'empresa_institucion', 'tema_presentacion', 'edicion', 'linkedin')
+    list_display = ('nombre', 'empresa_institucion', 'tema_presentacion', 'edicion', 'estado', 'linkedin')
     list_filter = ('edicion', 'estado')
     search_fields = ('nombre', 'empresa_institucion', 'tema_presentacion')
+    list_editable = ('estado',)
+
+    def save_model(self, request, obj, form, change):
+        from .models import Edicion
+        from .services_programa import sincronizar_disertante_manual_a_programa
+
+        if not obj.edicion:
+            obj.edicion = Edicion.objects.filter(activa=True).first()
+
+        if not obj.estado:
+            obj.estado = 'APROBADO'
+
+        super().save_model(request, obj, form, change)
+
+        try:
+            sincronizar_disertante_manual_a_programa(obj)
+        except Exception as e:
+            logger.error(f"Error al sincronizar disertante manual a programa: {e}")
+
 @admin.register(Empresa)
 class EmpresaAdmin(SimpleHistoryAdmin):
     class Media:

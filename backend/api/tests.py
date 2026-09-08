@@ -5,7 +5,7 @@ from rest_framework.test import APIClient
 from .models import (
     Disertante, Asistente, Inscripcion, MiembroGrupo, 
     Empresa, Certificado, Edicion, PostulacionDisertante,
-    InscripcionPrensa
+    InscripcionPrensa, Programa
 )
 from unittest.mock import patch
 from django.utils import timezone
@@ -139,6 +139,105 @@ class DisertanteTests(BaseCongressTest):
         with patch('api.email.send_admin_postulation_alert', return_value=True):
             response = self.client.post(self.postular_disertante_url, data, format='json')
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_aprobar_postulacion_sincroniza_disertante_y_programa(self):
+        """Aprobar una postulación crea/actualiza Disertante y Programa para la edición correspondiente."""
+        from .services import sync_postulacion_a_disertante
+        postulacion = PostulacionDisertante.objects.create(
+            edicion=self.edicion,
+            nombre_apellido="Juan Perez",
+            dni="12345678",
+            email="juan@test.com",
+            telefono="11223344",
+            ciudad_provincia="BA",
+            profesion_cargo="Ingeniero",
+            empresa_institucion="UNAB",
+            titulo_charla="Inteligencia Artificial en Logística",
+            resumen_charla="Resumen de IA...",
+            objetivos_charla="Objetivos...",
+            estado='APROBADO'
+        )
+        sync_postulacion_a_disertante(postulacion)
+
+        # Verificar Disertante
+        disertante = Disertante.objects.filter(nombre="Juan Perez", edicion=self.edicion).first()
+        self.assertIsNotNone(disertante)
+        self.assertEqual(disertante.estado, 'APROBADO')
+        self.assertEqual(disertante.tema_presentacion, "Inteligencia Artificial en Logística")
+
+        # Verificar Programa
+        prog = Programa.objects.filter(titulo="Inteligencia Artificial en Logística", edicion=self.edicion).first()
+        self.assertIsNotNone(prog)
+        self.assertIn(disertante, prog.disertantes.all())
+
+    def test_disertante_multi_edicion_aislado(self):
+        """
+        Un mismo disertante participando en ediciones distintas mantiene registros independientes 
+        sin sobrescribir la edición anterior ni generar error 500.
+        """
+        from .services import sync_postulacion_a_disertante
+        edicion_2025, _ = Edicion.objects.get_or_create(anio=2025, defaults={'nombre': "2025", 'activa': False})
+        
+        # Postulación Edición 2025
+        p1 = PostulacionDisertante.objects.create(
+            edicion=edicion_2025,
+            nombre_apellido="María Gonzalez",
+            dni="99887766",
+            email="maria@test.com",
+            telefono="112233",
+            ciudad_provincia="BA",
+            profesion_cargo="Licenciada",
+            empresa_institucion="Empresa 2025",
+            titulo_charla="Charla Logística 2025",
+            resumen_charla="Resumen 2025",
+            objetivos_charla="Obj",
+            estado='APROBADO'
+        )
+        sync_postulacion_a_disertante(p1)
+
+        # Postulación Edición 2026 (activa)
+        p2 = PostulacionDisertante.objects.create(
+            edicion=self.edicion,
+            nombre_apellido="María Gonzalez",
+            dni="99887766",
+            email="maria@test.com",
+            telefono="112233",
+            ciudad_provincia="BA",
+            profesion_cargo="Licenciada",
+            empresa_institucion="Empresa 2026",
+            titulo_charla="Charla Puertos 2026",
+            resumen_charla="Resumen 2026",
+            objetivos_charla="Obj",
+            estado='APROBADO'
+        )
+        sync_postulacion_a_disertante(p2)
+
+        # Deben existir 2 registros Disertante en total
+        self.assertEqual(Disertante.objects.filter(nombre="María Gonzalez").count(), 2)
+
+        d_2025 = Disertante.objects.get(nombre="María Gonzalez", edicion=edicion_2025)
+        d_2026 = Disertante.objects.get(nombre="María Gonzalez", edicion=self.edicion)
+
+        self.assertEqual(d_2025.tema_presentacion, "Charla Logística 2025")
+        self.assertEqual(d_2026.tema_presentacion, "Charla Puertos 2026")
+
+    def test_creacion_manual_disertante_sin_postulacion(self):
+        """Un disertante creado manualmente sin postulación se guarda APROBADO y sincroniza al programa."""
+        from .services_programa import sincronizar_disertante_manual_a_programa
+        disertante = Disertante.objects.create(
+            edicion=self.edicion,
+            nombre="Carlos Disertante Manual",
+            empresa_institucion="Empresa X",
+            tema_presentacion="Innovación Abierta",
+            bio="Biografía manual...",
+            estado='APROBADO'
+        )
+        sincronizar_disertante_manual_a_programa(disertante)
+
+        prog = Programa.objects.filter(titulo="Innovación Abierta", edicion=self.edicion).first()
+        self.assertIsNotNone(prog)
+        self.assertIn(disertante, prog.disertantes.all())
+
 
 class PrensaTests(BaseCongressTest):
     def test_inscripcion_prensa_upsert(self):

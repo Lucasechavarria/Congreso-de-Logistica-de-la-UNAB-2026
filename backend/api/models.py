@@ -34,11 +34,11 @@ class PostulacionDisertante(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='postulaciones_disertantes')
     # Personal & Profesional
     nombre_apellido = models.CharField(max_length=200, verbose_name="Nombre y Apellido")
-    dni = models.CharField(max_length=8, db_index=True, verbose_name="DNI / Documento")
-    email = models.EmailField(verbose_name="Email de contacto")
-    telefono = models.CharField(max_length=20, verbose_name="Teléfono")
-    ciudad_provincia = models.CharField(max_length=255, verbose_name="Ciudad y Provincia")
-    profesion_cargo = models.CharField(max_length=255, verbose_name="Profesión / Cargo actual")
+    dni = models.CharField(max_length=20, db_index=True, blank=True, default="", verbose_name="DNI / Documento")
+    email = models.EmailField(blank=True, default="", verbose_name="Email de contacto")
+    telefono = models.CharField(max_length=50, blank=True, default="", verbose_name="Teléfono")
+    ciudad_provincia = models.CharField(max_length=255, blank=True, default="", verbose_name="Ciudad y Provincia")
+    profesion_cargo = models.CharField(max_length=255, blank=True, default="", verbose_name="Profesión / Cargo actual")
     empresa_institucion = models.CharField(max_length=255, blank=True, default="", verbose_name="Empresa / Institución a la que pertenece (opcional)")
     linkedin = models.CharField(max_length=500, blank=True, null=True, verbose_name="LinkedIn u otra red profesional")
     
@@ -46,8 +46,8 @@ class PostulacionDisertante(models.Model):
     titulo_charla = models.CharField(max_length=255, verbose_name="Título de la exposición")
     ejes_tematicos = models.TextField(default='', blank=True, verbose_name="Eje temático al que se vincula (JSON String)")
     eje_otro = models.TextField(blank=True, null=True, verbose_name="Otro eje temático")
-    resumen_charla = models.TextField(verbose_name="Resumen de la charla (máx. 300 palabras)")
-    objetivos_charla = models.TextField(verbose_name="Objetivos de la exposición")
+    resumen_charla = models.TextField(blank=True, default="", verbose_name="Resumen de la charla (máx. 300 palabras)")
+    objetivos_charla = models.TextField(blank=True, default="", verbose_name="Objetivos de la exposición")
     publico_dirigido = models.TextField(default='', verbose_name="Público al que está dirigida (JSON String)")
     
     # Modalidad y Participación

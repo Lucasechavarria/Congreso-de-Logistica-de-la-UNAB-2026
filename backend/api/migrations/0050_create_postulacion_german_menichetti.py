@@ -1,44 +1,72 @@
-# Generated manually to update fields and insert/update postulación for GERMAN MENICHETTI
+# Migration 0050: Flexibilizar campos y restaurar la información histórica original de la postulación 13 (Germán Menichetti)
 
 from django.db import migrations, models
 
 
-def crear_o_actualizar_postulacion_german_menichetti(apps, schema_editor):
+def restaurar_info_historica_german_menichetti(apps, schema_editor):
     PostulacionDisertante = apps.get_model('api', 'PostulacionDisertante')
+    HistoricalPostulacionDisertante = apps.get_model('api', 'HistoricalPostulacionDisertante')
     Edicion = apps.get_model('api', 'Edicion')
 
-    edicion = Edicion.objects.filter(activa=True).first()
-    if not edicion:
-        edicion = Edicion.objects.filter(anio=2026).first()
-    if not edicion:
-        edicion = Edicion.objects.order_by('-id').first()
+    edicion = Edicion.objects.filter(activa=True).first() or Edicion.objects.filter(anio=2026).first() or Edicion.objects.order_by('-id').first()
 
-    nombre = "GERMAN MENICHETTI"
-    titulo = "Infraestructura vial inteligente: cómo la telemetría transforma la gestión urbana a nivel municipal"
-    resumen = "evidencia para la planificación y gestión de infraestructura vial urbana en municipios bonaerenses"
-
-    # Buscar primero por ID 13 o por nombre
+    # 1. Intentar obtener el registro actual (ID 13 o por nombre)
     postulacion = PostulacionDisertante.objects.filter(id=13).first()
     if not postulacion:
         postulacion = PostulacionDisertante.objects.filter(nombre_apellido__icontains="GERMAN MENICHETTI").first()
 
-    if postulacion:
-        postulacion.nombre_apellido = nombre
-        postulacion.titulo_charla = titulo
-        postulacion.resumen_charla = resumen
-        postulacion.objetivos_charla = resumen
-        postulacion.edicion = edicion
-        if not postulacion.estado:
-            postulacion.estado = 'PENDIENTE'
-        postulacion.acepta_tyc = True
+    # 2. Buscar en la tabla de historial (HistoricalPostulacionDisertante) la versión original previa a cualquier modificación
+    historial_original = HistoricalPostulacionDisertante.objects.filter(id=13).order_by('history_date').first()
+    if not historial_original:
+        historial_original = HistoricalPostulacionDisertante.objects.filter(nombre_apellido__icontains="GERMAN MENICHETTI").order_by('history_date').first()
+
+    if postulacion and historial_original:
+        # Restaurar absolutamente todos los campos originales desde el historial de la DB
+        postulacion.nombre_apellido = historial_original.nombre_apellido or postulacion.nombre_apellido
+        postulacion.dni = historial_original.dni or postulacion.dni
+        postulacion.email = historial_original.email or postulacion.email
+        postulacion.telefono = historial_original.telefono or postulacion.telefono
+        postulacion.ciudad_provincia = historial_original.ciudad_provincia or postulacion.ciudad_provincia
+        postulacion.profesion_cargo = historial_original.profesion_cargo or postulacion.profesion_cargo
+        postulacion.empresa_institucion = historial_original.empresa_institucion or postulacion.empresa_institucion
+        postulacion.linkedin = historial_original.linkedin or postulacion.linkedin
+        postulacion.titulo_charla = historial_original.titulo_charla or postulacion.titulo_charla
+        postulacion.ejes_tematicos = historial_original.ejes_tematicos or postulacion.ejes_tematicos
+        postulacion.eje_otro = historial_original.eje_otro or postulacion.eje_otro
+        postulacion.resumen_charla = historial_original.resumen_charla or postulacion.resumen_charla
+        postulacion.objetivos_charla = historial_original.objetivos_charla or postulacion.objetivos_charla
+        postulacion.publico_dirigido = historial_original.publico_dirigido or postulacion.publico_dirigido
+        postulacion.modalidad = historial_original.modalidad or postulacion.modalidad
+        postulacion.participacion_tipo = historial_original.participacion_tipo or postulacion.participacion_tipo
+        postulacion.experiencia_previa = historial_original.experiencia_previa or postulacion.experiencia_previa
+        postulacion.duracion_estimada = historial_original.duracion_estimada or postulacion.duracion_estimada
+        postulacion.requiere_equipamiento = historial_original.requiere_equipamiento or postulacion.requiere_equipamiento
+        postulacion.edicion = historial_original.edicion or edicion
         postulacion.save()
-    else:
+    elif not postulacion and historial_original:
+        # Re-crear el registro a partir del snapshot del historial si fue borrado o no existe
         PostulacionDisertante.objects.create(
-            nombre_apellido=nombre,
-            titulo_charla=titulo,
-            resumen_charla=resumen,
-            objetivos_charla=resumen,
-            edicion=edicion,
+            id=13,
+            edicion=historial_original.edicion or edicion,
+            nombre_apellido=historial_original.nombre_apellido,
+            dni=historial_original.dni or '',
+            email=historial_original.email or '',
+            telefono=historial_original.telefono or '',
+            ciudad_provincia=historial_original.ciudad_provincia or '',
+            profesion_cargo=historial_original.profesion_cargo or '',
+            empresa_institucion=historial_original.empresa_institucion or '',
+            linkedin=historial_original.linkedin,
+            titulo_charla=historial_original.titulo_charla or 'Infraestructura vial inteligente',
+            ejes_tematicos=historial_original.ejes_tematicos or '',
+            eje_otro=historial_original.eje_otro,
+            resumen_charla=historial_original.resumen_charla or '',
+            objetivos_charla=historial_original.objetivos_charla or '',
+            publico_dirigido=historial_original.publico_dirigido or '',
+            modalidad=historial_original.modalidad or '',
+            participacion_tipo=historial_original.participacion_tipo or '',
+            experiencia_previa=historial_original.experiencia_previa,
+            duracion_estimada=historial_original.duracion_estimada or 30,
+            requiere_equipamiento=historial_original.requiere_equipamiento,
             estado='PENDIENTE',
             acepta_tyc=True,
         )
@@ -86,5 +114,5 @@ class Migration(migrations.Migration):
             name='objetivos_charla',
             field=models.TextField(blank=True, default='', verbose_name='Objetivos de la exposición'),
         ),
-        migrations.RunPython(crear_o_actualizar_postulacion_german_menichetti, reverse_code=migrations.RunPython.noop),
+        migrations.RunPython(restaurar_info_historica_german_menichetti, reverse_code=migrations.RunPython.noop),
     ]

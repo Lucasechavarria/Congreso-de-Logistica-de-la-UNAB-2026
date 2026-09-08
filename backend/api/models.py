@@ -73,12 +73,20 @@ class PostulacionDisertante(models.Model):
 
     def save(self, *args, **kwargs):
         import unicodedata
+        text_fields = ['nombre_apellido', 'titulo_charla', 'empresa_institucion', 'profesion_cargo', 
+                       'ciudad_provincia', 'resumen_charla', 'objetivos_charla', 'experiencia_previa', 'notas_admin']
+        for field in text_fields:
+            val = getattr(self, field, None)
+            if val:
+                setattr(self, field, unicodedata.normalize('NFC', str(val)).replace('\xa0', ' ').strip())
+
         if self.nombre_apellido:
-            self.nombre_apellido = unicodedata.normalize('NFC', str(self.nombre_apellido)).replace('\xa0', ' ').strip()[:200]
+            self.nombre_apellido = self.nombre_apellido[:200]
         if self.titulo_charla:
-            self.titulo_charla = unicodedata.normalize('NFC', str(self.titulo_charla)).replace('\xa0', ' ').strip()[:255]
+            self.titulo_charla = self.titulo_charla[:255]
         if self.empresa_institucion:
-            self.empresa_institucion = unicodedata.normalize('NFC', str(self.empresa_institucion)).replace('\xa0', ' ').strip()[:255]
+            self.empresa_institucion = self.empresa_institucion[:255]
+
         super().save(*args, **kwargs)
 
     def __str__(self):

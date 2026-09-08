@@ -2214,15 +2214,21 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
     )
 
     def save_model(self, request, obj, form, change):
-        if 'estado' in form.changed_data:
-            obj.fecha_revision = timezone.now()
-            obj.revisada_por = request.user
-        super().save_model(request, obj, form, change)
+        try:
+            if 'estado' in form.changed_data:
+                obj.fecha_revision = timezone.now()
+                obj.revisada_por = request.user
+            super().save_model(request, obj, form, change)
+        except Exception as e:
+            logger.error(f"Error al guardar postulación {getattr(obj, 'id', None)}: {e}", exc_info=True)
+            messages.error(request, f"Ocurrió un inconveniente al guardar la postulación: {e}")
+            return
+
         try:
             from .services import sync_postulacion_a_disertante
             sync_postulacion_a_disertante(obj)
         except Exception as e:
-            logger.error(f"Error al sincronizar postulación {obj.id} a disertante: {e}")
+            logger.error(f"Error al sincronizar postulación {obj.id} a disertante: {e}", exc_info=True)
             messages.warning(request, f"La postulación se guardó correctamente, pero ocurrió un aviso en la sincronización: {e}")
 
 

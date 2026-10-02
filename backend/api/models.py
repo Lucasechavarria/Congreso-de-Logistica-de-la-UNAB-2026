@@ -553,3 +553,21 @@ class Dashboard(models.Model):
         managed = False
         verbose_name = "Dashboard de Estadísticas"
         verbose_name_plural = "📊 Dashboards de Estadísticas"
+
+class LogEnvioEmail(models.Model):
+    destinatario = models.EmailField(verbose_name="Email Destinatario")
+    asunto = models.CharField(max_length=255, verbose_name="Asunto")
+    tipo_email = models.CharField(max_length=50, default="general", verbose_name="Tipo de Email")
+    exitoso = models.BooleanField(default=False, verbose_name="¿Exitoso?")
+    error = models.TextField(blank=True, null=True, verbose_name="Mensaje de Error / Traceback")
+    fecha_envio = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Envío")
+
+    def __str__(self):
+        estado = "OK" if self.exitoso else "FALLO"
+        return f"[{estado}] {self.asunto} -> {self.destinatario} ({self.fecha_envio.strftime('%d/%m/%Y %H:%M')})"
+
+    class Meta:
+        ordering = ['-fecha_envio']
+        verbose_name = "Log de Envío de Email"
+        verbose_name_plural = "Logs de Envíos de Email"
+

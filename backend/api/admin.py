@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo
+from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
@@ -2380,3 +2380,21 @@ class MiembroGrupoAdmin(admin.ModelAdmin):
     list_filter = ('fecha_registro',)
     search_fields = ('full_name', 'dni', 'representante__first_name', 'representante__last_name')
     readonly_fields = ('fecha_registro',)
+
+@admin.register(LogEnvioEmail)
+class LogEnvioEmailAdmin(admin.ModelAdmin):
+    list_display = ('asunto', 'destinatario', 'tipo_email', 'exitoso_display', 'fecha_envio_format')
+    list_filter = ('exitoso', 'tipo_email', 'fecha_envio')
+    search_fields = ('destinatario', 'asunto', 'error')
+    readonly_fields = ('destinatario', 'asunto', 'tipo_email', 'exitoso', 'error', 'fecha_envio')
+    ordering = ['-fecha_envio']
+
+    def exitoso_display(self, obj):
+        if obj.exitoso:
+            return format_html('<span style="color: green; font-weight: bold;">✔ ÉXITO</span>')
+        return format_html('<span style="color: red; font-weight: bold;">✖ FALLÓ</span>')
+    exitoso_display.short_description = 'Estado'
+
+    def fecha_envio_format(self, obj):
+        return obj.fecha_envio.strftime("%d/%m/%Y %H:%M:%S")
+    fecha_envio_format.short_description = 'Fecha de Envío'

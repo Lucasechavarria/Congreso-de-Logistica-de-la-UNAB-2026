@@ -88,7 +88,7 @@ export const EmpresaModal: React.FC<EmpresaModalProps> = ({ isOpen, onClose, emp
                   <div className="flex flex-wrap gap-2">
                     {empresa.es_sponsor && (
                       <span className="px-3 py-1 bg-amber-50 text-amber-800 text-xs font-extrabold rounded-full uppercase tracking-wider border border-amber-300 flex items-center gap-1 shadow-sm">
-                        <Award className="w-3.5 h-3.5 text-amber-500" /> Auspiciante Gold
+                        <Award className="w-3.5 h-3.5 text-amber-500" /> Auspiciante
                       </span>
                     )}
                     {Boolean(

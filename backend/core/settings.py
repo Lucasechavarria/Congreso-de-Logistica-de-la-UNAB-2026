@@ -197,11 +197,13 @@ DEFAULT_APP_PASSWORD = 'pavtiulxqbyazxbn'
 _raw_email_pass = os.getenv('EMAIL_HOST_PASSWORD', '')
 _clean_email_pass = _raw_email_pass.replace(' ', '').strip() if _raw_email_pass else ''
 
-# Priorizar la contraseña limpia de 16 caracteres, o usar la nueva contraseña de aplicación si la del .env está vacía o es obsoleta
-if _clean_email_pass and len(_clean_email_pass) == 16:
+# Forzar el uso de la clave nueva recién creada si la del .env es obsoleta o distinta a la nueva
+if _clean_email_pass == DEFAULT_APP_PASSWORD:
     EMAIL_HOST_PASSWORD = _clean_email_pass
 else:
+    # Usar la nueva clave de aplicación activa dada por el usuario
     EMAIL_HOST_PASSWORD = DEFAULT_APP_PASSWORD
+
 
 # Auto-detección inteligente: Puerto 465 requiere SSL, Puerto 587 requiere TLS
 if EMAIL_PORT == 465:

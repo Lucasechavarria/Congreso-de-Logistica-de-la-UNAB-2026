@@ -15,14 +15,14 @@ const scaleIn: Variants = {
 };
 
 export default function SponsorsSection() {
-  const { sponsors: realSponsors, loading } = useEmpresas(null);
+  const { sponsors, loading } = useEmpresas(null);
   const [selectedEmpresa, setSelectedEmpresa] = React.useState<EmpresaAPI | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
-  if (loading && realSponsors.length === 0) return null;
+  // Solo se renderiza en el frontend si hay al menos una empresa tildada como sponsor desde el admin
+  if (loading || sponsors.length === 0) return null;
 
-  const activeSponsors = realSponsors.length > 0 ? realSponsors : FALLBACK_SPONSORS;
-  const count = activeSponsors.length;
+  const count = sponsors.length;
 
   const handleLogoClick = (empresa: EmpresaAPI) => {
     setSelectedEmpresa(empresa);
@@ -63,12 +63,12 @@ export default function SponsorsSection() {
           /* 1 SPONSOR: Centrado, tamaño Hero VIP grande */
           <div className="max-w-3xl mx-auto flex justify-center">
             <motion.div
-              key={activeSponsors[0].id}
+              key={sponsors[0].id}
               variants={scaleIn}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
-              onClick={() => handleLogoClick(activeSponsors[0])}
+              onClick={() => handleLogoClick(sponsors[0])}
               className="group relative w-full cursor-pointer"
             >
               <div className="relative bg-gradient-to-b from-white via-amber-50/20 to-white rounded-3xl p-10 sm:p-14 md:p-16 h-72 sm:h-80 md:h-96 flex flex-col items-center justify-center border-2 border-amber-300/80 shadow-[0_15px_50px_rgba(251,191,36,0.18)] hover:shadow-[0_20px_60px_rgba(251,191,36,0.3)] hover:-translate-y-2 transition-all duration-500 overflow-hidden">
@@ -81,14 +81,14 @@ export default function SponsorsSection() {
 
                 <div className="w-full flex-1 flex items-center justify-center mt-6 mb-2">
                   <img
-                    src={activeSponsors[0].logo}
-                    alt={activeSponsors[0].nombre_empresa}
+                    src={sponsors[0].logo}
+                    alt={sponsors[0].nombre_empresa}
                     className="max-w-[85%] max-h-36 sm:max-h-44 md:max-h-52 object-contain transition-transform duration-500 group-hover:scale-105 filter drop-shadow-md"
                   />
                 </div>
 
                 <div className="mt-2 flex items-center gap-2 text-slate-800 font-bold text-lg sm:text-xl group-hover:text-amber-600 transition-colors">
-                  <span>{activeSponsors[0].nombre_empresa}</span>
+                  <span>{sponsors[0].nombre_empresa}</span>
                   <ChevronRight className="w-5 h-5 text-amber-500 transform group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
@@ -99,7 +99,7 @@ export default function SponsorsSection() {
         {count === 2 && (
           /* 2 SPONSORS: 1 sola línea en sm+, perfectamente centrados */
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 md:gap-12 max-w-4xl mx-auto justify-center items-center">
-            {activeSponsors.map((sponsor, idx) => (
+            {sponsors.map((sponsor, idx) => (
               <motion.div
                 key={sponsor.id}
                 variants={scaleIn}
@@ -139,7 +139,7 @@ export default function SponsorsSection() {
         {count === 3 && (
           /* 3 SPONSORS: 1 sola línea de 3 en md+, centrados */
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-5xl md:max-w-6xl mx-auto justify-center items-center">
-            {activeSponsors.map((sponsor, idx) => (
+            {sponsors.map((sponsor, idx) => (
               <motion.div
                 key={sponsor.id}
                 variants={scaleIn}
@@ -179,7 +179,7 @@ export default function SponsorsSection() {
         {count === 4 && (
           /* 4 SPONSORS: 4 en 1 línea en lg+ o 2x2 grid centrados */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto justify-center items-center">
-            {activeSponsors.map((sponsor, idx) => (
+            {sponsors.map((sponsor, idx) => (
               <motion.div
                 key={sponsor.id}
                 variants={scaleIn}
@@ -219,7 +219,7 @@ export default function SponsorsSection() {
         {count >= 5 && (
           /* 5 O MÁS SPONSORS: Flex Wrap totalmente centrado */
           <div className="flex flex-wrap justify-center items-center gap-6 md:gap-8 max-w-6xl mx-auto">
-            {activeSponsors.map((sponsor, idx) => (
+            {sponsors.map((sponsor, idx) => (
               <motion.div
                 key={sponsor.id}
                 variants={scaleIn}

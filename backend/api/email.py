@@ -27,10 +27,29 @@ def sanitize_email_subject(text: str) -> str:
     s = re.sub(r'[\r\n\t]', ' ', s)
     return s.strip()
 
+import traceback
+
+def registrar_log_email(destinatario: str, asunto: str, tipo_email: str, exitoso: bool, error_msg: str = None):
+    """
+    Registra defensivamente un intento de envío de correo en la tabla LogEnvioEmail.
+    """
+    try:
+        from .models import LogEnvioEmail
+        LogEnvioEmail.objects.create(
+            destinatario=destinatario or "desconocido",
+            asunto=asunto or "Sin asunto",
+            tipo_email=tipo_email,
+            exitoso=exitoso,
+            error=error_msg
+        )
+    except Exception as e:
+        print(f"[ERROR] No se pudo guardar el LogEnvioEmail en BD: {e}")
+
 # Email oficial del congreso (remitente y copia interna)
 CONGRESO_EMAIL = "congresologisticaytransporte@unab.edu.ar"
 # Logo negro del congreso (para embeber en templates de email)
 LOGO_PATH_DEFAULT = os.path.join('public', 'images', 'CONGRESO-LOGISTICA-2.png')
+
 
 def get_logo_path():
     """Retorna la ruta absoluta al logo del congreso (negro), priorizando la variable de entorno."""
@@ -308,10 +327,24 @@ def send_individual_confirmation_email(asistente):
         
         email.send()
         print(f"[INFO] Email de confirmación enviado a: {asistente.email}")
+        registrar_log_email(
+            destinatario=asistente.email,
+            asunto='Confirmación de Inscripción al Congreso de Logística UNAB',
+            tipo_email='confirmacion_individual',
+            exitoso=True
+        )
         return True
         
     except Exception as e:
-        print(f"[ERROR] Error enviando email a {asistente.email}: {e}")
+        err_msg = f"{str(e)}\n{traceback.format_exc()}"
+        print(f"[ERROR] Error enviando email a getattr(asistente, 'email', 'desconocido'): {e}")
+        registrar_log_email(
+            destinatario=getattr(asistente, 'email', 'desconocido'),
+            asunto='Confirmación de Inscripción al Congreso de Logística UNAB',
+            tipo_email='confirmacion_individual',
+            exitoso=False,
+            error_msg=err_msg
+        )
         return False
 
 def send_postulacion_disertante_email(postulacion):

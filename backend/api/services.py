@@ -238,17 +238,29 @@ def register_asistente_or_group(validated_data: dict, integrantes_data: list = N
         for attr, value in detalles_data.items():
             setattr(asistente, attr, value)
 
+        from .email import send_individual_confirmation_email, send_group_confirmation_emails
+
         def _safe_dispatch_grupal(a_id: int = asistente.id) -> None:
             try:
                 task_enviar_confirmacion_grupal.delay(a_id)
             except Exception as e:
-                logger.error(f"[Celery] Error ejecutando/encolar confirmación grupal: {e}")
+                logger.warning(f"[Celery] Error encolando o Redis no disponible ({e}). Ejecutando fallback síncrono grupal...")
+                try:
+                    rep = Asistente.objects.get(id=a_id)
+                    send_group_confirmation_emails(rep)
+                except Exception as sync_err:
+                    logger.error(f"[Fallback Sync] Error en envío grupal directo: {sync_err}")
 
         def _safe_dispatch_individual(a_id: int = asistente.id) -> None:
             try:
                 task_enviar_confirmacion_individual.delay(a_id)
             except Exception as e:
-                logger.error(f"[Celery] Error ejecutando/encolar confirmación individual: {e}")
+                logger.warning(f"[Celery] Error encolando o Redis no disponible ({e}). Ejecutando fallback síncrono individual...")
+                try:
+                    asis = Asistente.objects.get(id=a_id)
+                    send_individual_confirmation_email(asis)
+                except Exception as sync_err:
+                    logger.error(f"[Fallback Sync] Error en envío individual directo: {sync_err}")
 
         if asistente.profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
             if integrantes_data:

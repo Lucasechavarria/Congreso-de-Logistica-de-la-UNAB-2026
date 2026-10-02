@@ -360,3 +360,16 @@ class CertificateMemoryTests(BaseCongressTest):
         # El certificado de 2026 debe estar asociado a la edición 2026
         self.assertEqual(cert_2026.edicion, self.edicion)
         self.assertNotEqual(cert_2025.id, cert_2026.id)
+
+class DiagnosticoEmailTests(BaseCongressTest):
+    def test_diagnostico_email_endpoint(self):
+        url = reverse('diagnostico-email')
+        response = self.client.get(f"{url}?email=testdiagnostico@unab.edu.ar")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIn('configuracion_smtp', data)
+        self.assertIn('broker_redis', data)
+        self.assertIn('archivos_adjuntos', data)
+        self.assertIn('prueba_smtp', data)
+        self.assertEqual(data['prueba_smtp']['destinatario'], "testdiagnostico@unab.edu.ar")
+

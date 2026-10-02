@@ -1500,3 +1500,105 @@ class DesuscripcionAlertasView(views.APIView):
                 'status': 'info', 
                 'message': 'No se encontraron alertas activas para este correo.'
             }, status=status.HTTP_200_OK)
+
+
+class DiagnosticoEmailView(views.APIView):
+    """
+    GET /api/diagnostico-email/
+    Endpoint de diagnóstico técnico para validar la infraestructura de correo SMTP,
+    conexión a Redis / Celery, existencia de archivos PDF/Logo y logs recientes de error.
+    Permite enviar un mail de prueba si se especifica ?email=destino@correo.com
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from django.core.mail import send_mail
+        from django.conf import settings
+        import redis, os, traceback
+        from .models import LogEnvioEmail, Asistente, Edicion
+
+        resultado = {
+            "fecha_diagnostico": timezone.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "configuracion_smtp": {
+                "email_host": getattr(settings, 'EMAIL_HOST', 'N/A'),
+                "email_port": getattr(settings, 'EMAIL_PORT', 'N/A'),
+                "email_host_user": getattr(settings, 'EMAIL_HOST_USER', None),
+                "email_use_tls": getattr(settings, 'EMAIL_USE_TLS', False),
+                "default_from_email": getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+                "configurado_user_pass": bool(getattr(settings, 'EMAIL_HOST_USER', None) and getattr(settings, 'EMAIL_HOST_PASSWORD', None))
+            },
+            "broker_redis": {
+                "url": getattr(settings, 'CELERY_BROKER_URL', 'N/A'),
+                "conectado": False,
+                "detalle": None
+            },
+            "archivos_adjuntos": {
+                "pdf_asistentes_existe": os.path.exists(os.path.join(settings.BASE_DIR, 'api', 'resources', 'tyc', 'Bases_Asistentes_2026.pdf')),
+                "pdf_empresas_existe": os.path.exists(os.path.join(settings.BASE_DIR, 'api', 'resources', 'tyc', 'Bases_Empresas_2026.pdf')),
+                "pdf_disertantes_existe": os.path.exists(os.path.join(settings.BASE_DIR, 'api', 'resources', 'tyc', 'Bases_Disertantes_2026.pdf')),
+            },
+            "prueba_smtp": {
+                "ejecutada": False,
+                "exito": False,
+                "destinatario": None,
+                "error": None
+            },
+            "ultimos_logs_errores_email": []
+        }
+
+        # 1. Probar Redis
+        try:
+            broker_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://localhost:6379/0')
+            r = redis.Redis.from_url(broker_url, socket_connect_timeout=1.5)
+            if r.ping():
+                resultado["broker_redis"]["conectado"] = True
+                resultado["broker_redis"]["detalle"] = "Conexión a Redis exitosa."
+        except Exception as e:
+            resultado["broker_redis"]["detalle"] = f"Falla de conexión a Redis: {str(e)}"
+
+        # 2. Prueba SMTP enviando correo de test si se solicita ?email=...
+        test_email = request.query_params.get('email')
+        if test_email:
+            resultado["prueba_smtp"]["ejecutada"] = True
+            resultado["prueba_smtp"]["destinatario"] = test_email
+            try:
+                sent = send_mail(
+                    subject="[DIAGNÓSTICO CONGRESO UNAB] Prueba SMTP",
+                    message="Este es un mensaje de prueba enviado desde el servidor de producción del Congreso de Logística UNAB.",
+                    from_email=settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
+                    recipient_list=[test_email],
+                    fail_silently=False
+                )
+                resultado["prueba_smtp"]["exito"] = bool(sent)
+                if sent:
+                    LogEnvioEmail.objects.create(
+                        destinatario=test_email,
+                        asunto="[DIAGNÓSTICO] Prueba SMTP",
+                        tipo_email="diagnostico",
+                        exitoso=True
+                    )
+            except Exception as e:
+                err_msg = f"{str(e)}\n{traceback.format_exc()}"
+                resultado["prueba_smtp"]["error"] = str(e)
+                LogEnvioEmail.objects.create(
+                    destinatario=test_email,
+                    asunto="[DIAGNÓSTICO] Prueba SMTP",
+                    tipo_email="diagnostico",
+                    exitoso=False,
+                    error=err_msg
+                )
+
+        # 3. Obtener los últimos 10 logs de errores de email guardados en BD
+        logs = LogEnvioEmail.objects.filter(exitoso=False)[:10]
+        resultado["ultimos_logs_errores_email"] = [
+            {
+                "destinatario": l.destinatario,
+                "asunto": l.asunto,
+                "tipo": l.tipo_email,
+                "fecha": l.fecha_envio.strftime("%d/%m/%Y %H:%M:%S"),
+                "error": l.error
+            } for l in logs
+        ]
+
+        return Response(resultado)
+

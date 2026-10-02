@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ExternalLink, Video, Building2, MapPin } from "lucide-react";
+import { X, ExternalLink, Video, Building2, MapPin, Award } from "lucide-react";
 
 interface EmpresaModalProps {
   isOpen: boolean;
@@ -87,8 +87,8 @@ export const EmpresaModal: React.FC<EmpresaModalProps> = ({ isOpen, onClose, emp
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex flex-wrap gap-2">
                     {empresa.es_sponsor && (
-                      <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full uppercase tracking-wider border border-amber-200">
-                        Auspiciante
+                      <span className="px-3 py-1 bg-amber-50 text-amber-800 text-xs font-extrabold rounded-full uppercase tracking-wider border border-amber-300 flex items-center gap-1 shadow-sm">
+                        <Award className="w-3.5 h-3.5 text-amber-500" /> Auspiciante Gold
                       </span>
                     )}
                     {Boolean(

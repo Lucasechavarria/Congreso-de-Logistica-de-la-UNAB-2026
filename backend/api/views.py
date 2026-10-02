@@ -1517,6 +1517,10 @@ class DiagnosticoEmailView(views.APIView):
         import redis, os, traceback
         from .models import LogEnvioEmail, Asistente, Edicion
 
+        raw_pass = getattr(settings, 'EMAIL_HOST_PASSWORD', '') or ''
+        pass_len = len(raw_pass)
+        pass_preview = f"{raw_pass[:2]}***{raw_pass[-2:]}" if pass_len >= 4 else ("***" if pass_len > 0 else "vacío")
+
         resultado = {
             "fecha_diagnostico": timezone.now().strftime("%d/%m/%Y %H:%M:%S"),
             "configuracion_smtp": {
@@ -1526,7 +1530,9 @@ class DiagnosticoEmailView(views.APIView):
                 "email_use_tls": getattr(settings, 'EMAIL_USE_TLS', False),
                 "email_use_ssl": getattr(settings, 'EMAIL_USE_SSL', False),
                 "default_from_email": getattr(settings, 'DEFAULT_FROM_EMAIL', None),
-                "configurado_user_pass": bool(getattr(settings, 'EMAIL_HOST_USER', None) and getattr(settings, 'EMAIL_HOST_PASSWORD', None))
+                "password_cargada_length": pass_len,
+                "password_cargada_preview": pass_preview,
+                "configurado_user_pass": bool(getattr(settings, 'EMAIL_HOST_USER', None) and raw_pass)
             },
             "broker_redis": {
                 "url": getattr(settings, 'CELERY_BROKER_URL', 'N/A'),

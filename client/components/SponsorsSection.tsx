@@ -76,7 +76,7 @@ export default function SponsorsSection() {
                 
                 <div className="absolute top-4 sm:top-6 inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 text-amber-800 rounded-full border border-amber-300/60 text-xs sm:text-sm font-extrabold uppercase tracking-widest shadow-sm">
                   <Award className="w-4 h-4 text-amber-500" />
-                  Auspiciante Oficial Exclusivo
+                  Auspiciante
                 </div>
 
                 <div className="w-full flex-1 flex items-center justify-center mt-6 mb-2">

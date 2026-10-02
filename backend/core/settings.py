@@ -186,21 +186,40 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Backend de email para producción
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# Para probar en local, comenta la línea de arriba y descomenta la siguiente:
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ['true', '1', 'yes']
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 465))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'congresologisticaytransporte@unab.edu.ar')
+
+# Nueva contraseña de aplicación oficial de Gmail (16 caracteres)
+DEFAULT_APP_PASSWORD = 'pavtiulxqbyazxbn'
+
+_raw_email_pass = os.getenv('EMAIL_HOST_PASSWORD', '')
+_clean_email_pass = _raw_email_pass.replace(' ', '').strip() if _raw_email_pass else ''
+
+# Priorizar la contraseña limpia de 16 caracteres, o usar la nueva contraseña de aplicación si la del .env está vacía o es obsoleta
+if _clean_email_pass and len(_clean_email_pass) == 16:
+    EMAIL_HOST_PASSWORD = _clean_email_pass
+else:
+    EMAIL_HOST_PASSWORD = DEFAULT_APP_PASSWORD
+
+# Auto-detección inteligente: Puerto 465 requiere SSL, Puerto 587 requiere TLS
+if EMAIL_PORT == 465:
+    EMAIL_USE_SSL = True
+    EMAIL_USE_TLS = False
+else:
+    EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ['true', '1', 'yes']
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ['true', '1', 'yes'] if not EMAIL_USE_SSL else False
+
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
 
 # Validación básica para evitar errores comunes
 if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
     print("[ERROR] EMAIL_HOST_USER o EMAIL_HOST_PASSWORD no están definidos en el .env. El envío de emails fallará.")
 if EMAIL_HOST_USER and '@gmail.com' in EMAIL_HOST_USER and EMAIL_HOST_PASSWORD and len(EMAIL_HOST_PASSWORD) < 16:
     print("[ADVERTENCIA] Gmail requiere una contraseña de aplicación (16 caracteres) si tienes 2FA activado. Verifica tu .env.")
+
 
 
 # Internationalization

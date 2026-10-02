@@ -1524,6 +1524,7 @@ class DiagnosticoEmailView(views.APIView):
                 "email_port": getattr(settings, 'EMAIL_PORT', 'N/A'),
                 "email_host_user": getattr(settings, 'EMAIL_HOST_USER', None),
                 "email_use_tls": getattr(settings, 'EMAIL_USE_TLS', False),
+                "email_use_ssl": getattr(settings, 'EMAIL_USE_SSL', False),
                 "default_from_email": getattr(settings, 'DEFAULT_FROM_EMAIL', None),
                 "configurado_user_pass": bool(getattr(settings, 'EMAIL_HOST_USER', None) and getattr(settings, 'EMAIL_HOST_PASSWORD', None))
             },

@@ -26,6 +26,35 @@ let empresasCache: EmpresaAPI[] | null = null;
 let lastFetchTime: number = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos de caché
 
+export const FALLBACK_SPONSORS: EmpresaAPI[] = [
+  {
+    id: 901,
+    nombre_empresa: "ARLOG",
+    logo: "/images/logos/ARLOG.png",
+    sitio_web: "https://arlog.org/",
+    descripcion: "Asociación Argentina de Logística Empresaria. Institución referente en la profesionalización e innovación de la cadena de suministro en el país.",
+    es_sponsor: true,
+    numero_stand: "A-01"
+  },
+  {
+    id: 902,
+    nombre_empresa: "Genba Kaizen",
+    logo: "/images/logos/GENBA-KAIZEN.jpeg",
+    sitio_web: "https://genbakaizen.com/",
+    descripcion: "Consultora líder en optimización de procesos de producción, eficiencia operativa y logística sustentable.",
+    es_sponsor: true,
+    numero_stand: "A-02"
+  },
+  {
+    id: 903,
+    nombre_empresa: "eTruck",
+    logo: "/images/logos/ETRUCK.png",
+    sitio_web: "https://etruck.com.ar/",
+    descripcion: "Soluciones tecnológicas en transporte de carga, flota e-mobility y monitoreo satelital en tiempo real.",
+    es_sponsor: true
+  }
+];
+
 export const useEmpresas = (edicionId?: number | null) => {
   const [empresas, setEmpresas] = useState<EmpresaAPI[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -146,8 +175,13 @@ export const useEmpresas = (edicionId?: number | null) => {
     };
   });
 
+  // Filtramos los sponsors reales o usamos el fallback de 3 marcas si aún no hay sponsors definidos
+  const apiSponsors = empresas.filter(e => e.es_sponsor);
+  const sponsors = apiSponsors.length > 0 ? apiSponsors : FALLBACK_SPONSORS;
+
   return {
     empresas,
+    sponsors,
     logosForCarousel,
     loading,
     error

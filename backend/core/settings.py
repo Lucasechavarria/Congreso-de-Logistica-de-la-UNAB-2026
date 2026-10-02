@@ -191,19 +191,9 @@ EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 465))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'congresologisticaytransporte@unab.edu.ar')
 
-# Nueva contraseña de aplicación oficial de Gmail (16 caracteres)
-DEFAULT_APP_PASSWORD = 'pavtiulxqbyazxbn'
-
+# Limpiar automáticamente espacios si se copió la Contraseña de Aplicación de Gmail (16 caracteres)
 _raw_email_pass = os.getenv('EMAIL_HOST_PASSWORD', '')
-_clean_email_pass = _raw_email_pass.replace(' ', '').strip() if _raw_email_pass else ''
-
-# Forzar el uso de la clave nueva recién creada si la del .env es obsoleta o distinta a la nueva
-if _clean_email_pass == DEFAULT_APP_PASSWORD:
-    EMAIL_HOST_PASSWORD = _clean_email_pass
-else:
-    # Usar la nueva clave de aplicación activa dada por el usuario
-    EMAIL_HOST_PASSWORD = DEFAULT_APP_PASSWORD
-
+EMAIL_HOST_PASSWORD = _raw_email_pass.replace(' ', '').strip() if _raw_email_pass else ''
 
 # Auto-detección inteligente: Puerto 465 requiere SSL, Puerto 587 requiere TLS
 if EMAIL_PORT == 465:
@@ -212,6 +202,7 @@ if EMAIL_PORT == 465:
 else:
     EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ['true', '1', 'yes']
     EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ['true', '1', 'yes'] if not EMAIL_USE_SSL else False
+
 
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 

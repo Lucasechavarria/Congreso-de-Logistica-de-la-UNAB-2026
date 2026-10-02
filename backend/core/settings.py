@@ -188,23 +188,23 @@ AUTH_PASSWORD_VALIDATORS = [
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', 465))
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+EMAIL_USE_TLS = False
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'congresologisticaytransporte@unab.edu.ar')
 
-# Limpiar automáticamente espacios si se copió la Contraseña de Aplicación de Gmail (16 caracteres)
+# Contraseña de aplicación oficial activa (pavtiulxqbyazxbn)
 _raw_email_pass = os.getenv('EMAIL_HOST_PASSWORD', '')
-EMAIL_HOST_PASSWORD = _raw_email_pass.replace(' ', '').strip() if _raw_email_pass else ''
+_clean_email_pass = _raw_email_pass.replace(' ', '').strip() if _raw_email_pass else ''
 
-# Auto-detección inteligente: Puerto 465 requiere SSL, Puerto 587 requiere TLS
-if EMAIL_PORT == 465:
-    EMAIL_USE_SSL = True
-    EMAIL_USE_TLS = False
+# Si la variable del entorno está vacía, con espacios o tiene la clave vieja 'jw...', usar la nueva clave activa 'pavtiulxqbyazxbn'
+if not _clean_email_pass or _clean_email_pass.startswith('jw') or len(_clean_email_pass) != 16:
+    EMAIL_HOST_PASSWORD = 'pavtiulxqbyazxbn'
 else:
-    EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ['true', '1', 'yes']
-    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ['true', '1', 'yes'] if not EMAIL_USE_SSL else False
-
+    EMAIL_HOST_PASSWORD = _clean_email_pass
 
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
 
 
 # Validación básica para evitar errores comunes

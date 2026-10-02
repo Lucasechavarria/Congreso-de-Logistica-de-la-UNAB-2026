@@ -52,14 +52,24 @@ LOGO_PATH_DEFAULT = os.path.join('public', 'images', 'CONGRESO-LOGISTICA-2.png')
 
 
 def get_logo_path():
-    """Retorna la ruta absoluta al logo del congreso (negro), priorizando la variable de entorno."""
+    """Retorna la ruta absoluta al logo del congreso (negro), infalible."""
+    resource_path = os.path.join(settings.BASE_DIR, 'api', 'resources', 'logo', 'logo-congreso.png')
+    if os.path.exists(resource_path):
+        return resource_path
+
     logo_env = os.getenv('LOGO_CONGRESO_PATH', LOGO_PATH_DEFAULT)
-    logo_path = os.path.join(settings.BASE_DIR, '..', logo_env)
-    if os.path.exists(logo_path):
-        return logo_path
-    # Fallback: intentar ruta directa desde BASE_DIR
-    fallback = os.path.join(settings.BASE_DIR, logo_env)
-    return fallback
+    candidates = [
+        os.path.join(settings.BASE_DIR, '..', logo_env),
+        os.path.join(settings.BASE_DIR, logo_env),
+        os.path.join(settings.BASE_DIR, '..', 'public', 'images', 'CONGRESO-LOGISTICA-2.png'),
+        os.path.join(settings.BASE_DIR, '..', 'public', 'images', 'logo-congreso-2026-negro.png'),
+        os.path.join(settings.BASE_DIR, 'public', 'images', 'CONGRESO-LOGISTICA-2.png'),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+            
+    return resource_path
 
 
 

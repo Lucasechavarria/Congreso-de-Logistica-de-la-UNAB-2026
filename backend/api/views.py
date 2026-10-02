@@ -22,7 +22,7 @@ from django.middleware.csrf import get_token
 from .email import (
     send_confirmation_email, send_bulk_confirmation_email, 
     send_certificate_email, send_admin_postulation_alert,
-    send_broadcast_batch_email
+    send_broadcast_batch_email, get_logo_path
 )
 import pandas as pd
 import re
@@ -1543,6 +1543,7 @@ class DiagnosticoEmailView(views.APIView):
                 "pdf_asistentes_existe": os.path.exists(os.path.join(settings.BASE_DIR, 'api', 'resources', 'tyc', 'Bases_Asistentes_2026.pdf')),
                 "pdf_empresas_existe": os.path.exists(os.path.join(settings.BASE_DIR, 'api', 'resources', 'tyc', 'Bases_Empresas_2026.pdf')),
                 "pdf_disertantes_existe": os.path.exists(os.path.join(settings.BASE_DIR, 'api', 'resources', 'tyc', 'Bases_Disertantes_2026.pdf')),
+                "logo_congreso_existe": os.path.exists(get_logo_path()),
             },
             "prueba_smtp": {
                 "ejecutada": False,

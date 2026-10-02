@@ -175,9 +175,8 @@ export const useEmpresas = (edicionId?: number | null) => {
     };
   });
 
-  // Filtramos los sponsors reales o usamos el fallback de 3 marcas si aún no hay sponsors definidos
-  const apiSponsors = empresas.filter(e => e.es_sponsor);
-  const sponsors = apiSponsors.length > 0 ? apiSponsors : FALLBACK_SPONSORS;
+  // Filtramos estrictamente los sponsors reales autorizados en el panel admin (es_sponsor === true)
+  const sponsors = empresas.filter(e => Boolean(e.es_sponsor));
 
   return {
     empresas,

@@ -1053,6 +1053,39 @@ class AsistenteAdmin(SimpleHistoryAdmin):
         'detalle_profesional__occupation'
     )
     ordering = ['-fecha_registro']
+    actions = ['reenviar_confirmacion_masiva']
+
+    def reenviar_confirmacion_masiva(self, request, queryset):
+        """
+        Acción masiva para reenviar inmediatamente los correos de confirmación
+        a los participantes seleccionados.
+        """
+        from .email import send_individual_confirmation_email, send_group_confirmation_emails
+        enviados = 0
+        fallidos = 0
+        for asistente in queryset:
+            try:
+                if asistente.profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
+                    res = send_group_confirmation_emails(asistente)
+                    if res and res.get('total_emails', 0) > 0:
+                        enviados += 1
+                    else:
+                        fallidos += 1
+                else:
+                    success = send_individual_confirmation_email(asistente)
+                    if success:
+                        enviados += 1
+                    else:
+                        fallidos += 1
+            except Exception as e:
+                fallidos += 1
+        
+        self.message_user(
+            request, 
+            f"Proceso de re-envío finalizado: {enviados} correos enviados exitosamente, {fallidos} fallidos.",
+            level=messages.SUCCESS if fallidos == 0 else messages.WARNING
+        )
+    reenviar_confirmacion_masiva.short_description = "📧 Reenviar email de confirmación de inscripción a seleccionados"
 
     def fecha_registro_detalle(self, obj):
         return obj.fecha_registro.strftime("%d/%m/%Y %H:%M:%S") if obj.fecha_registro else "-"

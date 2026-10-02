@@ -15,13 +15,11 @@ const scaleIn: Variants = {
 };
 
 export default function SponsorsSection() {
-  const { empresas, loading } = useEmpresas(null);
+  const { sponsors, loading } = useEmpresas(null);
   const [selectedEmpresa, setSelectedEmpresa] = React.useState<EmpresaAPI | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
-  const sponsors = empresas.filter(e => e.es_sponsor);
-
-  if (loading || sponsors.length === 0) return null;
+  if (loading && sponsors.length === 0) return null;
 
   const handleLogoClick = (empresa: EmpresaAPI) => {
     setSelectedEmpresa(empresa);
@@ -44,11 +42,11 @@ export default function SponsorsSection() {
         >
           <div className="flex items-center justify-center gap-2 mb-4">
             <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
-            <span className="text-amber-600 font-bold uppercase tracking-widest text-sm">Alianzas Estratégicas</span>
+            <span className="text-amber-600 font-bold uppercase tracking-widest text-sm">Auspiciantes</span>
             <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
           </div>
           <h2 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 tracking-tight">
-            Nuestros <span className="text-congress-blue">Sponsors</span>
+            Nuestros <span className="text-congress-blue">Auspiciantes</span>
           </h2>
           <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
             Empresas líderes que impulsan la innovación y el crecimiento del sector logístico en esta edición 2026.
@@ -56,7 +54,7 @@ export default function SponsorsSection() {
           <div className="w-24 h-1.5 bg-amber-400 mx-auto mt-8 rounded-full shadow-[0_0_15px_rgba(251,191,36,0.5)]" />
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {sponsors.map((sponsor, idx) => (
             <motion.div
               key={sponsor.id}

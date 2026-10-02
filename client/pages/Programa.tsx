@@ -35,6 +35,9 @@ import FloatingParticles from "@/components/FloatingParticles";
 import { EditionSelector } from "@/components/EditionSelector";
 import { useEdiciones } from "@/hooks/use-ediciones";
 import { ImportProgramaModal } from "@/components/ImportProgramaModal";
+import { useEmpresas, EmpresaAPI } from "@/hooks/use-empresas";
+import { EmpresaModal } from "@/components/EmpresaModal";
+import { Star, Award } from "lucide-react";
 
 // Información completa del disertante
 type DisertanteInfo = {
@@ -225,6 +228,15 @@ function getDisertanteImageUrl(fotoUrl: string): string {
 
 // Estado para actividades y carga
 export default function Programa() {
+  const { sponsors } = useEmpresas(null);
+  const [selectedSponsor, setSelectedSponsor] = useState<EmpresaAPI | null>(null);
+  const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
+
+  const handleSponsorClick = (empresa: EmpresaAPI) => {
+    setSelectedSponsor(empresa);
+    setIsSponsorModalOpen(true);
+  };
+
   const [actividades, setActividades] = useState<ActividadCalendar[] | null>(
     null,
   );
@@ -480,9 +492,46 @@ export default function Programa() {
           <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
             PROGRAMA EN <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9c62de] to-[#b07eee]">CONSTRUCCIÓN</span>
           </h1>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto font-light">
+          <p className="text-xl text-slate-300 max-w-2xl mx-auto font-light mb-6">
             Estamos diseñando la agenda para esta edición. Conoce las opciones de participación vigentes.
           </p>
+
+          {/* Glassmorphism Sponsor Header Bar */}
+          {sponsors && sponsors.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="max-w-4xl mx-auto mt-6 mb-8 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 md:p-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] relative overflow-hidden"
+            >
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <span className="text-amber-300 font-extrabold uppercase tracking-widest text-xs md:text-sm">
+                  Auspiciantes Oficiales del Evento
+                </span>
+                <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                {sponsors.map((sponsor) => (
+                  <motion.div
+                    key={sponsor.id}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    onClick={() => handleSponsorClick(sponsor)}
+                    className="bg-white/95 backdrop-blur-md rounded-xl p-4 flex items-center justify-center border border-white/50 shadow-md hover:shadow-2xl hover:bg-white transition-all duration-300 cursor-pointer group relative overflow-hidden h-20"
+                  >
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Award className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <img
+                      src={sponsor.logo}
+                      alt={sponsor.nombre_empresa}
+                      className="max-h-12 w-auto object-contain max-w-[160px] transition-transform duration-300 group-hover:scale-110"
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto w-full">
@@ -663,6 +712,43 @@ export default function Programa() {
                 <p className="text-xl md:text-2xl text-white/90 max-w-4xl mx-auto font-light drop-shadow-md">
                   2° Congreso de Logística y Transporte UNAB
                 </p>
+
+                {/* Glassmorphism Sponsor Header Bar */}
+                {sponsors && sponsors.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.3 }}
+                    className="max-w-4xl mx-auto mt-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 md:p-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] relative overflow-hidden text-left"
+                  >
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                      <span className="text-amber-300 font-extrabold uppercase tracking-widest text-xs md:text-sm">
+                        Auspiciantes Oficiales del Evento
+                      </span>
+                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                      {sponsors.map((sponsor) => (
+                        <motion.div
+                          key={sponsor.id}
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          onClick={() => handleSponsorClick(sponsor)}
+                          className="bg-white/95 backdrop-blur-md rounded-xl p-4 flex items-center justify-center border border-white/50 shadow-md hover:shadow-2xl hover:bg-white transition-all duration-300 cursor-pointer group relative overflow-hidden h-20"
+                        >
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Award className="w-4 h-4 text-amber-500" />
+                          </div>
+                          <img
+                            src={sponsor.logo}
+                            alt={sponsor.nombre_empresa}
+                            className="max-h-12 w-auto object-contain max-w-[160px] transition-transform duration-300 group-hover:scale-110"
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
 
                 {loading && (
                   <div className="text-white/80 mt-6 text-lg animate-pulse">Cargando agenda...</div>
@@ -1462,6 +1548,13 @@ export default function Programa() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Modal para detalles del Sponsor */}
+      <EmpresaModal
+        isOpen={isSponsorModalOpen}
+        onClose={() => setIsSponsorModalOpen(false)}
+        empresa={selectedSponsor}
+      />
     </>
   );
 }

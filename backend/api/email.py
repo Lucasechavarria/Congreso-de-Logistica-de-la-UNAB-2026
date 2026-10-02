@@ -557,13 +557,14 @@ def send_group_confirmation_emails(representante):
         print(f"[ERROR] Error enviando email al representante {representante.email}: {e}")
     
     # Enviar emails a cada miembro del grupo
+    group_name = getattr(representante, 'group_name', None) or (representante.detalle_grupo.group_name if hasattr(representante, 'detalle_grupo') else 'Grupo')
     miembros = representante.get_miembros_grupo()
     for miembro in miembros:
         try:
             context_miembro = {
                 'asistente_nombre': miembro.nombre_completo,
                 'asistente_email': miembro.email,
-                'tipo_inscripcion': f"Miembro del grupo '{representante.group_name}'",
+                'tipo_inscripcion': f"Miembro del grupo '{group_name}'",
                 'empresa': None,
                 'year': 2026,
                 'evento_nombre': 'Congreso de Logística UNAB',
@@ -631,6 +632,7 @@ def send_group_confirmation_emails(representante):
 def send_certificate_email(certificado_instance):
     """
     Genera el certificado en memoria, lo envía por email y lo ELIMINA del servidor inmediatamente.
+    Soporta los tipos ASISTENCIA, DISERTANTE y EMPRESA.
     """
     asistente = certificado_instance.asistente
 
@@ -638,17 +640,36 @@ def send_certificate_email(certificado_instance):
         # Generar el PDF en memoria (save=False para que solo devuelva el buffer)
         pdf_buffer = certificado_instance.generar_pdf(save=False)
         pdf_content = pdf_buffer.getvalue()
-        
+
+        # Determinar asunto, cuerpo y nombre de archivo según el tipo
+        tipo = getattr(certificado_instance, 'tipo_certificado', 'ASISTENCIA')
+        if tipo == 'DISERTANTE':
+            subject = 'Certificado de Disertante - 2º Congreso de Logística UNAB 2026'
+            body = 'Estimado/a disertante,\n\nAdjuntamos su certificado oficial en reconocimiento a su destacada disertación en el 2º Congreso de Logística y Transporte UNAB 2026.\n\nAgradecemos profundamente su valioso aporte académico e institucional.\n\nAtentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
+            filename_prefix = 'Certificado_Disertante'
+        elif tipo == 'EMPRESA':
+            subject = 'Certificado de Reconocimiento Empresarial - 2º Congreso de Logística UNAB 2026'
+            body = 'Estimada institución / empresa,\n\nAdjuntamos su certificado oficial de reconocimiento por su valioso acompañamiento y auspicio en el 2º Congreso de Logística y Transporte UNAB 2026.\n\nAtentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
+            filename_prefix = 'Certificado_Empresarial'
+        else:
+            subject = 'Certificado de Asistencia - 2º Congreso de Logística UNAB 2026'
+            body = 'Estimado/a participante,\n\nAdjuntamos tu certificado de asistencia oficial al 2º Congreso de Logística y Transporte UNAB 2026.\n\n¡Gracias por formar parte de esta edición!\n\nAtentamente,\nUniversidad Nacional Guillermo Brown'
+            filename_prefix = 'Certificado_Asistencia'
+
+        target_name = f"{asistente.first_name}_{asistente.last_name}".strip().replace(" ", "_") or "Participante"
+        if tipo == 'EMPRESA' and getattr(asistente, 'empresa_vinculada', None) and asistente.empresa_vinculada.nombre_empresa:
+            target_name = asistente.empresa_vinculada.nombre_empresa.replace(" ", "_")
+
         # Crear el email
         email = EmailMultiAlternatives(
-            subject='Certificado de Asistencia al Congreso de Logística UNAB',
-            body='Adjuntamos tu certificado de asistencia al Congreso de Logística UNAB.',
+            subject=subject,
+            body=body,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[asistente.email],
             bcc=[CONGRESO_EMAIL]
         )
         email.attach(
-            f'Certificado_{asistente.nombre_completo.replace(" ", "_")}.pdf',
+            f'{filename_prefix}_{target_name}.pdf',
             pdf_content,
             'application/pdf'
         )
@@ -661,7 +682,7 @@ def send_certificate_email(certificado_instance):
         certificado_instance.intentos += 1
         certificado_instance.save(update_fields=['email_enviado', 'fecha_envio', 'intentos'])
         
-        print(f"Certificado enviado exitosamente a {asistente.email}")
+        print(f"Certificado {tipo} enviado exitosamente a {asistente.email}")
         return True
         
     except Exception as e:

@@ -373,9 +373,8 @@ export default function Index() {
       </section>
       */}
 
-      {/* TODO: Descomentar cuando haya sponsors para esta edición
+      {/* Sponsors Oficiales del Evento 2026 */}
       <SponsorsSection />
-      */}
 
       <EmpresasCarousel2026 />
 

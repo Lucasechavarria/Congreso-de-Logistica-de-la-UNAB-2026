@@ -2,119 +2,234 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Certificado de Asistencia</title>
+    <title>Certificado de Asistencia - UNaB 2026</title>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Montserrat:wght@400;500;600;700&display=swap');
+
       @page {
         size: A4 landscape;
         margin: 0;
       }
+      * {
+        box-sizing: border-box;
+      }
       body {
-        font-family: "Times New Roman", serif;
+        font-family: 'Montserrat', sans-serif;
         margin: 0;
         padding: 0;
-        background-color: #f0f0f0;
+        background-color: #0f172a;
         display: flex;
         justify-content: center;
         align-items: center;
         min-height: 100vh;
       }
       .certificate {
-        width: 29.7cm; /* A4 landscape width */
-        height: 21cm; /* A4 landscape height */
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border: 10px solid #0056b3; /* Color del congreso */
-        box-sizing: border-box;
+        width: 29.7cm;
+        height: 21cm;
+        background: #fdfdfd;
+        position: relative;
+        overflow: hidden;
+        padding: 1.2cm;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+      /* Triple Frame Border System */
+      .frame-outer {
+        position: absolute;
+        inset: 0.6cm;
+        border: 4px solid #0f2942;
+        pointer-events: none;
+      }
+      .frame-gold {
+        position: absolute;
+        inset: 0.8cm;
+        border: 2px solid #c5a059;
+        pointer-events: none;
+      }
+      .frame-inner {
+        position: absolute;
+        inset: 0.95cm;
+        border: 1px solid #d4af37;
+        pointer-events: none;
+      }
+      /* Corner Filigree Accents */
+      .corner {
+        position: absolute;
+        width: 35px;
+        height: 35px;
+        border-color: #c5a059;
+        border-style: solid;
+        pointer-events: none;
+      }
+      .tl { top: 0.8cm; left: 0.8cm; border-width: 3px 0 0 3px; }
+      .tr { top: 0.8cm; right: 0.8cm; border-width: 3px 3px 0 0; }
+      .bl { bottom: 0.8cm; left: 0.8cm; border-width: 0 0 3px 3px; }
+      .br { bottom: 0.8cm; right: 0.8cm; border-width: 0 3px 3px 0; }
+
+      /* Watermark Background */
+      .watermark-bg {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgba(15, 41, 66, 0.03) 1px, transparent 0);
+        background-size: 24px 24px;
+        pointer-events: none;
+      }
+
+      /* Content Area - Increased top margin and reduced bottom margin */
+      .content {
+        position: relative;
+        z-index: 2;
+        height: 100%;
         display: flex;
         flex-direction: column;
-        justify-content: center;
         align-items: center;
+        justify-content: space-between;
         text-align: center;
-        position: relative;
-        padding: 2cm;
+        padding: 1.4cm 1cm 0.3cm 1cm;
       }
-      .certificate-content h1 {
-        font-size: 3.5em;
-        color: #0056b3;
-        margin-bottom: 0.5em;
+
+      .header-inst {
+        font-family: 'Cinzel', serif;
+        font-size: 1.1rem;
+        letter-spacing: 3px;
+        color: #0f2942;
+        font-weight: 700;
+        margin-top: 0.2cm;
+      }
+      .header-divider {
+        width: 180px;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #c5a059, transparent);
+        margin: 6px auto;
+      }
+
+      .title {
+        font-family: 'Cinzel', serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #0f2942;
         text-transform: uppercase;
+        letter-spacing: 2px;
+        margin: 0.4cm 0 0.1cm 0;
       }
-      .certificate-content h2 {
-        font-size: 2.5em;
-        color: #333;
-        margin-bottom: 0.8em;
+      .subtitle {
+        font-size: 1.05rem;
+        color: #475569;
+        font-weight: 500;
       }
-      .certificate-content p {
-        font-size: 1.5em;
-        color: #555;
-        margin-bottom: 0.5em;
-      }
-      .certificate-content .name {
-        font-size: 3em;
-        font-weight: bold;
-        color: #000;
-        margin: 0.5em 0;
-        border-bottom: 3px solid #0056b3;
-        padding-bottom: 0.1em;
+      .recipient-name {
+        font-size: 2.3rem;
+        font-weight: 700;
+        color: #0f2942;
+        margin: 0.3cm 0;
+        padding-bottom: 0.2cm;
+        border-bottom: 2px solid #c5a059;
         display: inline-block;
+        min-width: 60%;
+        letter-spacing: 1px;
       }
-      .signature-section {
-        display: flex;
-        justify-content: space-around;
-        width: 80%;
-        margin-top: 2cm;
+      .body-text {
+        font-size: 1.1rem;
+        color: #334155;
+        max-width: 80%;
+        line-height: 1.6;
+        margin: 0.2cm 0;
       }
-      .signature {
+      .body-highlight {
+        font-weight: 700;
+        color: #0f2942;
+      }
+      .date-location {
+        font-size: 0.95rem;
+        color: #64748b;
+        font-weight: 600;
+        margin-top: 0.2cm;
+      }
+
+      /* Footer / Signature */
+      .signature-box {
         text-align: center;
-        font-size: 1.2em;
+        margin-top: 0.3cm;
       }
-      .signature img {
-        max-width: 200px;
-        height: auto;
-        margin-bottom: 0.5em;
+      .signature-img {
+        max-height: 55px;
+        margin-bottom: -10px;
       }
-      .date {
+      .signature-line {
+        width: 220px;
+        height: 2px;
+        background: #0f2942;
+        margin: 0 auto 6px auto;
+      }
+      .sig-name {
+        font-weight: 700;
+        color: #0f2942;
+        font-size: 0.95rem;
+      }
+      .sig-title {
+        font-size: 0.8rem;
+        color: #64748b;
+      }
+
+      /* Bottom Bar */
+      .bottom-bar {
         position: absolute;
-        bottom: 2cm;
-        left: 2cm;
-        font-size: 1.2em;
-        color: #555;
-      }
-      .logo {
-        position: absolute;
-        top: 2cm;
-        left: 2cm;
-        max-width: 150px;
-        height: auto;
-        background: #0056b3;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        font-weight: bold;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 24px;
+        background: #0f2942;
+        border-top: 2px solid #c5a059;
+        color: #ffffff;
+        font-size: 0.7rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 1px;
       }
     </style>
   </head>
   <body>
     <div class="certificate">
-      <div class="logo">UNaB</div>
-      <div class="certificate-content">
-        <h1>Certificado de Asistencia</h1>
-        <p>Se otorga el presente certificado a:</p>
-        <p class="name">{{ asistente_nombre }}</p>
-        <p>Por su valiosa participación en el</p>
-        <h2>Congreso de Logística y Transporte</h2>
-        <p>Realizado el 7 de Noviembre de 2026</p>
-      </div>
-      <div class="signature-section">
-        <div class="signature">
-          <p style="margin-top: 50px">_________________________</p>
-          <p>Director del Congreso</p>
+      <div class="frame-outer"></div>
+      <div class="frame-gold"></div>
+      <div class="frame-inner"></div>
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <div class="watermark-bg"></div>
+
+      <div class="content">
+        <div>
+          <div class="header-inst">UNIVERSIDAD NACIONAL GUILLERMO BROWN</div>
+          <div class="header-divider"></div>
         </div>
-        <div class="signature">
-          <p style="margin-top: 50px">_________________________</p>
-          <p>Decano de la Facultad</p>
+
+        <div>
+          <h1 class="title">Certificado de Asistencia</h1>
+          <p class="subtitle">Se otorga el presente certificado a:</p>
+          <div class="recipient-name">{{ asistente_nombre }}</div>
+        </div>
+
+        <div class="body-text">
+          Por su valiosa participación en el <span class="body-highlight">2º CONGRESO DE LOGÍSTICA Y TRANSPORTE</span>,<br />
+          organizado por la Universidad Nacional Guillermo Brown el 7 de Noviembre de 2026.
+        </div>
+
+        <div class="date-location">Burzaco, Almirante Brown, Buenos Aires, Argentina</div>
+
+        <div class="signature-box">
+          <div class="signature-line"></div>
+          <div class="sig-name">Lic. Pablo Domenichini</div>
+          <div class="sig-title">Rector - UNaB</div>
         </div>
       </div>
-      <p class="date">Fecha de Emisión: {{ fecha_emision }}</p>
+
+      <div class="bottom-bar">
+        UNIVERSIDAD NACIONAL GUILLERMO BROWN • CONGRESO DE LOGÍSTICA Y TRANSPORTE 2026
+      </div>
     </div>
   </body>
 </html>
+
+

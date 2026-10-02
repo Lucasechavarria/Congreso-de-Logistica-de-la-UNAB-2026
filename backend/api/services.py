@@ -238,20 +238,26 @@ def register_asistente_or_group(validated_data: dict, integrantes_data: list = N
         for attr, value in detalles_data.items():
             setattr(asistente, attr, value)
 
+        def _safe_dispatch_grupal(a_id=asistente.id):
+            try:
+                task_enviar_confirmacion_grupal.delay(a_id)
+            except Exception as e:
+                logger.error(f"[Celery] Error ejecutando/encolar confirmación grupal: {e}")
+
+        def _safe_dispatch_individual(a_id=asistente.id):
+            try:
+                task_enviar_confirmacion_individual.delay(a_id)
+            except Exception as e:
+                logger.error(f"[Celery] Error ejecutando/encolar confirmación individual: {e}")
+
         if asistente.profile_type == Asistente.ProfileType.GROUP_REPRESENTATIVE:
             if integrantes_data:
                 fallos = _register_integrantes(asistente, integrantes_data, edicion_activa)
                 if fallos:
                     asistente._fallos_miembros = fallos
-            try:
-                transaction.on_commit(lambda: task_enviar_confirmacion_grupal.delay(asistente.id))
-            except Exception as e:
-                logger.error(f"[Celery] Error al encolar confirmación grupal: {e}")
+            transaction.on_commit(_safe_dispatch_grupal)
         else:
-            try:
-                transaction.on_commit(lambda: task_enviar_confirmacion_individual.delay(asistente.id))
-            except Exception as e:
-                logger.error(f"[Celery] Error al encolar confirmación individual: {e}")
+            transaction.on_commit(_safe_dispatch_individual)
 
     return asistente
 

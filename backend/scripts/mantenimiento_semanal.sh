@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ==============================================================================
-# SCRIPT DE MANTENIMIENTO SEMANAL - CONGRESO UNAB 2026
+# SCRIPT DE MANTENIMIENTO PERIÓDICO - CONGRESO UNAB 2026
 # Este script está diseñado para ejecutarse vía CRON (root)
-# Frecuencia recomendada: Domingos 03:00 AM
+# Frecuencia recomendada: Miércoles y Domingos 03:00 AM (0 3 * * 0,3)
 # ==============================================================================
 
 PROJECT_PATH="/var/www/congreso"

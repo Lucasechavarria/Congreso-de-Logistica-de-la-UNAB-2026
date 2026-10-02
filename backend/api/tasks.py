@@ -26,7 +26,8 @@ def task_enviar_confirmacion_individual(self, asistente_id):
         return True
     except Exception as exc:
         logger.error(f"[ERROR] Falló el envío individual para asistente {asistente_id}: {exc}.")
-        if self.request.retries >= self.max_retries:
+        is_eager = getattr(self.request, 'is_eager', False)
+        if self.request.retries >= self.max_retries or is_eager:
             try:
                 asistente = Asistente.objects.get(id=asistente_id)
                 send_admin_email_failure_alert(asistente, exc)
@@ -51,7 +52,8 @@ def task_enviar_confirmacion_grupal(self, representante_id):
         return resultado
     except Exception as exc:
         logger.error(f"[ERROR] Falló el envío de correos grupales para representante {representante_id}: {exc}.")
-        if self.request.retries >= self.max_retries:
+        is_eager = getattr(self.request, 'is_eager', False)
+        if self.request.retries >= self.max_retries or is_eager:
             try:
                 representante = Asistente.objects.get(id=representante_id)
                 send_admin_email_failure_alert(representante, exc)

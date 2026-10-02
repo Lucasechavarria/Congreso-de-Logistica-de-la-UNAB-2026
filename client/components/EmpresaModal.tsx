@@ -88,10 +88,16 @@ export const EmpresaModal: React.FC<EmpresaModalProps> = ({ isOpen, onClose, emp
                   <div className="flex flex-wrap gap-2">
                     {empresa.es_sponsor && (
                       <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full uppercase tracking-wider border border-amber-200">
-                        Sponsor Oficial
+                        Auspiciante
                       </span>
                     )}
-                    {empresa.numero_stand && (
+                    {Boolean(
+                      empresa.numero_stand &&
+                      String(empresa.numero_stand).trim() !== "" &&
+                      String(empresa.numero_stand) !== "0" &&
+                      String(empresa.numero_stand).toLowerCase() !== "null" &&
+                      String(empresa.numero_stand).toLowerCase() !== "undefined"
+                    ) && (
                       <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full uppercase tracking-wider border border-blue-200 flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> Stand #{empresa.numero_stand}
                       </span>

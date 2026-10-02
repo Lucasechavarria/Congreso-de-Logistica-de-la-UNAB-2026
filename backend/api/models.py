@@ -368,7 +368,8 @@ class Certificado(models.Model):
 
     def generar_pdf(self, save=True): # type: ignore
         """
-        Genera un PDF personalizado usando la imagen base y superponiendo el nombre del asistente.
+        Genera un PDF personalizado usando la imagen base adecuada (Asistente, Disertante, Empresa)
+        y superponiendo el nombre en alta definición.
         """
         import os
         from django.conf import settings
@@ -376,9 +377,11 @@ class Certificado(models.Model):
         from PIL import Image, ImageDraw, ImageFont
         from io import BytesIO
 
-        # --- GENERACIÓN 2026: Usar fondo nuevo y limpio ---
+        # --- GENERACIÓN 2026: Selección de plantilla según tipo ---
         if self.tipo_certificado == 'DISERTANTE':
             bg_name = 'Certificados-congreso-disertantes-2026.png'
+        elif self.tipo_certificado == 'EMPRESA':
+            bg_name = 'Certificados-congreso-empresas-2026.png'
         else:
             bg_name = 'Certificados-congreso-2026.png'
             
@@ -387,37 +390,43 @@ class Certificado(models.Model):
         try:
             img = Image.open(bg_path).convert("RGB")
         except FileNotFoundError:
-            # Fallback al original si por alguna razón no existe el nuevo
+            # Fallback al original si no existe el nuevo
             bg_path_old = os.path.join(settings.BASE_DIR, 'certificates', 'Certificados-congreso.png')
             img = Image.open(bg_path_old).convert("RGB")
 
         draw = ImageDraw.Draw(img)
 
-        # Configurar fuente para el nombre (Dinámica v11)
-        font_size = 70
+        # Determinar el nombre a imprimir
+        if self.tipo_certificado == 'EMPRESA' and getattr(self.asistente, 'empresa_vinculada', None) and self.asistente.empresa_vinculada.nombre_empresa:
+            nombre_apellido = self.asistente.empresa_vinculada.nombre_empresa.upper()
+        else:
+            nombre_apellido = f"{self.asistente.first_name} {self.asistente.last_name}".strip().upper()
+
+        if not nombre_apellido:
+            nombre_apellido = "PARTICIPANTE"
+
+        # Configurar fuente para el nombre (Escalado dinámico)
+        font_size = 65
         try:
             font_path = os.path.join(settings.BASE_DIR, 'api', 'fonts', 'DejaVu_Sans', 'DejaVuSans-Bold.ttf')
-            nombre_apellido = self.asistente.nombre_completo.upper()
             
-            # Bucle de escalado dinámico para nombres compuestos/largos
             while font_size > 20:
                 font = ImageFont.truetype(font_path, font_size)
                 bbox = draw.textbbox((0, 0), nombre_apellido, font=font)
                 text_width = bbox[2] - bbox[0]
-                if text_width < 1700: # Margen de seguridad (Ancho imagen 2000)
+                if text_width < 1500: # Margen de seguridad
                     break
                 font_size -= 5
         except Exception:
             font = ImageFont.load_default()
-            nombre_apellido = self.asistente.nombre_completo.upper()
             bbox = draw.textbbox((0, 0), nombre_apellido, font=font)
             text_width = bbox[2] - bbox[0]
 
         x = (img.width - text_width) // 2
-        y = 400  # Posición vertical v13 (Compacto - Más cerca del logo y cuerpo)
+        y = 485  # Posición vertical centrada en la ranura de nombre
         
-        # Escribir el nombre (color azul)
-        draw.text((x, y), nombre_apellido, font=font, fill=(18, 90, 150, 255))
+        # Escribir el nombre (color azul institucional #0F2942)
+        draw.text((x, y), nombre_apellido, font=font, fill=(15, 41, 66))
 
         # Convertir la imagen a PDF en memoria
         buffer = BytesIO()
@@ -425,7 +434,7 @@ class Certificado(models.Model):
         buffer.seek(0)
         
         if save:
-            file_name = f"certificado_{self.asistente.email}.pdf"
+            file_name = f"certificado_{self.tipo_certificado.lower()}_{self.asistente.email}.pdf"
             self.pdf_generado.save(file_name, ContentFile(buffer.getvalue()), save=True)
         
         return buffer

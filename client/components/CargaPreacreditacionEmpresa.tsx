@@ -225,7 +225,7 @@ export const CargaPreacreditacionEmpresa: React.FC<CargaPreacreditacionEmpresaPr
       } else {
         setGenericServerError(data.error || data.detail || `Ocurrió un error inesperado (Código ${response.status}). Intenta nuevamente más tarde.`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // TAREA 3: Error de Red -> Mensaje genérico para reintentar más tarde
       console.error('Error de red/servidor al procesar archivo:', error);
       setGenericServerError('No se pudo establecer conexión con el servidor. Por favor, verifica tu red e intenta más tarde.');

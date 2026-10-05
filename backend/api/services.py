@@ -466,7 +466,7 @@ def procesar_archivo_preacreditacion_empresa(empresa: Empresa, file_obj) -> Dict
         raise ValueError("La planilla Excel no contiene filas de datos para procesar.")
 
     # 3. Normalización y verificación de encabezados contra la plantilla original
-    def clean_header(col_name):
+    def clean_header(col_name: object) -> str:
         c = str(col_name).strip().upper()
         return c.replace('Á', 'A').replace('É', 'E').replace('Í', 'I').replace('Ó', 'O').replace('Ú', 'U')
 

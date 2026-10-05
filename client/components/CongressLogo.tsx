@@ -1,12 +1,14 @@
 interface CongressLogoProps {
   size?: "sm" | "md" | "lg";
   showText?: boolean;
+  textColor?: string;
   className?: string;
 }
 
 export default function CongressLogo({
   size = "md",
   showText = true,
+  textColor = "text-white",
   className = "",
 }: CongressLogoProps) {
   const sizeClasses = {
@@ -39,12 +41,12 @@ export default function CongressLogo({
       {showText && (
         <div className="flex-1">
           <div
-            className={`font-bold text-congress-blue ${textSizeClasses[size]}`}
+            className={`font-bold ${textColor} ${textSizeClasses[size]}`}
           >
             CONGRESO DE LOGÍSTICA
           </div>
           <div
-            className={`font-bold text-congress-blue ${textSizeClasses[size]}`}
+            className={`font-bold ${textColor} ${textSizeClasses[size]}`}
           >
             Y TRANSPORTE
           </div>

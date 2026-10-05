@@ -6,7 +6,8 @@ from .views import (
     CargaMasivaAsistentesView, EnvioMasivoEmailsView, ActualizarDNIView, 
     GetCSRFTokenView, RegistroDisertanteView, EmpresaCRMView, DisertanteCRMView,
     StatsDashboardView, InscripcionPrensaView, EdicionViewSet, BroadcastAPIView,
-    DesuscripcionAlertasView, DiagnosticoEmailView
+    DesuscripcionAlertasView, DiagnosticoEmailView, CargaPreacreditacionEmpresaView,
+    PersonalEmpresaViewSet
 )
 from .qr_views import GenerateStaticQRView
 
@@ -15,6 +16,7 @@ router = DefaultRouter()
 router.register(r'disertantes', DisertanteViewSet, basename='disertante')
 router.register(r'programa', ProgramaViewSet, basename='programa')
 router.register(r'empresas', EmpresaViewSet, basename='empresa')
+router.register(r'personal-empresa', PersonalEmpresaViewSet, basename='personal-empresa')
 router.register(r'ediciones', EdicionViewSet, basename='edicion')
 
 # Las URLs de la API son determinadas automáticamente por el router
@@ -41,4 +43,4 @@ urlpatterns = [
     path('broadcast/', BroadcastAPIView.as_view(), name='broadcast-api'),
     path('desuscribir-alertas/', DesuscripcionAlertasView.as_view(), name='desuscribir-alertas'),
     path('diagnostico-email/', DiagnosticoEmailView.as_view(), name='diagnostico-email'),
-]
+]

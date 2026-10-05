@@ -101,7 +101,7 @@ async function ensureCsrfToken(): Promise<string> {
 /**
  * Wrapper para peticiones POST con manejo robusto de CSRF
  */
-async function postWithCsrf(url: string, data: any, isFormData: boolean = false): Promise<Response> {
+export async function postWithCsrf(url: string, data: any, isFormData: boolean = false): Promise<Response> {
   // Obtener token CSRF fresco
   const csrfToken = await ensureCsrfToken();
 
@@ -365,3 +365,12 @@ export async function postularCandidato(data: FormData) {
   const res = await postWithCsrf(`${API_BASE}/bolsa-trabajo/ofertas/postular/`, data, true);
   return await parseResponse(res);
 }
+
+// Función para subir y procesar el archivo Excel de preacreditación de empresa
+export async function uploadPreacreditacionEmpresa(empresaId: string | number, formData: FormData) {
+  const url = `${API_BASE}/empresas/${empresaId}/preacreditacion/`;
+  const res = await postWithCsrf(url, formData, true);
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+

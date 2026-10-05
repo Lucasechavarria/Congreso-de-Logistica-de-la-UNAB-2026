@@ -6,12 +6,16 @@ from .security import DNIVerificationThrottle, FormRegistrationThrottle, sanitiz
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.db import transaction
-from .models import Disertante, Inscripcion, Programa, Certificado, Asistente, Empresa, MiembroGrupo, PostulacionDisertante, Edicion, InscripcionPrensa, DetalleDocente, DetalleEstudiante
+from .models import (
+    Disertante, Inscripcion, Programa, Certificado, Asistente, Empresa, PersonalEmpresa,
+    MiembroGrupo, PostulacionDisertante, Edicion, InscripcionPrensa, DetalleDocente, DetalleEstudiante
+)
 from .serializers import (
     EdicionSerializer, DisertanteSerializer, EmpresaSerializer, 
     ProgramaSerializer, AsistenteSerializer, InscripcionSerializer,
     PostulacionDisertanteSerializer, InscripcionPrensaSerializer,
-    EmpresaLogoSerializer, MiembroGrupoSerializer
+    EmpresaLogoSerializer, MiembroGrupoSerializer, PersonalEmpresaSerializer,
+    CargaPreacreditacionExcelSerializer
 )
 from django.utils import timezone
 from django.db.models import Count
@@ -573,6 +577,139 @@ class EmpresaViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(edicion__activa=True)
             
         return queryset.order_by('nombre_empresa')
+
+    @action(detail=True, methods=['post'], url_path='cargar-preacreditacion', permission_classes=[permissions.IsAuthenticated])
+    def cargar_preacreditacion(self, request, pk=None):
+        """
+        Endpoint de acción en EmpresaViewSet para cargar archivo Excel/CSV de preacreditación.
+        """
+        empresa = self.get_object()
+        file_obj = request.FILES.get('archivo') or request.FILES.get('file')
+        if not file_obj:
+            return Response({'status': 'error', 'message': 'No se proporcionó ningún archivo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            resumen = services.procesar_archivo_preacreditacion_empresa(empresa, file_obj)
+            return Response({
+                'status': 'success',
+                'message': f"Preacreditación completada para {empresa.nombre_empresa}.",
+                'resumen': resumen
+            }, status=status.HTTP_200_OK)
+        except services.PreacreditacionValidationError as pve:
+            return Response({
+                'status': 'error',
+                'message': f"Se encontraron {len(pve.errores)} error(es) de validación en la planilla. La operación fue cancelada (0 registros guardados).",
+                'total_filas': pve.total_filas,
+                'total_errores': len(pve.errores),
+                'errores': pve.errores
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as ve:
+            return Response({'status': 'error', 'message': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class IsEmpresaRepresentativeOrAdmin(permissions.BasePermission):
+    """
+    Permiso que valida que el usuario sea administrador (staff/superuser)
+    o un representante verificado de la empresa.
+    """
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+        empresa = obj if isinstance(obj, Empresa) else getattr(obj, 'empresa', None)
+        if empresa:
+            user_email = (request.user.email or '').strip().lower()
+            return (
+                (empresa.email_contacto and empresa.email_contacto.strip().lower() == user_email) or
+                (empresa.email_empresa and empresa.email_empresa.strip().lower() == user_email)
+            )
+        return False
+
+
+
+
+
+class CargaPreacreditacionEmpresaView(views.APIView):
+    """
+    Endpoint para recibir la petición de carga del archivo PREACREDITACION EMPRESAS.xlsx.
+    Verifica que el usuario solicitante esté autenticado y sea administrador o representante de la empresa.
+    """
+    permission_classes = [IsEmpresaRepresentativeOrAdmin]
+
+    def post(self, request, empresa_id=None, *args, **kwargs):
+        target_empresa_id = empresa_id or request.data.get('empresa_id')
+        if not target_empresa_id:
+            return Response(
+                {'status': 'error', 'message': 'Debe proporcionar el ID de la empresa (empresa_id).'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            empresa = Empresa.objects.get(pk=target_empresa_id)
+        except Empresa.DoesNotExist:
+            return Response(
+                {'status': 'error', 'message': f'Empresa con ID {target_empresa_id} no encontrada.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        self.check_object_permissions(request, empresa)
+
+        file_obj = request.FILES.get('archivo') or request.FILES.get('file')
+        if not file_obj:
+            return Response(
+                {'status': 'error', 'message': 'No se adjuntó ningún archivo Excel o CSV. Use el campo "archivo".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            resumen = services.procesar_archivo_preacreditacion_empresa(empresa, file_obj)
+            return Response({
+                'status': 'success',
+                'message': f"Preacreditación procesada exitosamente para '{empresa.nombre_empresa}'. Registros creados: {resumen['creados']}, actualizados: {resumen['actualizados']}.",
+                'resumen': resumen
+            }, status=status.HTTP_200_OK)
+        except services.PreacreditacionValidationError as pve:
+            return Response({
+                'status': 'error',
+                'message': f"Se encontraron {len(pve.errores)} error(es) de validación en la planilla. La operación fue cancelada (0 registros guardados).",
+                'total_filas': pve.total_filas,
+                'total_errores': len(pve.errores),
+                'errores': pve.errores
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as ve:
+            return Response({'status': 'error', 'message': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import logging
+            logging.getLogger('django.views').error(f"Error en CargaPreacreditacionEmpresaView: {e}", exc_info=True)
+            return Response({'status': 'error', 'message': f'Ha ocurrido un error al procesar la planilla: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PersonalEmpresaViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para listar y gestionar individualmente el personal de empresas.
+    """
+    serializer_class = PersonalEmpresaSerializer
+    permission_classes = [IsEmpresaRepresentativeOrAdmin]
+
+    def get_queryset(self):
+        queryset = PersonalEmpresa.objects.all().select_related('empresa', 'asistente')
+        empresa_id = self.request.query_params.get('empresa_id')
+        if empresa_id:
+            queryset = queryset.filter(empresa_id=empresa_id)
+        if not (self.request.user.is_staff or self.request.user.is_superuser):
+            user_email = (self.request.user.email or '').strip().lower()
+            queryset = queryset.filter(
+                models.Q(empresa__email_contacto__iexact=user_email) |
+                models.Q(empresa__email_empresa__iexact=user_email)
+            )
+        return queryset
+
 
 
 class EnvioMasivoEmailsView(views.APIView):

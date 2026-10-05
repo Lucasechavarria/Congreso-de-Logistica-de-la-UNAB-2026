@@ -214,6 +214,121 @@ class Empresa(models.Model):
     class Meta:
         ordering = ['nombre_empresa']
 
+
+class PersonalEmpresa(models.Model):
+    """
+    Modelo para almacenar el personal pre-acreditado de empresas/instituciones.
+    Mapea la estructura esperada de archivos como 'PREACREDITACION EMPRESAS.xlsx'
+    (Nombre, Apellido, DNI, Cargo, Email, Teléfono) y sincroniza con Asistente.
+    """
+    empresa = models.ForeignKey(
+        Empresa, 
+        on_delete=models.CASCADE, 
+        related_name='personal', 
+        verbose_name="Empresa / Institución"
+    )
+    nombre = models.CharField(max_length=100, verbose_name="Nombre")
+    apellido = models.CharField(max_length=100, verbose_name="Apellido")
+    dni = models.CharField(max_length=20, db_index=True, verbose_name="DNI / Documento")
+    cargo = models.CharField(max_length=150, blank=True, null=True, verbose_name="Cargo / Puesto en la empresa")
+    email = models.EmailField(blank=True, null=True, verbose_name="Correo electrónico")
+    telefono = models.CharField(max_length=50, blank=True, null=True, verbose_name="Teléfono / Celular")
+    
+    # Estado de acreditación in-situ
+    acreditado = models.BooleanField(default=False, verbose_name="¿Acreditado en el evento?")
+    fecha_acreditacion = models.DateTimeField(blank=True, null=True, verbose_name="Fecha de acreditación in-situ")
+    
+    # Vinculación con el participante general (Asistente)
+    asistente = models.ForeignKey(
+        'Asistente', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='personal_empresa_vinculado', 
+        verbose_name="Asistente Vinculado"
+    )
+    fecha_registro = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de registro")
+    history = HistoricalRecords()
+
+    class Meta:
+        ordering = ['apellido', 'nombre']
+        verbose_name = "Personal de Empresa"
+        verbose_name_plural = "Personal de Empresas"
+        unique_together = ('empresa', 'dni')
+
+    @property
+    def nombre_completo(self):
+        return f"{self.nombre} {self.apellido}".strip()
+
+    def clean(self):
+        super().clean()
+        if self.dni:
+            dni_limpio = re.sub(r'\D', '', str(self.dni))
+            if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
+                dni_limpio = dni_limpio[:8]
+            self.dni = dni_limpio
+        if self.nombre:
+            self.nombre = self.nombre.strip().title()
+        if self.apellido:
+            self.apellido = self.apellido.strip().title()
+        if self.email:
+            self.email = self.email.strip().lower()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+        self._sincronizar_con_asistente()
+
+    def _sincronizar_con_asistente(self):
+        """Sincroniza/Upsert del personal con el modelo Asistente de la base general."""
+        try:
+            from .models import Asistente, Edicion, Inscripcion
+            edicion_activa = Edicion.objects.filter(activa=True).first()
+            if not self.dni:
+                return
+
+            asistente = Asistente.objects.filter(dni=self.dni).first()
+            if not asistente and self.email:
+                asistente = Asistente.objects.filter(email=self.email).first()
+
+            if not asistente:
+                email_asistente = self.email or f"acreditado_{self.dni}@empresa.temp"
+                asistente = Asistente.objects.create(
+                    first_name=self.nombre,
+                    last_name=self.apellido,
+                    email=email_asistente,
+                    dni=self.dni,
+                    phone=self.telefono,
+                    profile_type=Asistente.ProfileType.PROFESSIONAL,
+                    empresa_vinculada=self.empresa,
+                    terminos_aceptados=True
+                )
+            else:
+                asistente.first_name = self.nombre
+                asistente.last_name = self.apellido
+                if self.telefono and not asistente.phone:
+                    asistente.phone = self.telefono
+                asistente.empresa_vinculada = self.empresa
+                asistente.save()
+
+            if self.asistente_id != asistente.id:
+                self.asistente = asistente
+                PersonalEmpresa.objects.filter(pk=self.pk).update(asistente=asistente)
+
+            if edicion_activa:
+                Inscripcion.objects.get_or_create(
+                    asistente=asistente,
+                    edicion=edicion_activa,
+                    defaults={'empresa': self.empresa}
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error sincronizando PersonalEmpresa con Asistente: {e}")
+
+    def __str__(self):
+        return f"{self.nombre_completo} ({self.dni}) - {self.empresa.nombre_empresa}"
+
+
 class Asistente(models.Model):
     class ProfileType(models.TextChoices):
         VISITOR = 'VISITOR', 'Visitante'

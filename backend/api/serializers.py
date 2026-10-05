@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    Edicion, Disertante, Programa, Empresa, Asistente, 
+    Edicion, Disertante, Programa, Empresa, PersonalEmpresa, Asistente, 
     Inscripcion, Certificado, PostulacionDisertante, InscripcionPrensa, MiembroGrupo
 )
 from django.db import transaction
@@ -378,6 +378,39 @@ class EmpresaSerializer(serializers.ModelSerializer):
             'estado'
         ]
         read_only_fields = ['edicion', 'estado']
+
+
+class PersonalEmpresaSerializer(serializers.ModelSerializer):
+    nombre_completo = serializers.ReadOnlyField()
+
+    class Meta:
+        model = PersonalEmpresa
+        fields = [
+            'id', 'empresa', 'nombre', 'apellido', 'nombre_completo',
+            'dni', 'cargo', 'email', 'telefono', 'acreditado', 
+            'fecha_acreditacion', 'asistente', 'fecha_registro'
+        ]
+        read_only_fields = ['id', 'empresa', 'acreditado', 'fecha_acreditacion', 'asistente', 'fecha_registro']
+
+
+class CargaPreacreditacionExcelSerializer(serializers.Serializer):
+    archivo = serializers.FileField(
+        required=True, 
+        help_text="Archivo de preacreditación en formato Excel (.xlsx, .xls) o CSV (.csv)."
+    )
+    empresa_id = serializers.IntegerField(
+        required=False, 
+        help_text="ID de la empresa destino si no se proporciona en la URL."
+    )
+
+    def validate_archivo(self, value):
+        from .services import validar_archivo_excel_seguro
+        try:
+            validar_archivo_excel_seguro(value, max_size_mb=5)
+        except ValueError as e:
+            raise serializers.ValidationError(str(e))
+        return value
+
 
 
     def _upsert_detalles(self, asistente, data):

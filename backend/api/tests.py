@@ -373,3 +373,179 @@ class DiagnosticoEmailTests(BaseCongressTest):
         self.assertIn('prueba_smtp', data)
         self.assertEqual(data['prueba_smtp']['destinatario'], "testdiagnostico@unab.edu.ar")
 
+
+class PreacreditacionEmpresaTests(BaseCongressTest):
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import User
+        self.empresa = Empresa.objects.create(
+            nombre_empresa="Empresa Test SA",
+            cuit="30112233445",
+            email_contacto="contacto@empresatest.com",
+            nombre_contacto="Carlos Juarez",
+            edicion=self.edicion
+        )
+        self.admin_user = User.objects.create_superuser('admin', 'admin@test.com', 'adminpass')
+        self.empresa_user = User.objects.create_user('rep_empresa', 'contacto@empresatest.com', 'userpass')
+        self.unauthorized_user = User.objects.create_user('otro', 'otro@test.com', 'userpass')
+
+    def test_personal_empresa_auto_sincronizacion_asistente(self):
+        from .models import PersonalEmpresa, Asistente
+        personal = PersonalEmpresa.objects.create(
+            empresa=self.empresa,
+            nombre="Juan",
+            apellido="Gonzalez",
+            dni="44556677",
+            cargo="Gerente de Logística",
+            email="jgonzalez@empresatest.com",
+            telefono="1122334455"
+        )
+        self.assertIsNotNone(personal.asistente)
+        asistente = Asistente.objects.get(dni="44556677")
+        self.assertEqual(asistente.first_name, "Juan")
+        self.assertEqual(asistente.last_name, "Gonzalez")
+        self.assertEqual(asistente.empresa_vinculada, self.empresa)
+
+    def test_carga_preacreditacion_excel_unauthorized(self):
+        url = reverse('admin:api_empresa_preacreditacion', args=[self.empresa.id])
+        # Sin autenticación -> redirección a login (302)
+        response = self.client.post(url, {})
+        self.assertEqual(response.status_code, 302)
+
+        # Usuario no autorizado -> 302 o 403
+        self.client.force_login(self.unauthorized_user)
+        response = self.client.post(url, {})
+        self.assertIn(response.status_code, [302, 403])
+
+    def test_carga_preacreditacion_excel_admin_success(self):
+        import pandas as pd
+        from io import BytesIO
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        # Crear archivo Excel simulado
+        data = {
+            'Nombre': ['Laura', 'Pedro'],
+            'Apellido': ['Martínez', 'Alvarez'],
+            'DNI': ['11223344', '55667788'],
+            'Cargo': ['Directora', 'Analista'],
+            'Email': ['lmartinez@empresa.com', 'palvarez@empresa.com'],
+            'Teléfono': ['11112222', '33334444']
+        }
+        df = pd.DataFrame(data)
+        excel_io = BytesIO()
+        df.to_excel(excel_io, index=False, engine='openpyxl')
+        excel_io.seek(0)
+        uploaded_file = SimpleUploadedFile("PREACREDITACION_EMPRESAS.xlsx", excel_io.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        url = reverse('admin:api_empresa_preacreditacion', args=[self.empresa.id])
+        self.client.force_login(self.admin_user)
+        response = self.client.post(url, {'archivo': uploaded_file}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        
+        # Verificar registros creados en base de datos
+        from .models import PersonalEmpresa
+        self.assertEqual(PersonalEmpresa.objects.filter(empresa=self.empresa).count(), 2)
+
+    def test_carga_preacreditacion_file_too_large(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .services import validar_archivo_excel_seguro
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        fake_content = b"0" * (6 * 1024 * 1024)
+        uploaded_file = SimpleUploadedFile("grande.xlsx", fake_content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        with self.assertRaises((DRFValidationError, ValueError)) as ctx:
+            validar_archivo_excel_seguro(uploaded_file)
+        self.assertIn("excede el tamaño máximo", str(ctx.exception))
+
+    def test_carga_preacreditacion_invalid_magic_bytes(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .services import validar_archivo_excel_seguro
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        fake_content = b"<?php echo 'malicious'; ?>"
+        uploaded_file = SimpleUploadedFile("script.xlsx", fake_content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        with self.assertRaises((DRFValidationError, ValueError)) as ctx:
+            validar_archivo_excel_seguro(uploaded_file)
+        self.assertIn("firma de contenido", str(ctx.exception))
+
+    def test_carga_preacreditacion_formula_injection_sanitization(self):
+        import pandas as pd
+        from io import BytesIO
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .models import PersonalEmpresa
+        from .services import procesar_archivo_preacreditacion_empresa
+
+        data = {
+            'Nombre': ['+SUM(1+1)', 'Ana'],
+            'Apellido': ['-CMD|calc!A0', 'Lopez'],
+            'DNI': ['99887766', '88776655'],
+            'Cargo': ['@Manager', '<script>alert(1)</script>Dev'],
+            'Email': ['formula@test.com', 'ana@test.com'],
+            'Teléfono': ['123456', '654321']
+        }
+        df = pd.DataFrame(data)
+        excel_io = BytesIO()
+        df.to_excel(excel_io, index=False, engine='openpyxl')
+        excel_io.seek(0)
+        uploaded_file = SimpleUploadedFile("formulas.xlsx", excel_io.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        procesar_archivo_preacreditacion_empresa(self.empresa, uploaded_file)
+
+        p1 = PersonalEmpresa.objects.get(dni='99887766')
+        self.assertTrue(p1.nombre.startswith("'"))
+        self.assertTrue(p1.apellido.startswith("'"))
+        p2 = PersonalEmpresa.objects.get(dni='88776655')
+        self.assertNotIn("<script>", p2.cargo)
+
+    def test_carga_preacreditacion_all_or_nothing_rollback(self):
+        import pandas as pd
+        from io import BytesIO
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .models import PersonalEmpresa
+        from .services import procesar_archivo_preacreditacion_empresa, PreacreditacionValidationError
+
+        # Crear dataset con 10 personas, 2 con error (1 DNI corto '123' en fila 4, 1 Email invalido en fila 9)
+        nombres = [f"Persona{i}" for i in range(1, 11)]
+        apellidos = [f"Apellido{i}" for i in range(1, 11)]
+        dnis = [f"300000{i:02d}" for i in range(1, 11)]
+        emails = [f"user{i}@empresa.com" for i in range(1, 11)]
+
+        # Introducir errores específicos
+        dnis[2] = "123"  # Fila 4 (index 2 + 2)
+        emails[7] = "email_invalido.com"  # Fila 9 (index 7 + 2)
+
+        data = {
+            'Nombre': nombres,
+            'Apellido': apellidos,
+            'DNI': dnis,
+            'Cargo': ['Cargo'] * 10,
+            'Email': emails,
+            'Teléfono': ['123456'] * 10
+        }
+        df = pd.DataFrame(data)
+        excel_io = BytesIO()
+        df.to_excel(excel_io, index=False, engine='openpyxl')
+        excel_io.seek(0)
+        uploaded_file = SimpleUploadedFile("preacreditacion_con_errores.xlsx", excel_io.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        with self.assertRaises(PreacreditacionValidationError) as ctx:
+            procesar_archivo_preacreditacion_empresa(self.empresa, uploaded_file)
+
+        e = ctx.exception
+        self.assertEqual(len(e.detalles), 2)
+
+        # Verificar detalle de errores
+        e1 = e.detalles[0]
+        self.assertEqual(e1['fila'], 4)
+        self.assertEqual(e1['columna'], "DNI")
+
+        e2 = e.detalles[1]
+        self.assertEqual(e2['fila'], 9)
+        self.assertEqual(e2['columna'], "Email")
+
+        # Verificar All-or-Nothing: 0 registros guardados en DB
+        self.assertEqual(PersonalEmpresa.objects.filter(empresa=self.empresa).count(), 0)
+
+
+
+
+

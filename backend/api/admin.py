@@ -12,11 +12,12 @@ from django.utils import timezone
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail
+from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, Http404
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 import logging
 import os
@@ -126,6 +127,7 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
             'total_inscritos': Inscripcion.objects.filter(edicion=ed).count(),
             'total_disertantes': Disertante.objects.filter(edicion=ed).count(),
             'total_empresas': Empresa.objects.filter(edicion=ed).count(),
+            'total_personal_empresas': PersonalEmpresa.objects.filter(empresa__edicion=ed).count(),
         })
 
     # 4. Asistentes Recurrentes (Filtro por ediciones anteriores)
@@ -139,6 +141,7 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
     total_inscritos = Inscripcion.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
     total_disertantes = Disertante.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
     total_empresas = Empresa.objects.filter(edicion=edicion_actual).count() if edicion_actual else 0
+    total_personal_empresas = PersonalEmpresa.objects.filter(empresa__edicion=edicion_actual).count() if edicion_actual else PersonalEmpresa.objects.count()
     total_confirmados = Inscripcion.objects.filter(
         edicion=edicion_actual,
         asistencia_confirmada=True
@@ -166,6 +169,7 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
             'total_confirmados': total_confirmados,
             'total_disertantes': total_disertantes,
             'total_empresas': total_empresas,
+            'total_personal_empresas': total_personal_empresas,
             'asistentes_recurrentes': recurrentes_count,
             'registros_24h': registros_24h,
             'promedio_diario': float(f"{main_stats[-1]['cumulative'] / max(1, len(main_stats)):.2f}") if main_stats else 0.0,
@@ -2063,18 +2067,109 @@ class DisertanteAdmin(admin.ModelAdmin):
         except Exception as e:
             logger.error(f"Error al sincronizar disertante manual a programa: {e}")
 
+class PersonalEmpresaInline(admin.TabularInline):
+    model = PersonalEmpresa
+    extra = 1
+    fields = ('nombre', 'apellido', 'dni', 'cargo', 'email', 'telefono', 'acreditado')
+    readonly_fields = ('asistente',)
+
+@admin.register(PersonalEmpresa)
+class PersonalEmpresaAdmin(SimpleHistoryAdmin):
+    list_display = ('nombre_completo', 'empresa', 'dni', 'cargo', 'email', 'telefono', 'acreditado', 'fecha_registro')
+    list_filter = ('acreditado', 'empresa')
+    search_fields = ('nombre', 'apellido', 'dni', 'email', 'empresa__nombre_empresa', 'cargo')
+    raw_id_fields = ('asistente', 'empresa')
+
 @admin.register(Empresa)
 class EmpresaAdmin(SimpleHistoryAdmin):
+    change_form_template = 'admin/api/empresa/change_form.html'
+
     class Media:
         js = ('admin/js/multiselect_filters.js',)
 
-    list_display = ('nombre_empresa', 'estado_badge', 'es_sponsor', 'edicion', 'numero_stand', 'cantidad_representantes', 'fecha_registro_detalle')
+    inlines = [PersonalEmpresaInline]
+
+    list_display = ('nombre_empresa', 'estado_badge', 'es_sponsor', 'edicion', 'numero_stand', 'cantidad_representantes', 'boton_preacreditacion', 'fecha_registro_detalle')
     list_filter = ('estado', 'es_sponsor', 'edicion', 'participo_edicion_anterior')
     search_fields = ('nombre_empresa', 'cuit', 'email_contacto', 'nombre_contacto')
     list_editable = ('numero_stand', 'cantidad_representantes')
     actions = ['confirmar_empresas', 'marcar_envio_bc', 'marcar_pendiente_pago', 'rechazar_empresas']
     readonly_fields = ('fecha_registro', 'fecha_revision', 'revisada_por')
     ordering = ['-fecha_registro']
+
+    def boton_preacreditacion(self, obj):
+        url = reverse('admin:api_empresa_preacreditacion', args=[obj.pk])
+        return format_html(
+            '<a class="button" href="{}" style="background:#4f46e5;color:#ffffff;font-weight:600;padding:3px 8px;border-radius:4px;white-space:nowrap;text-decoration:none;display:inline-block;">📄 Preacreditar</a>',
+            url
+        )
+    boton_preacreditacion.short_description = 'Preacreditación'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<path:object_id>/preacreditacion/',
+                self.admin_site.admin_view(self.carga_preacreditacion_view),
+                name='api_empresa_preacreditacion',
+            ),
+        ]
+        return custom_urls + urls
+
+    def carga_preacreditacion_view(self, request, object_id):
+        empresa = self.get_object(request, object_id)
+        if empresa is None:
+            raise Http404("Empresa no encontrada")
+
+        if not self.has_change_permission(request, empresa):
+            raise PermissionDenied
+
+        from .forms import CargaPreacreditacionForm
+        from .services import procesar_archivo_preacreditacion_empresa, PreacreditacionValidationError
+
+        if request.method == 'POST':
+            form = CargaPreacreditacionForm(request.POST, request.FILES)
+            if form.is_valid():
+                archivo = form.cleaned_data['archivo']
+                try:
+                    resultado = procesar_archivo_preacreditacion_empresa(empresa, archivo)
+                    total = resultado.get('total_procesados', 0)
+                    msg = format_html(
+                        "✅ <strong>¡Preacreditación Exitosa!</strong> Se procesó la plantilla y se registraron "
+                        "<strong>{}</strong> empleados correctamente para la empresa <strong>{}</strong>.",
+                        total, empresa.nombre_empresa
+                    )
+                    self.message_user(request, msg, level=messages.SUCCESS)
+                    return redirect('admin:api_empresa_change', object_id)
+                except PreacreditacionValidationError as e:
+                    html_errs = (
+                        f"❌ <strong>Transacción Cancelada Completa (All-or-Nothing):</strong> No se guardó ningún registro en la base de datos.<br/>"
+                        f"Se encontraron <strong>{len(e.detalles)}</strong> error(es) en el archivo Excel:<ul style='margin-top:8px;margin-bottom:0;padding-left:20px;'>"
+                    )
+                    for err in e.detalles:
+                        valor_str = f" (Valor ingresado: <code>{err['valor']}</code>)" if err.get('valor') is not None and str(err.get('valor')).strip() != '' else ''
+                        html_errs += f"<li><strong>Error en Fila {err['fila']}</strong> - Columna <strong>{err['columna']}</strong>: {err['mensaje']}{valor_str}</li>"
+                    html_errs += "</ul>"
+                    self.message_user(request, format_html(html_errs), level=messages.ERROR)
+                except Exception as e:
+                    logger.error(f"Error al procesar preacreditación en admin: {e}", exc_info=True)
+                    self.message_user(
+                        request,
+                        format_html("❌ <strong>Error Inesperado:</strong> {}", str(e)),
+                        level=messages.ERROR
+                    )
+        else:
+            form = CargaPreacreditacionForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'original': empresa,
+            'title': f'Cargar Preacreditación - {empresa.nombre_empresa}',
+            'form': form,
+            'object_id': object_id,
+        }
+        return render(request, 'admin/api/empresa/carga_preacreditacion.html', context)
 
     def fecha_registro_detalle(self, obj):
         return obj.fecha_registro.strftime("%d/%m/%Y %H:%M") if obj.fecha_registro else "-"
@@ -2171,6 +2266,7 @@ class EmpresaAdmin(SimpleHistoryAdmin):
         if custom_filters:
             qs = qs.filter(**custom_filters).distinct()
         return qs
+
 
 
 class EjeTematicoFilter(admin.SimpleListFilter):

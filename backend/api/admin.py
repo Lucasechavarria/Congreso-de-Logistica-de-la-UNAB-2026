@@ -8,6 +8,7 @@ from django.utils.html import format_html
 from django.urls import reverse, path
 from django.utils import timezone
 import json
+import re
 from django.utils import timezone
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
@@ -1129,18 +1130,25 @@ class AsistenteAdmin(SimpleHistoryAdmin):
             if action == 'import_row':
                 edicion_activa = Edicion.objects.filter(activa=True).first()
                 if not edicion_activa:
-                    return JsonResponse({'status': 'error', 'message': "No hay una edición activa configurada para vincular los registros."})
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': "No hay una edición activa configurada en el sistema. Por favor, active una edición en el panel administrativo antes de realizar la importación masiva."
+                    })
 
                 row_data = data.get('row', {})
-                dni = str(row_data.get('dni', '')).strip().split('.')[0]
+                raw_dni = str(row_data.get('dni', '')).strip()
+                dni = re.sub(r'\D', '', raw_dni)
+                if len(dni) == 9 and dni.endswith('0'):
+                    dni = dni[:8]
+
                 email = str(row_data.get('email', '')).strip().lower()
                 nombre = str(row_data.get('nombre', '')).strip()
                 apellido = str(row_data.get('apellido', '')).strip()
                 telefono = str(row_data.get('telefono', '')).strip()
                 profile_type = str(row_data.get('perfil', 'VISITOR')).upper().strip()
-                institucion = str(row_data.get('institucion', '')).strip()
-                carrera_cargo = str(row_data.get('carrera', '')).strip()
-                comision_excel = str(row_data.get('comision', '')).strip()
+                institucion = str(row_data.get('institucion', '')).strip()[:255]
+                carrera_cargo = str(row_data.get('carrera', '')).strip()[:255]
+                comision_excel = str(row_data.get('comision', '')).strip()[:255]
                 send_emails = data.get('send_emails', False)
 
                 if not dni or not email or not nombre or not apellido:
@@ -1151,24 +1159,36 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                     if not apellido: missing.append("Apellido")
                     return JsonResponse({'status': 'error', 'message': f"Datos básicos faltantes: {', '.join(missing)}"})
 
+                if len(dni) not in (7, 8):
+                    return JsonResponse({'status': 'error', 'message': f"El DNI '{raw_dni}' debe tener entre 7 y 8 dígitos numéricos."})
+
                 if profile_type not in [t[0] for t in Asistente.ProfileType.choices]:
                     profile_type = Asistente.ProfileType.VISITOR
 
                 try:
                     with transaction.atomic():
-                        asistente, created = Asistente.objects.update_or_create(
-                            dni=dni,
-                            defaults={
-                                'first_name': nombre,
-                                'last_name': apellido,
-                                'email': email,
-                                'phone': telefono,
-                                'profile_type': profile_type,
-                                'terminos_aceptados': True
-                            }
-                        )
-
-                        action_taken = "created" if created else "updated"
+                        asistente = Asistente.objects.filter(dni=dni).first()
+                        if asistente:
+                            asistente.first_name = nombre
+                            asistente.last_name = apellido
+                            asistente.email = email
+                            if telefono:
+                                asistente.phone = telefono
+                            asistente.profile_type = profile_type
+                            asistente.terminos_aceptados = True
+                            asistente.save()
+                            action_taken = "updated"
+                        else:
+                            asistente = Asistente.objects.create(
+                                dni=dni,
+                                first_name=nombre,
+                                last_name=apellido,
+                                email=email,
+                                phone=telefono,
+                                profile_type=profile_type,
+                                terminos_aceptados=True
+                            )
+                            action_taken = "created"
 
                         # Vincular a edición activa
                         Inscripcion.objects.get_or_create(
@@ -1191,15 +1211,20 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                                 work_area = institucion if profile_type == Asistente.ProfileType.PROFESSIONAL else "Otro"
                                 DetalleProfesional.objects.update_or_create(asistente=asistente, defaults={'work_area': work_area, 'occupation': carrera_cargo})
 
-                        # Enviar Email si se solicitó
+                        # Enviar Email si se solicitó (desacoplado con Celery si disponible)
                         email_status = "not_requested"
                         if send_emails:
                             try:
-                                from .email import send_individual_confirmation_email
-                                send_individual_confirmation_email(asistente)
-                                email_status = "sent"
-                            except Exception as email_err:
-                                email_status = f"failed: {str(email_err)}"
+                                from .tasks import task_enviar_confirmacion_individual
+                                task_enviar_confirmacion_individual.delay(asistente.id)
+                                email_status = "queued"
+                            except Exception as task_err:
+                                try:
+                                    from .email import send_individual_confirmation_email
+                                    send_individual_confirmation_email(asistente)
+                                    email_status = "sent"
+                                except Exception as email_err:
+                                    email_status = f"failed: {str(email_err)}"
 
                         return JsonResponse({
                             'status': 'success',
@@ -1243,7 +1268,10 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                     if pd.isna(row.get('nombre')) and pd.isna(row.get('apellido')) and pd.isna(row.get('dni')) and pd.isna(row.get('email')):
                         continue
 
-                    dni_val = str(row.get('dni', '')).strip().split('.')[0]
+                    raw_dni = str(row.get('dni', '')).strip()
+                    dni_val = re.sub(r'\D', '', raw_dni)
+                    if len(dni_val) == 9 and dni_val.endswith('0'):
+                        dni_val = dni_val[:8]
                     email_val = str(row.get('email', '')).strip().lower()
                     nombre_val = str(row.get('nombre', '')).strip()
                     apellido_val = str(row.get('apellido', '')).strip()
@@ -1301,7 +1329,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                 else:
                     edicion_activa = Edicion.objects.filter(activa=True).first()
                     if not edicion_activa:
-                        messages.error(request, "No hay una edición activa configurada para vincular los registros.")
+                        messages.error(request, "No hay una edición activa configurada en el sistema. Por favor, active una edición en el panel administrativo antes de realizar la importación masiva.")
                     else:
                         stats = {'total': 0, 'created': 0, 'updated': 0, 'errors': 0, 'error_details': []}
                         
@@ -1313,7 +1341,10 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                             stats['total'] += 1
                             try:
                                 with transaction.atomic():
-                                    dni = str(row.get('dni')).strip().split('.')[0]
+                                    raw_dni = str(row.get('dni')).strip()
+                                    dni = re.sub(r'\D', '', raw_dni)
+                                    if len(dni) == 9 and dni.endswith('0'):
+                                        dni = dni[:8]
                                     email = str(row.get('email')).strip().lower()
                                     nombre = str(row.get('nombre', '')).strip()
                                     apellido = str(row.get('apellido', '')).strip()
@@ -1326,24 +1357,34 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                                         if not apellido: missing_fields.append("Apellido")
                                         raise ValueError(f"Datos básicos faltantes: {', '.join(missing_fields)}")
 
+                                    if len(dni) not in (7, 8):
+                                        raise ValueError(f"El DNI '{raw_dni}' debe tener entre 7 y 8 dígitos numéricos.")
+
                                     profile_type = str(row.get('perfil', 'VISITOR')).upper().strip()
                                     if profile_type not in [t[0] for t in Asistente.ProfileType.choices]:
                                         profile_type = Asistente.ProfileType.VISITOR
 
-                                    asistente, created = Asistente.objects.update_or_create(
-                                        dni=dni,
-                                        defaults={
-                                            'first_name': nombre,
-                                            'last_name': apellido,
-                                            'email': email,
-                                            'phone': str(row.get('telefono', '')).strip(),
-                                            'profile_type': profile_type,
-                                            'terminos_aceptados': True
-                                        }
-                                    )
-
-                                    if created: stats['created'] += 1
-                                    else: stats['updated'] += 1
+                                    asistente = Asistente.objects.filter(dni=dni).first()
+                                    if asistente:
+                                        asistente.first_name = nombre
+                                        asistente.last_name = apellido
+                                        asistente.email = email
+                                        asistente.phone = str(row.get('telefono', '')).strip()
+                                        asistente.profile_type = profile_type
+                                        asistente.terminos_aceptados = True
+                                        asistente.save()
+                                        stats['updated'] += 1
+                                    else:
+                                        asistente = Asistente.objects.create(
+                                            dni=dni,
+                                            first_name=nombre,
+                                            last_name=apellido,
+                                            email=email,
+                                            phone=str(row.get('telefono', '')).strip(),
+                                            profile_type=profile_type,
+                                            terminos_aceptados=True
+                                        )
+                                        stats['created'] += 1
 
                                     Inscripcion.objects.get_or_create(
                                         asistente=asistente,

@@ -136,7 +136,7 @@ export default function Index() {
               }
             },
             "image": [
-              "https://www.congresologistica.unab.edu.ar/images/CONGRESO-LOGISTICA-2.png"
+              "https://www.congresologistica.unab.edu.ar/images/logo-congreso-2026-blanco.png"
             ],
             "description": "Únete al Congreso de Logística y Transporte 2026 en la UNAB. Descubre tendencias en logística verde y automatización.",
             "offers": {

@@ -1095,23 +1095,26 @@
 </script>
 <script>
     let selectedFile = null;
-    let excelHeaders = [];
+    let excelColumns = [];
     let excelDataRows = [];
+    let validRowsToImport = [];
+    let validationErrors = [];
+    let skippedEmptyCount = 0;
     
     // Configuración de campos del modelo y sinónimos para mapeo inteligente
     const targetFields = [
-        { key: 'dni', label: 'DNI / Identificación', required: true, synonyms: ['dni', 'documento', 'cedula', 'cédula', 'identificación', 'identificacion', 'rut', 'id'] },
-        { key: 'email', label: 'Email', required: true, synonyms: ['email', 'correo', 'mail', 'contacto', 'correo electrónico', 'correo electronico'] },
-        { key: 'nombre', label: 'Nombre', required: true, synonyms: ['nombre', 'nombres', 'first name', 'first_name', 'nombre completo'] },
+        { key: 'dni', label: 'DNI / Identificación', required: true, synonyms: ['dni', 'documento', 'cedula', 'cédula', 'identificación', 'identificacion', 'rut', 'nro documento', 'nro doc', 'num documento'] },
+        { key: 'email', label: 'Email', required: true, synonyms: ['email', 'correo', 'mail', 'contacto', 'correo electrónico', 'correo electronico', 'e-mail'] },
+        { key: 'nombre', label: 'Nombre', required: true, synonyms: ['nombre', 'nombres', 'first name', 'first_name', 'nombre(s)'] },
         { key: 'apellido', label: 'Apellido', required: true, synonyms: ['apellido', 'apellidos', 'last name', 'last_name'] },
-        { key: 'telefono', label: 'Teléfono (Opcional)', required: false, synonyms: ['telefono', 'teléfono', 'celular', 'phone', 'movil', 'móvil', 'contacto_tel'] },
-        { key: 'perfil', label: 'Perfil (Opcional)', required: false, synonyms: ['perfil', 'tipo', 'profile', 'profile_type', 'tipo_perfil'] },
-        { key: 'institucion', label: 'Institución (Opcional)', required: false, synonyms: ['institucion', 'institución', 'universidad', 'empresa', 'organización', 'organization', 'institution', 'colegio'] },
-        { key: 'carrera', label: 'Carrera / Cargo (Opcional)', required: false, synonyms: ['carrera', 'cargo', 'career', 'job', 'position', 'curso_año'] },
-        { key: 'comision', label: 'Comisión (Opcional)', required: false, synonyms: ['comision', 'comisión', 'curso', 'aula', 'comision_excel'] }
+        { key: 'telefono', label: 'Teléfono (Opcional)', required: false, synonyms: ['telefono', 'teléfono', 'celular', 'phone', 'movil', 'móvil', 'contacto_tel', 'tel', 'whatsapp'] },
+        { key: 'perfil', label: 'Perfil (Opcional)', required: false, synonyms: ['perfil', 'tipo', 'profile', 'profile_type', 'tipo_perfil', 'tipo perfil', 'rol'] },
+        { key: 'institucion', label: 'Institución (Opcional)', required: false, synonyms: ['institucion', 'institución', 'universidad', 'empresa', 'organización', 'organizacion', 'organization', 'institution', 'colegio', 'entidad'] },
+        { key: 'carrera', label: 'Carrera / Cargo (Opcional)', required: false, synonyms: ['carrera', 'cargo', 'career', 'job', 'position', 'curso_año', 'puesto', 'profesion', 'profesión'] },
+        { key: 'comision', label: 'Comisión (Opcional)', required: false, synonyms: ['comision', 'comisión', 'curso', 'aula', 'comision_excel', 'turno'] }
     ];
 
-    let fieldMappings = {}; // Almacenará: { 'dni': 'columna_excel', ... }
+    let fieldMappings = {}; // Almacenará: { 'dni': columnIndex, ... }
 
     // Referencias UI
     const dropzone = document.getElementById('dropzone');
@@ -1161,8 +1164,11 @@
 
     btnRemoveFile.addEventListener('click', () => {
         selectedFile = null;
-        excelHeaders = [];
+        excelColumns = [];
         excelDataRows = [];
+        validRowsToImport = [];
+        validationErrors = [];
+        skippedEmptyCount = 0;
         fileInput.value = '';
         fileCard.style.display = 'none';
         dropzone.style.display = 'block';
@@ -1190,12 +1196,63 @@
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 
-                // Obtener cabeceras y filas con SheetJS
-                excelHeaders = getSheetHeaders(worksheet);
-                excelDataRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                // 1. Obtener la matriz cruda bidimensional (array de arrays)
+                const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
-                if (excelHeaders.length === 0 || excelDataRows.length === 0) {
-                    alert("El archivo cargado parece estar vacío o no tiene una estructura válida.");
+                if (!rawMatrix || rawMatrix.length === 0) {
+                    alert("El archivo cargado parece estar completamente vacío.");
+                    return;
+                }
+
+                // 2. Detección Inteligente de la fila de cabeceras
+                let headerRowIndex = 0;
+                for (let r = 0; r < Math.min(rawMatrix.length, 10); r++) {
+                    const row = rawMatrix[r];
+                    if (!Array.isArray(row)) continue;
+                    const rowText = row.map(c => String(c).toLowerCase().trim()).join(' ');
+                    if (rowText.includes('dni') || rowText.includes('email') || rowText.includes('correo') || (rowText.includes('nombre') && rowText.includes('apellido'))) {
+                        headerRowIndex = r;
+                        break;
+                    }
+                }
+
+                // 3. Extraer columnas con su letra de Excel (A, B, C...) y etiqueta limpia
+                const rawHeaders = rawMatrix[headerRowIndex] || [];
+                let maxCols = rawHeaders.length;
+                for (let r = headerRowIndex; r < rawMatrix.length; r++) {
+                    if (Array.isArray(rawMatrix[r]) && rawMatrix[r].length > maxCols) {
+                        maxCols = rawMatrix[r].length;
+                    }
+                }
+
+                excelColumns = [];
+                for (let c = 0; c < maxCols; c++) {
+                    const colLetter = XLSX.utils.encode_col(c);
+                    let label = String(rawHeaders[c] !== undefined ? rawHeaders[c] : '').trim();
+                    if (!label) {
+                        label = `Columna ${colLetter}`;
+                    }
+                    excelColumns.push({
+                        index: c,
+                        letter: colLetter,
+                        label: label,
+                        displayName: label.toLowerCase().startsWith('columna') ? label : `${label} (Col. ${colLetter})`
+                    });
+                }
+
+                // 4. Extraer filas de datos a partir de la fila siguiente a la cabecera
+                excelDataRows = [];
+                for (let r = headerRowIndex + 1; r < rawMatrix.length; r++) {
+                    const row = rawMatrix[r];
+                    if (!Array.isArray(row)) continue;
+                    excelDataRows.push({
+                        excelRowNumber: r + 1, // Número de fila real en Excel (1-indexed)
+                        cells: row
+                    });
+                }
+
+                if (excelDataRows.length === 0) {
+                    alert("No se encontraron filas de datos después de la cabecera en el archivo Excel.");
                     return;
                 }
 
@@ -1210,18 +1267,26 @@
         reader.readAsArrayBuffer(selectedFile);
     });
 
-    function getSheetHeaders(sheet) {
-        const headers = [];
-        if (!sheet['!ref']) return [];
-        const range = XLSX.utils.decode_range(sheet['!ref']);
-        const R = range.s.r; // primera fila
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-            const cell = sheet[XLSX.utils.encode_cell({ c: C, r: R })];
-            let hdr = "Columna " + (C + 1);
-            if (cell && cell.t) hdr = XLSX.utils.format_cell(cell).trim();
-            headers.push(hdr);
+    function findBestMatch(field, cols) {
+        // Pase 1: Coincidencia Exacta insensata a mayúsculas/espacios/guiones
+        for (const col of cols) {
+            const cleanName = col.label.toLowerCase().replace(/[._-\s]/g, '');
+            for (const syn of field.synonyms) {
+                const cleanSyn = syn.toLowerCase().replace(/[._-\s]/g, '');
+                if (cleanName === cleanSyn) return col.index;
+            }
         }
-        return headers;
+        // Pase 2: Prefijo o palabra clave (mínimo 3 caracteres para evitar falsos positivos como 'id' en 'apellido')
+        for (const col of cols) {
+            const cleanName = col.label.toLowerCase().replace(/[._-\s]/g, '');
+            for (const syn of field.synonyms) {
+                const cleanSyn = syn.toLowerCase().replace(/[._-\s]/g, '');
+                if (cleanSyn.length >= 3 && cleanName.includes(cleanSyn)) {
+                    return col.index;
+                }
+            }
+        }
+        return '';
     }
 
     // Construir la UI del Mapeador de Columnas
@@ -1268,31 +1333,25 @@
             defaultOpt.innerText = field.required ? '-- Selecciona una columna obligatoria --' : '-- Ignorar este campo / No mapear --';
             select.appendChild(defaultOpt);
 
-            // Intentar Mapeo Inteligente
-            let matchedHeader = '';
-            excelHeaders.forEach(hdr => {
+            // Poblar columnas disponibles
+            excelColumns.forEach(col => {
                 const opt = document.createElement('option');
-                opt.value = hdr;
-                opt.innerText = hdr;
+                opt.value = col.index;
+                opt.innerText = col.displayName;
                 select.appendChild(opt);
-
-                // Algoritmo de sinónimos insensibles
-                const cleanHdr = hdr.toLowerCase().replace(/[._-\s]/g, '');
-                field.synonyms.forEach(syn => {
-                    const cleanSyn = syn.toLowerCase().replace(/[._-\s]/g, '');
-                    if (cleanHdr === cleanSyn || cleanHdr.includes(cleanSyn) || cleanSyn.includes(cleanHdr)) {
-                        matchedHeader = hdr;
-                    }
-                });
             });
 
-            if (matchedHeader) {
-                select.value = matchedHeader;
-                fieldMappings[field.key] = matchedHeader;
+            // Asignar el mejor match inteligente
+            const matchedIndex = findBestMatch(field, excelColumns);
+            if (matchedIndex !== '') {
+                select.value = matchedIndex;
+                fieldMappings[field.key] = matchedIndex;
+            } else {
+                fieldMappings[field.key] = '';
             }
 
             select.addEventListener('change', (e) => {
-                fieldMappings[field.key] = e.target.value;
+                fieldMappings[field.key] = e.target.value !== '' ? parseInt(e.target.value, 10) : '';
                 updatePreviewTable();
                 validateMappingForm();
             });
@@ -1309,7 +1368,7 @@
         // Verificar que todos los campos requeridos estén seleccionados
         let allRequiredMapped = true;
         targetFields.forEach(field => {
-            if (field.required && !fieldMappings[field.key]) {
+            if (field.required && (fieldMappings[field.key] === undefined || fieldMappings[field.key] === '')) {
                 allRequiredMapped = false;
             }
         });
@@ -1320,10 +1379,10 @@
         previewTableHeader.innerHTML = '';
         previewTableBody.innerHTML = '';
 
-        // Cabeceras de previsualización (Solo campos que tienen mapeo)
-        const mappedKeys = targetFields.filter(f => fieldMappings[f.key]);
+        // Cabeceras de previsualización (Solo campos que tienen mapeo asignado)
+        const mappedFields = targetFields.filter(f => fieldMappings[f.key] !== undefined && fieldMappings[f.key] !== '');
         
-        if (mappedKeys.length === 0) {
+        if (mappedFields.length === 0) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.innerText = "Ningún campo mapeado aún.";
@@ -1333,20 +1392,37 @@
             return;
         }
 
-        mappedKeys.forEach(field => {
+        mappedFields.forEach(field => {
             const th = document.createElement('th');
             th.innerText = field.label.split(' ')[0]; // Simplificar nombre
             previewTableHeader.appendChild(th);
         });
 
-        // Primeras 3 filas de previsualización
-        const previewRows = excelDataRows.slice(0, 3);
-        previewRows.forEach(row => {
+        // Filtrar primeras 3 filas que contengan al menos algún dato
+        const previewRows = excelDataRows.filter(r => {
+            return mappedFields.some(f => {
+                const colIdx = fieldMappings[f.key];
+                return r.cells[colIdx] !== undefined && String(r.cells[colIdx]).trim() !== '';
+            });
+        }).slice(0, 3);
+
+        if (previewRows.length === 0) {
             const tr = document.createElement('tr');
-            mappedKeys.forEach(field => {
+            const td = document.createElement('td');
+            td.innerText = "No se encontraron filas con datos para las columnas seleccionadas.";
+            td.style.textAlign = 'center';
+            td.colSpan = mappedFields.length;
+            previewTableBody.appendChild(tr);
+            return;
+        }
+
+        previewRows.forEach(rowItem => {
+            const tr = document.createElement('tr');
+            mappedFields.forEach(field => {
                 const td = document.createElement('td');
-                const excelCol = fieldMappings[field.key];
-                td.innerText = row[excelCol] !== undefined ? row[excelCol] : '';
+                const colIdx = fieldMappings[field.key];
+                const val = (rowItem.cells[colIdx] !== undefined) ? String(rowItem.cells[colIdx]).trim() : '';
+                td.innerText = val;
                 tr.appendChild(td);
             });
             previewTableBody.appendChild(tr);
@@ -1357,43 +1433,57 @@
         switchStep(stepMapping, stepUpload);
     });
 
-    let validRowsToImport = [];
-    let validationErrors = [];
-
     function validateExcelData() {
         validationErrors = [];
         validRowsToImport = [];
+        skippedEmptyCount = 0;
 
-        const dniCol = fieldMappings['dni'];
-        const emailCol = fieldMappings['email'];
-        const nombreCol = fieldMappings['nombre'];
-        const apellidoCol = fieldMappings['apellido'];
-        const perfilCol = fieldMappings['perfil'];
+        const dniIdx = fieldMappings['dni'];
+        const emailIdx = fieldMappings['email'];
+        const nombreIdx = fieldMappings['nombre'];
+        const apellidoIdx = fieldMappings['apellido'];
+        const telefonoIdx = fieldMappings['telefono'];
+        const perfilIdx = fieldMappings['perfil'];
+        const institucionIdx = fieldMappings['institucion'];
+        const carreraIdx = fieldMappings['carrera'];
+        const comisionIdx = fieldMappings['comision'];
 
-        excelDataRows.forEach((row, index) => {
-            const excelRowIndex = index + 2; // Fila Excel real
+        excelDataRows.forEach(rowItem => {
+            const cells = rowItem.cells;
+            const excelRowIndex = rowItem.excelRowNumber;
             let rowErrors = [];
 
-            // 1. Validar requeridos
-            const rawDni = row[dniCol] !== undefined ? String(row[dniCol]).trim() : '';
-            const rawEmail = row[emailCol] !== undefined ? String(row[emailCol]).trim() : '';
-            const rawNombre = row[nombreCol] !== undefined ? String(row[nombreCol]).trim() : '';
-            const rawApellido = row[apellidoCol] !== undefined ? String(row[apellidoCol]).trim() : '';
+            const rawDni = (dniIdx !== undefined && dniIdx !== '') ? String(cells[dniIdx] !== undefined ? cells[dniIdx] : '').trim() : '';
+            const rawEmail = (emailIdx !== undefined && emailIdx !== '') ? String(cells[emailIdx] !== undefined ? cells[emailIdx] : '').trim() : '';
+            const rawNombre = (nombreIdx !== undefined && nombreIdx !== '') ? String(cells[nombreIdx] !== undefined ? cells[nombreIdx] : '').trim() : '';
+            const rawApellido = (apellidoIdx !== undefined && apellidoIdx !== '') ? String(cells[apellidoIdx] !== undefined ? cells[apellidoIdx] : '').trim() : '';
+            const rawTelefono = (telefonoIdx !== undefined && telefonoIdx !== '') ? String(cells[telefonoIdx] !== undefined ? cells[telefonoIdx] : '').trim() : '';
+            const rawPerfil = (perfilIdx !== undefined && perfilIdx !== '') ? String(cells[perfilIdx] !== undefined ? cells[perfilIdx] : '').trim() : '';
+            const rawInstitucion = (institucionIdx !== undefined && institucionIdx !== '') ? String(cells[institucionIdx] !== undefined ? cells[institucionIdx] : '').trim() : '';
+            const rawCarrera = (carreraIdx !== undefined && carreraIdx !== '') ? String(cells[carreraIdx] !== undefined ? cells[carreraIdx] : '').trim() : '';
+            const rawComision = (comisionIdx !== undefined && comisionIdx !== '') ? String(cells[comisionIdx] !== undefined ? cells[comisionIdx] : '').trim() : '';
 
+            // DETECCIÓN DE FILA FANTASMA / VACÍA:
+            // Si DNI, Email, Nombre y Apellido están vacíos, es una fila sin datos (o sólo un número de índice 1..17).
+            // Se omite limpiamente para no generar falsos errores ni bloquear al usuario.
+            if (!rawDni && !rawEmail && !rawNombre && !rawApellido) {
+                skippedEmptyCount++;
+                return;
+            }
+
+            // 1. Validar campos obligatorios
             if (!rawDni) rowErrors.push({ field: 'DNI', msg: 'DNI obligatorio vacío.' });
             if (!rawEmail) rowErrors.push({ field: 'Email', msg: 'Email obligatorio vacío.' });
             if (!rawNombre) rowErrors.push({ field: 'Nombre', msg: 'Nombre obligatorio vacío.' });
             if (!rawApellido) rowErrors.push({ field: 'Apellido', msg: 'Apellido obligatorio vacío.' });
 
             // 2. Validar DNI si está provisto
-            if (rawDni) {
-                let dniLimpio = rawDni.replace(/\D/g, '');
-                if (dniLimpio.length === 9 && dniLimpio.endsWith('0')) {
-                    dniLimpio = dniLimpio.slice(0, 8);
-                }
-                if (dniLimpio.length < 7 || dniLimpio.length > 8) {
-                    rowErrors.push({ field: `DNI (${rawDni})`, msg: 'El DNI debe tener entre 7 y 8 dígitos numéricos.' });
-                }
+            let cleanDni = rawDni.replace(/\D/g, '');
+            if (cleanDni.length === 9 && cleanDni.endsWith('0')) {
+                cleanDni = cleanDni.slice(0, 8);
+            }
+            if (rawDni && (cleanDni.length < 7 || cleanDni.length > 8)) {
+                rowErrors.push({ field: `DNI (${rawDni})`, msg: 'El DNI debe tener entre 7 y 8 dígitos numéricos.' });
             }
 
             // 3. Validar Email si está provisto
@@ -1405,11 +1495,29 @@
             }
 
             // 4. Validar perfil si está provisto
-            if (perfilCol && row[perfilCol]) {
-                const rawPerfil = String(row[perfilCol]).toUpperCase().trim();
-                const sinónimosValidos = ['ESTUDIANTE', 'DOCENTE', 'PROFESIONAL', 'PRENSA', 'VISITANTE', 'GRADUADO', 'OTRO', 'STUDENT', 'GRADUADO', 'TEACHER', 'PROFESSIONAL', 'PRESS', 'GROUP_REPRESENTATIVE', 'VISITOR', 'OTRO'];
-                if (!sinónimosValidos.includes(rawPerfil)) {
-                    rowErrors.push({ field: `Perfil (${row[perfilCol]})`, msg: `Perfil no reconocido (se guardará como 'Visitante' por defecto).` });
+            let normalizedPerfil = 'VISITOR';
+            if (rawPerfil) {
+                const pUpper = rawPerfil.toUpperCase();
+                const perfilMap = {
+                    'ESTUDIANTE': 'STUDENT',
+                    'STUDENT': 'STUDENT',
+                    'ALUMNO': 'STUDENT',
+                    'DOCENTE': 'TEACHER',
+                    'PROFESOR': 'TEACHER',
+                    'TEACHER': 'TEACHER',
+                    'PROFESIONAL': 'PROFESSIONAL',
+                    'PROFESSIONAL': 'PROFESSIONAL',
+                    'PRENSA': 'PRESS',
+                    'PRESS': 'PRESS',
+                    'VISITANTE': 'VISITOR',
+                    'VISITOR': 'VISITOR',
+                    'GRADUADO': 'GRADUADO',
+                    'OTRO': 'OTRO'
+                };
+                if (perfilMap[pUpper]) {
+                    normalizedPerfil = perfilMap[pUpper];
+                } else {
+                    rowErrors.push({ field: `Perfil (${rawPerfil})`, msg: `Perfil no reconocido (se guardará como 'Visitante' por defecto).` });
                 }
             }
 
@@ -1417,10 +1525,23 @@
                 validationErrors.push({
                     rowIndex: excelRowIndex,
                     errors: rowErrors,
-                    rowData: row
+                    cells: cells
                 });
             } else {
-                validRowsToImport.push(row);
+                validRowsToImport.push({
+                    rowIndex: excelRowIndex,
+                    normalized: {
+                        dni: cleanDni,
+                        email: rawEmail.toLowerCase(),
+                        nombre: rawNombre,
+                        apellido: rawApellido,
+                        telefono: rawTelefono,
+                        perfil: normalizedPerfil,
+                        institucion: rawInstitucion,
+                        carrera: rawCarrera,
+                        comision: rawComision
+                    }
+                });
             }
         });
 
@@ -1437,7 +1558,11 @@
         if (validationErrors.length === 0) {
             successCard.style.display = 'flex';
             errorsCard.style.display = 'none';
-            successCount.innerText = `Todos los ${validRowsToImport.length} registros listos para importar.`;
+            let msg = `Todos los ${validRowsToImport.length} registros listos para importar.`;
+            if (skippedEmptyCount > 0) {
+                msg += ` (Se omitieron ${skippedEmptyCount} filas vacías detectadas al final del archivo).`;
+            }
+            successCount.innerText = msg;
             btnProceed.innerText = `Importar todos los registros (${validRowsToImport.length}) 🚀`;
             btnProceed.disabled = (validRowsToImport.length === 0);
         } else {
@@ -1483,7 +1608,6 @@
     });
 
     document.getElementById('btnProceedImport').addEventListener('click', () => {
-        excelDataRows = [...validRowsToImport];
         switchStep(stepValidation, stepImporting);
         startBulkImport();
     });
@@ -1494,7 +1618,7 @@
     }
 
     async function startBulkImport() {
-        const totalRows = excelDataRows.length;
+        const totalRows = validRowsToImport.length;
         const sendEmails = sendEmailsToggle.checked;
         
         document.getElementById('totalRowsCount').innerText = totalRows;
@@ -1535,28 +1659,9 @@
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken') || "";
 
         for (let i = 0; i < totalRows; i++) {
-            const excelRow = excelDataRows[i];
-            
-            // Construir el registro normalizado basado en el mapeo (con limpieza previa)
-            const normalizedRow = {};
-            targetFields.forEach(field => {
-                const colName = fieldMappings[field.key];
-                if (colName) {
-                    let val = excelRow[colName];
-                    if (field.key === 'dni' && val !== undefined) {
-                        let dniClean = String(val).replace(/\D/g, '');
-                        if (dniClean.length === 9 && dniClean.endsWith('0')) {
-                            dniClean = dniClean.slice(0, 8);
-                        }
-                        val = dniClean;
-                    } else if (field.key === 'email' && val !== undefined) {
-                        val = String(val).trim().toLowerCase();
-                    }
-                    normalizedRow[field.key] = val;
-                }
-            });
-
-            const index = i + 2; // Fila de excel real es index + 2 (cabecera + 1-index)
+            const item = validRowsToImport[i];
+            const normalizedRow = item.normalized;
+            const index = item.rowIndex; // Fila real en Excel
 
             try {
                 const response = await fetch('{% url "admin:api_asistente_import_excel" %}', {

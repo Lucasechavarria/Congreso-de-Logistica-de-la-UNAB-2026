@@ -68,7 +68,7 @@ export default function Layout({ children }: LayoutProps) {
                 }}
               >
                 <img
-                  src="/images/CONGRESO-LOGISTICA-2.png"
+                  src="/images/logo-congreso-2026-blanco.png"
                   alt="Logo oficial del Congreso de Logística y Transporte 2026 organizado por la Universidad Nacional Guillermo Brown"
                   className="h-20 w-auto"
                 />
@@ -225,7 +225,7 @@ export default function Layout({ children }: LayoutProps) {
                 Nuevas oportunidades, grandes desafíos
               </h3>
               <img
-                src="/images/CONGRESO-LOGISTICA-2.png"
+                src="/images/logo-congreso-2026-blanco.png"
                 alt="Logo del Congreso de Logística"
                 className="h-24 w-auto mt-6"
               />

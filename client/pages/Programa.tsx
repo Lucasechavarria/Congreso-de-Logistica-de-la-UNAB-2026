@@ -511,13 +511,23 @@ export default function Programa() {
                 </span>
                 <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              <div
+                className={
+                  sponsors.length === 1
+                    ? "flex justify-center"
+                    : sponsors.length === 2
+                    ? "grid grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto gap-3 md:gap-4"
+                    : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4"
+                }
+              >
                 {sponsors.map((sponsor) => (
                   <motion.div
                     key={sponsor.id}
                     whileHover={{ scale: 1.05, y: -2 }}
                     onClick={() => handleSponsorClick(sponsor)}
-                    className="bg-white/95 backdrop-blur-md rounded-xl p-4 flex items-center justify-center border border-white/50 shadow-md hover:shadow-2xl hover:bg-white transition-all duration-300 cursor-pointer group relative overflow-hidden h-20"
+                    className={`bg-white/95 backdrop-blur-md rounded-xl p-4 flex items-center justify-center border border-white/50 shadow-md hover:shadow-2xl hover:bg-white transition-all duration-300 cursor-pointer group relative overflow-hidden h-20 ${
+                      sponsors.length === 1 ? "w-full max-w-xs" : ""
+                    }`}
                   >
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Award className="w-4 h-4 text-amber-500" />
@@ -728,13 +738,23 @@ export default function Programa() {
                       </span>
                       <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                    <div
+                      className={
+                        sponsors.length === 1
+                          ? "flex justify-center"
+                          : sponsors.length === 2
+                          ? "grid grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto gap-3 md:gap-4"
+                          : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4"
+                      }
+                    >
                       {sponsors.map((sponsor) => (
                         <motion.div
                           key={sponsor.id}
                           whileHover={{ scale: 1.05, y: -2 }}
                           onClick={() => handleSponsorClick(sponsor)}
-                          className="bg-white/95 backdrop-blur-md rounded-xl p-4 flex items-center justify-center border border-white/50 shadow-md hover:shadow-2xl hover:bg-white transition-all duration-300 cursor-pointer group relative overflow-hidden h-20"
+                          className={`bg-white/95 backdrop-blur-md rounded-xl p-4 flex items-center justify-center border border-white/50 shadow-md hover:shadow-2xl hover:bg-white transition-all duration-300 cursor-pointer group relative overflow-hidden h-20 ${
+                            sponsors.length === 1 ? "w-full max-w-xs" : ""
+                          }`}
                         >
                           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Award className="w-4 h-4 text-amber-500" />

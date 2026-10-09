@@ -343,7 +343,7 @@ class Asistente(models.Model):
     # --- Información Principal (Común a todos) ---
     first_name = models.CharField(max_length=100, db_index=True, verbose_name="Nombre")
     last_name = models.CharField(max_length=100, db_index=True, verbose_name="Apellido")
-    email = models.EmailField(unique=True, verbose_name="Correo electrónico")
+    email = models.EmailField(verbose_name="Correo electrónico")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de celular")
     dni = models.CharField(max_length=8, unique=True, null=True, blank=True, verbose_name="DNI")
     dni_update_token = models.CharField(max_length=64, unique=True, null=True, blank=True, verbose_name="Token de actualización de DNI")
@@ -399,7 +399,7 @@ class Asistente(models.Model):
         return f"{self.first_name} {self.last_name}"
 
     def clean(self):
-        """Valida que el DNI tenga exactamente 8 dígitos numéricos"""
+        """Valida que el DNI tenga 7 u 8 dígitos numéricos (DNI argentinos válidos)"""
         super().clean()
         if self.dni:
             # Limpiar caracteres no numéricos
@@ -408,10 +408,10 @@ class Asistente(models.Model):
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
                 # Eliminar el último carácter si es cero en un DNI de 9 dígitos
                 dni_limpio = dni_limpio[0:8]
-            # Validar que tenga exactamente 8 dígitos
-            if len(dni_limpio) != 8 or not dni_limpio.isdigit():
+            # Validar que tenga entre 7 y 8 dígitos
+            if len(dni_limpio) not in (7, 8) or not dni_limpio.isdigit():
                 raise ValidationError({
-                    'dni': 'El DNI debe tener exactamente 8 dígitos numéricos.'
+                    'dni': 'El DNI debe tener 7 u 8 dígitos numéricos.'
                 })
             # Actualizar el DNI limpio
             self.dni = dni_limpio

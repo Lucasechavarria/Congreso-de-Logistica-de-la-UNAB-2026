@@ -801,6 +801,7 @@
 
 {% block content %}
 <div id="content-main" class="dark-theme-container">
+    {% csrf_token %}
     <!-- Breadcrumbs -->
     <div class="breadcrumbs" style="background: none; border: none; margin: 0 0 15px 0; padding: 0 15px;">
         <a href="{% url 'admin:index' %}" style="color: var(--text-secondary);">{% trans 'Home' %}</a>
@@ -891,10 +892,10 @@
                             </svg>
                             Enviar correo de confirmación
                         </div>
-                        <div class="toggle-description">Despacha automáticamente el mail de bienvenida tras importar exitosamente cada fila.</div>
+                        <div class="toggle-description">Despacha correos de confirmación en segundo plano tras importar exitosamente cada fila (desactivado por defecto para cargas masivas).</div>
                     </div>
                     <label class="switch">
-                        <input type="checkbox" id="sendEmailsToggle" checked>
+                        <input type="checkbox" id="sendEmailsToggle">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -1083,8 +1084,15 @@
     </div>
 </div>
 
-<!-- Librería de Lectura de Excel en Frontend (SheetJS) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Librería de Lectura de Excel en Frontend (SheetJS) con Fallback a CDN -->
+<script src="{% static 'admin/js/vendor/xlsx.full.min.js' %}"></script>
+<script>
+    if (typeof XLSX === 'undefined') {
+        const cdnScript = document.createElement('script');
+        cdnScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        document.head.appendChild(cdnScript);
+    }
+</script>
 <script>
     let selectedFile = null;
     let excelHeaders = [];
@@ -1383,8 +1391,8 @@
                 if (dniLimpio.length === 9 && dniLimpio.endsWith('0')) {
                     dniLimpio = dniLimpio.slice(0, 8);
                 }
-                if (dniLimpio.length !== 8) {
-                    rowErrors.push({ field: `DNI (${rawDni})`, msg: 'El DNI debe tener exactamente 8 dígitos numéricos.' });
+                if (dniLimpio.length < 7 || dniLimpio.length > 8) {
+                    rowErrors.push({ field: `DNI (${rawDni})`, msg: 'El DNI debe tener entre 7 y 8 dígitos numéricos.' });
                 }
             }
 
@@ -1509,18 +1517,42 @@
         addTerminalLog("Inicializando transacciones masivas...", "log-info");
         addTerminalLog(`Total filas a importar: ${totalRows}`, "log-info");
 
-        // Token CSRF de Django
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || "";
+        // Token CSRF de Django (DOM o Cookie)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken') || "";
 
         for (let i = 0; i < totalRows; i++) {
             const excelRow = excelDataRows[i];
             
-            // Construir el registro normalizado basado en el mapeo
+            // Construir el registro normalizado basado en el mapeo (con limpieza previa)
             const normalizedRow = {};
             targetFields.forEach(field => {
                 const colName = fieldMappings[field.key];
                 if (colName) {
-                    normalizedRow[field.key] = excelRow[colName];
+                    let val = excelRow[colName];
+                    if (field.key === 'dni' && val !== undefined) {
+                        let dniClean = String(val).replace(/\D/g, '');
+                        if (dniClean.length === 9 && dniClean.endsWith('0')) {
+                            dniClean = dniClean.slice(0, 8);
+                        }
+                        val = dniClean;
+                    } else if (field.key === 'email' && val !== undefined) {
+                        val = String(val).trim().toLowerCase();
+                    }
+                    normalizedRow[field.key] = val;
                 }
             });
 
@@ -1551,7 +1583,7 @@
                     importedEl.classList.add('kpi-animating');
                     setTimeout(() => importedEl.classList.remove('kpi-animating'), 300);
 
-                    const emailMsg = sendEmails ? ` (Email: ${res.email_status})` : "";
+                    const emailMsg = sendEmails ? (res.email_status === 'queued' ? " (Email: Encolado en 2do plano)" : ` (Email: ${res.email_status})`) : "";
                     addTerminalLog(`[Fila ${index}] Asistente ${res.asistente.first_name} ${res.asistente.last_name} importado con éxito.${emailMsg}`, "log-success");
                 } else {
                     failed++;

@@ -65,6 +65,7 @@ class PostulacionDisertante(models.Model):
     ESTADO_CHOICES = [('PENDIENTE', 'Pendiente'), ('APROBADO', 'Aprobado'), ('RECHAZADO', 'Rechazado')]
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', verbose_name="Estado de la postulación")
     notas_admin = models.TextField(null=True, blank=True, verbose_name="Notas internas (solo admin)")
+    postulacion_proximo_anio = models.BooleanField(default=False, db_index=True, verbose_name="Postulación para Próximo Año (2027)")
     fecha_revision = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de revisión")
     revisada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='postulaciones_revisadas', verbose_name="Revisada por")
     acepta_tyc = models.BooleanField(default=False, verbose_name="Declaro que la información es verídica y acepto TyC")
@@ -202,6 +203,7 @@ class Empresa(models.Model):
     cantidad_representantes = models.IntegerField(null=True, blank=True, verbose_name="Cantidad de representantes que asistirán", help_text="Editable hasta el día del evento")
     numero_stand = models.CharField(max_length=20, null=True, blank=True, verbose_name="Número de stand asignado", help_text="Asignado y editable desde el admin")
     notas_admin = models.TextField(null=True, blank=True, verbose_name="Notas internas (solo admin)")
+    postulacion_proximo_anio = models.BooleanField(default=False, db_index=True, verbose_name="Postulación para Próximo Año (2027)")
     fecha_revision = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de revisión")
     revisada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='empresas_revisadas', verbose_name="Revisada por")
     history = HistoricalRecords()

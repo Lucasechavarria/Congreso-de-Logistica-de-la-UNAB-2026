@@ -210,7 +210,8 @@ class PostulacionDisertanteSerializer(serializers.ModelSerializer):
         if not dni:
             raise serializers.ValidationError({"dni": "El DNI es obligatorio."})
 
-        postulacion = PostulacionDisertante.objects.filter(dni=dni).first()
+        TAG_EXTEMPORANEA = "[POSTULACIÓN EXTEMPORÁNEA / BANCO 2027]"
+        proximo_anio = validated_data.get('postulacion_proximo_anio', True)
         if postulacion:
             # Update
             for attr, value in validated_data.items():
@@ -219,10 +220,17 @@ class PostulacionDisertanteSerializer(serializers.ModelSerializer):
             # Mantenemos o reseteamos a PENDIENTE, según req: 
             # Si se edita, quizas deberia volver a pendiente para ser reevaluada. 
             postulacion.estado = 'PENDIENTE' 
+            postulacion.postulacion_proximo_anio = proximo_anio
+            if not postulacion.notas_admin or TAG_EXTEMPORANEA not in postulacion.notas_admin:
+                postulacion.notas_admin = f"{TAG_EXTEMPORANEA} {postulacion.notas_admin or ''}".strip()
             postulacion.save()
         else:
             # Create
             validated_data['edicion'] = edicion_activa
+            validated_data['postulacion_proximo_anio'] = proximo_anio
+            current_notas = validated_data.get('notas_admin', '')
+            if TAG_EXTEMPORANEA not in current_notas:
+                validated_data['notas_admin'] = f"{TAG_EXTEMPORANEA} {current_notas}".strip()
             postulacion = PostulacionDisertante.objects.create(**validated_data)
         
         return postulacion
@@ -375,7 +383,8 @@ class EmpresaSerializer(serializers.ModelSerializer):
             'es_sponsor',
             'youtube_video_url',
             'edicion',
-            'estado'
+            'estado',
+            'postulacion_proximo_anio'
         ]
         read_only_fields = ['edicion', 'estado']
 
@@ -471,6 +480,8 @@ class CargaPreacreditacionExcelSerializer(serializers.Serializer):
             # Solo exigimos email si hay otros datos (como nombre_empresa)
             raise serializers.ValidationError({"email_empresa": "El email de la empresa es obligatorio para registro."})
 
+        TAG_EXTEMPORANEA = "[POSTULACIÓN EXTEMPORÁNEA / BANCO 2027]"
+        proximo_anio = validated_data.get('postulacion_proximo_anio', True)
         empresa = Empresa.objects.filter(email_empresa=email_empresa).first()
         if empresa:
             # Update 
@@ -478,10 +489,17 @@ class CargaPreacreditacionExcelSerializer(serializers.Serializer):
                 setattr(empresa, attr, value)
             empresa.edicion = edicion_activa
             empresa.estado = 'PENDIENTE'
+            empresa.postulacion_proximo_anio = proximo_anio
+            if not empresa.notas_admin or TAG_EXTEMPORANEA not in empresa.notas_admin:
+                empresa.notas_admin = f"{TAG_EXTEMPORANEA} {empresa.notas_admin or ''}".strip()
             empresa.save()
         else:
             # Create
             validated_data['edicion'] = edicion_activa
+            validated_data['postulacion_proximo_anio'] = proximo_anio
+            current_notas = validated_data.get('notas_admin', '')
+            if TAG_EXTEMPORANEA not in current_notas:
+                validated_data['notas_admin'] = f"{TAG_EXTEMPORANEA} {current_notas}".strip()
             empresa = Empresa.objects.create(**validated_data)
             
         return empresa

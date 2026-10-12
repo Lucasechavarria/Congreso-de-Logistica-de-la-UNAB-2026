@@ -26,6 +26,7 @@ import {
 import { postularDisertante, verificarDisertante } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { TermsAndConditionsModal } from "@/components/TermsAndConditionsModal";
+import { ConvocatoriaStatusBanner } from "@/components/ConvocatoriaStatusBanner";
 
 const ejesOpciones = [
     "Gestión de la Cadena de Suministro (Suministro)",
@@ -212,7 +213,8 @@ const RegistroDisertante: React.FC = () => {
             publico_dirigido: data.publicoDirigido,
             modalidad: [data.modalidad],
             participacion_tipo: [data.participacionTipo],
-            acepta_tyc: data.aceptaTyC
+            acepta_tyc: data.aceptaTyC,
+            postulacion_proximo_anio: true
         };
 
         if (data.linkedin && data.linkedin.trim()) {
@@ -358,9 +360,9 @@ const RegistroDisertante: React.FC = () => {
                             <div className="mx-auto flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
                                 <CheckCircle className="w-8 h-8 text-blue-600" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Postulación Enviada!</h2>
+                            <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Postulación Registrada!</h2>
                             <p className="text-slate-600 mb-8 leading-relaxed">
-                                {successMessage || "Se ha enviado un email de confirmación a la dirección registrada con todos los detalles del congreso."}
+                                {successMessage || "Hemos recibido tu propuesta. Tu registro ingresó a nuestra base para la próxima edición del congreso (2027) y será evaluado por la comisión académica."}
                             </p>
                             <FormButton onClick={handleCloseModal} fullWidth>
                                 Continuar
@@ -370,16 +372,13 @@ const RegistroDisertante: React.FC = () => {
                 )}
 
                 <FormCard
-                    title="Call for Papers - Disertantes"
+                    title="Disertantes"
                     description={
-                        <div className="flex flex-col gap-4 mt-3">
-                            <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 text-base rounded-xl shadow-sm text-center font-medium">
-                                📢 <strong>Convocatoria Cerrada:</strong> La convocatoria oficial de disertantes ha cerrado. Sin embargo, mantenemos el formulario de recepción abierto para recibir y tener en cuenta propuestas para futuras ediciones del congreso.
-                            </div>
-                            <span>Detalles técnicos y estructuración de su disertación.</span>
-                            <div className="p-4 bg-blue-50 border border-blue-200 text-blue-700 text-base sm:text-lg font-semibold rounded-xl shadow-sm text-center">
-                                La Comisión Académica evaluará las postulaciones recibidas y comunicará a cada disertante, vía correo electrónico, la confirmación oficial de su participación en el Congreso.
-                            </div>
+                        <div className="flex flex-col gap-5 mt-4">
+                            <ConvocatoriaStatusBanner tipo="disertante" />
+                            <p className="text-slate-600 text-sm text-center">
+                                Complete los detalles técnicos y estructuración de su disertación a continuación.
+                            </p>
                         </div>
                     }
                 >

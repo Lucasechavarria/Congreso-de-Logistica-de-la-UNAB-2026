@@ -2130,11 +2130,11 @@ class EmpresaAdmin(SimpleHistoryAdmin):
 
     inlines = [PersonalEmpresaInline]
 
-    list_display = ('nombre_empresa', 'estado_badge', 'es_sponsor', 'edicion', 'numero_stand', 'cantidad_representantes', 'boton_preacreditacion', 'fecha_registro_detalle')
-    list_filter = ('estado', 'es_sponsor', 'edicion', 'participo_edicion_anterior')
-    search_fields = ('nombre_empresa', 'cuit', 'email_contacto', 'nombre_contacto')
+    list_display = ('nombre_empresa', 'estado_badge', 'ciclo_destino_badge', 'es_sponsor', 'edicion', 'numero_stand', 'cantidad_representantes', 'boton_preacreditacion', 'fecha_registro_detalle')
+    list_filter = ('postulacion_proximo_anio', 'estado', 'es_sponsor', 'edicion', 'participo_edicion_anterior')
+    search_fields = ('nombre_empresa', 'cuit', 'email_contacto', 'nombre_contacto', 'notas_admin')
     list_editable = ('numero_stand', 'cantidad_representantes')
-    actions = ['confirmar_empresas', 'marcar_envio_bc', 'marcar_pendiente_pago', 'rechazar_empresas']
+    actions = ['confirmar_empresas', 'marcar_para_2027', 'marcar_para_2026', 'marcar_envio_bc', 'marcar_pendiente_pago', 'rechazar_empresas']
     readonly_fields = ('fecha_registro', 'fecha_revision', 'revisada_por')
     ordering = ['-fecha_registro']
 
@@ -2234,9 +2234,25 @@ class EmpresaAdmin(SimpleHistoryAdmin):
         )
     estado_badge.short_description = 'Estado'
     estado_badge.admin_order_field = 'estado'
+
+    def ciclo_destino_badge(self, obj):
+        if obj.postulacion_proximo_anio:
+            return format_html(
+                '<span style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;'
+                'padding:2px 8px;border-radius:12px;font-weight:700;font-size:11px;white-space:nowrap;">'
+                '📅 Próximo Año (2027)</span>'
+            )
+        return format_html(
+            '<span style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;'
+            'padding:2px 8px;border-radius:12px;font-weight:600;font-size:11px;white-space:nowrap;">'
+            'Congreso 2026</span>'
+        )
+    ciclo_destino_badge.short_description = 'Ciclo Destino'
+    ciclo_destino_badge.admin_order_field = 'postulacion_proximo_anio'
+
     fieldsets = (
         ('Identificación', {
-            'fields': ('edicion', 'estado', 'es_sponsor', 'nombre_empresa', 'logo', 'cuit', 'descripcion', 'youtube_video_url')
+            'fields': ('edicion', 'estado', 'postulacion_proximo_anio', 'es_sponsor', 'nombre_empresa', 'logo', 'cuit', 'descripcion', 'youtube_video_url')
         }),
         ('Contacto', {
             'fields': ('nombre_contacto', 'email_contacto', 'celular_contacto', 'cargo_contacto',
@@ -2269,6 +2285,16 @@ class EmpresaAdmin(SimpleHistoryAdmin):
         self.message_user(request, f'✅ {updated} empresa(s) marcadas como CONFIRMADAS.')
     confirmar_empresas.short_description = '✅ Confirmar empresas seleccionadas'  # type: ignore
 
+    def marcar_para_2027(self, request, queryset):
+        updated = queryset.update(postulacion_proximo_anio=True)
+        self.message_user(request, f'📅 {updated} empresa(s) marcadas para la Edición 2027 (Próximo Año).')
+    marcar_para_2027.short_description = '📅 Marcar seleccionadas para Edición 2027 (Próximo Año)'  # type: ignore
+
+    def marcar_para_2026(self, request, queryset):
+        updated = queryset.update(postulacion_proximo_anio=False)
+        self.message_user(request, f'🏛️ {updated} empresa(s) reincorporadas al Congreso 2026 (Actual).')
+    marcar_para_2026.short_description = '🏛️ Reincorporar seleccionadas a Edición 2026 (Actual)'  # type: ignore
+
     def marcar_envio_bc(self, request, queryset):
         updated = queryset.update(estado='ENVIO_BC', fecha_revision=timezone.now(), revisada_por=request.user)
         self.message_user(request, f'📧 {updated} empresa(s) marcadas como Envío de B&C.')
@@ -2289,6 +2315,7 @@ class EmpresaAdmin(SimpleHistoryAdmin):
         comma_fields = {
             'estado': 'estado__in',
             'edicion__id__exact': 'edicion__id__in',
+            'postulacion_proximo_anio': 'postulacion_proximo_anio__in',
         }
         custom_filters = {}
         for get_key, filter_lookup in comma_fields.items():
@@ -2342,13 +2369,28 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
     class Media:
         js = ('admin/js/multiselect_filters.js',)
 
-    list_display = ('nombre_apellido', 'email', 'titulo_charla', 'estado', 'edicion', 'fecha_postulacion_detalle')
-    list_filter = ('estado', 'edicion', EjeTematicoFilter, 'modalidad')
-    search_fields = ('nombre_apellido', 'dni', 'email', 'titulo_charla')
+    list_display = ('nombre_apellido', 'email', 'titulo_charla', 'estado', 'ciclo_destino_badge', 'edicion', 'fecha_postulacion_detalle')
+    list_filter = ('postulacion_proximo_anio', 'estado', 'edicion', EjeTematicoFilter, 'modalidad')
+    search_fields = ('nombre_apellido', 'dni', 'email', 'titulo_charla', 'notas_admin')
     list_editable = ('estado',)
-    actions = ['aprobar_postulaciones', 'generar_borrador_programa', 'rechazar_postulaciones']
+    actions = ['aprobar_postulaciones', 'marcar_para_2027', 'marcar_para_2026', 'generar_borrador_programa', 'rechazar_postulaciones']
     readonly_fields = ('fecha_postulacion', 'fecha_revision', 'revisada_por')
     ordering = ['-fecha_postulacion']
+
+    def ciclo_destino_badge(self, obj):
+        if obj.postulacion_proximo_anio:
+            return format_html(
+                '<span style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;'
+                'padding:2px 8px;border-radius:12px;font-weight:700;font-size:11px;white-space:nowrap;">'
+                '📅 Próximo Año (2027)</span>'
+            )
+        return format_html(
+            '<span style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;'
+            'padding:2px 8px;border-radius:12px;font-weight:600;font-size:11px;white-space:nowrap;">'
+            'Congreso 2026</span>'
+        )
+    ciclo_destino_badge.short_description = 'Ciclo Destino'
+    ciclo_destino_badge.admin_order_field = 'postulacion_proximo_anio'
 
     def generar_borrador_programa(self, request, queryset):
         from .services_programa import generar_borrador_programa_desde_postulaciones
@@ -2375,7 +2417,7 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
             'fields': ('experiencia_previa',)
         }),
         ('Estado y gestión', {
-            'fields': ('estado', 'acepta_tyc', 'fecha_postulacion')
+            'fields': ('estado', 'postulacion_proximo_anio', 'acepta_tyc', 'fecha_postulacion')
         }),
         ('Notas internas (solo admin)', {
             'classes': ('collapse',),
@@ -2415,6 +2457,16 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
         self.message_user(request, f'{count} postulacion(es) de disertante aprobada(s).')
     aprobar_postulaciones.short_description = 'Aprobar postulaciones seleccionadas'  # type: ignore
 
+    def marcar_para_2027(self, request, queryset):
+        updated = queryset.update(postulacion_proximo_anio=True)
+        self.message_user(request, f'📅 {updated} postulación(es) marcadas para la Edición 2027 (Próximo Año).')
+    marcar_para_2027.short_description = '📅 Marcar seleccionadas para Edición 2027 (Próximo Año)'  # type: ignore
+
+    def marcar_para_2026(self, request, queryset):
+        updated = queryset.update(postulacion_proximo_anio=False)
+        self.message_user(request, f'🏛️ {updated} postulación(es) reincorporadas al Congreso 2026 (Actual).')
+    marcar_para_2026.short_description = '🏛️ Reincorporar seleccionadas a Edición 2026 (Actual)'  # type: ignore
+
     def rechazar_postulaciones(self, request, queryset):
         from .services import sync_postulacion_a_disertante
         count = 0
@@ -2434,6 +2486,7 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
             'estado': 'estado__in',
             'edicion__id__exact': 'edicion__id__in',
             'modalidad': 'modalidad__in',
+            'postulacion_proximo_anio': 'postulacion_proximo_anio__in',
         }
         custom_filters = {}
         for get_key, filter_lookup in comma_fields.items():

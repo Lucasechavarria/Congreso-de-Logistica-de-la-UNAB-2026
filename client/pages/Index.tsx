@@ -218,7 +218,7 @@ export default function Index() {
                     size="lg"
                     className="bg-congress-cyan hover:bg-congress-cyan-light text-congress-blue-dark font-bold px-8 py-6 text-lg shadow-xl hover:shadow-2xl transition-all duration-300 btn-shimmer border-2 border-congress-cyan-light w-full md:w-auto"
                   >
-                    Postulate como Expositor
+                    Expositores (Edición 2027)
                   </Button>
                 </Link>
                 <Link to="/registro-disertante">
@@ -226,7 +226,7 @@ export default function Index() {
                     size="lg"
                     className="bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-6 text-lg backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 w-full md:w-auto hover:-translate-y-1"
                   >
-                    Disertantes (Futuras Ediciones)
+                    Disertantes (Edición 2027)
                   </Button>
                 </Link>
                 <Link to="/registro-participantes">
@@ -317,11 +317,16 @@ export default function Index() {
             <div className="bg-gradient-to-br from-[#210d51]/80 to-[#0f0728]/90 backdrop-blur-xl p-8 md:p-12 lg:p-16 flex flex-col md:flex-row items-center gap-10">
               <motion.div variants={fadeInUp} className="flex-1 text-center md:text-left">
 
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-xs uppercase tracking-wide mb-4">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                  Convocatoria 2026 Cerrada · Registro para 2027
+                </div>
+
                 <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
-                  CONVOCATORIA <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9c62de] to-[#b07eee]">ABIERTA</span>
+                  POSTULACIONES <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9c62de] to-[#b07eee]">EDICIÓN 2027</span>
                 </h2>
                 <p className="text-lg text-slate-300 mb-8 leading-relaxed max-w-xl mx-auto md:mx-0">
-                  Formá parte del hub intermodal más grande del año. Buscamos a los referentes que están moviendo el futuro. ¿Tenés una empresa o una ponencia para compartir?
+                  Las postulaciones regulares para el Congreso 2026 han finalizado. Dejamos el registro habilitado para que empresas y disertantes puedan inscribirse para la próxima edición. Toda postulación recibida será evaluada por el comité organizador.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
                   <Link to="/registro-disertante">
@@ -329,7 +334,7 @@ export default function Index() {
                       size="lg"
                       className="bg-congress-cyan hover:bg-congress-cyan-light text-white font-bold px-8 py-6 text-lg shadow-lg hover:shadow-2xl transition-all duration-300 w-full sm:w-auto"
                     >
-                      Postular Ponencia
+                      Postular Ponencia (2027)
                     </Button>
                   </Link>
                   <Link to="/registro-empresas">
@@ -337,7 +342,7 @@ export default function Index() {
                       size="lg"
                       className="bg-gradient-to-r from-[#3a1b77] to-[#9c62de] hover:from-[#210d51] hover:to-[#3a1b77] text-white font-bold px-8 py-6 text-lg transition-all duration-300 w-full sm:w-auto shadow-[0_0_20px_rgba(58,27,119,0.5)] border border-[#9c62de]/50"
                     >
-                      Exponer mi Empresa
+                      Postular Empresa (2027)
                     </Button>
                   </Link>
                 </div>
@@ -748,7 +753,7 @@ export default function Index() {
                 size="xxl"
                 className="bg-congress-cyan hover:bg-congress-cyan-light text-congress-blue-dark font-black px-12 py-8 text-xl shadow-[0_0_30px_rgba(167,139,250,0.3)] hover:shadow-[0_0_50px_rgba(167,139,250,0.5)] transform hover:scale-105 transition-all duration-300 border-2 border-congress-cyan-light btn-shimmer w-full md:w-auto"
               >
-                Ser Expositor
+                Ser Expositor (Edición 2027)
               </Button>
             </Link>
             <Link to="/registro-disertante">
@@ -756,7 +761,7 @@ export default function Index() {
                 size="xxl"
                 className="bg-white/10 hover:bg-white/20 text-white font-black px-12 py-8 text-xl backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 w-full md:w-auto hover:-translate-y-1"
               >
-                Ser Disertante (Futuro)
+                Ser Disertante (Edición 2027)
               </Button>
             </Link>
             <Link to="/registro-participantes">

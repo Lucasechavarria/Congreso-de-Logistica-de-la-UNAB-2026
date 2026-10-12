@@ -23,6 +23,7 @@ import {
 import { registrarEmpresa, verificarEmpresa } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { TermsAndConditionsModal } from "@/components/TermsAndConditionsModal";
+import { ConvocatoriaStatusBanner } from "@/components/ConvocatoriaStatusBanner";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -212,6 +213,7 @@ const RegistroEmpresas: React.FC = () => {
       formData.append("es_sponsor", String(data.esSponsor));
       formData.append("acepta_tyc", String(data.aceptaTyC));
       formData.append("participacion_opciones", JSON.stringify([participationType || "stand"]));
+      formData.append("postulacion_proximo_anio", "true");
 
       if (otraParticipacion) {
         formData.append("participacion_otra", otraParticipacion);
@@ -264,9 +266,9 @@ const RegistroEmpresas: React.FC = () => {
               <div className="mx-auto flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
                 <CheckCircle className="w-8 h-8 text-blue-600" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Registro Exitoso!</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Registro Empresarial Recibido!</h2>
               <p className="text-slate-600 mb-8 leading-relaxed">
-                {successMessage || "Su empresa ha sido registrada exitosamente. Nos contactaremos pronto."}
+                {successMessage || "Su empresa ha sido registrada correctamente. Sus datos ingresaron a nuestra base para la próxima edición del congreso (2027) y serán evaluados por el comité organizador."}
               </p>
               <FormButton onClick={handleCloseModal} fullWidth>
                 Continuar
@@ -277,7 +279,14 @@ const RegistroEmpresas: React.FC = () => {
 
         <FormCard
           title="Registro Empresarial"
-          description="Registre su empresa para participar como expositor, patrocinador o ponente en el Congreso."
+          description={
+            <div className="flex flex-col gap-5 mt-4">
+              <ConvocatoriaStatusBanner tipo="empresa" />
+              <p className="text-slate-600 text-sm text-center">
+                Registre su empresa para participar como expositor, patrocinador o ponente en el Congreso.
+              </p>
+            </div>
+          }
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             <FormSection title="Información de la Empresa" description="Datos básicos de la organización">

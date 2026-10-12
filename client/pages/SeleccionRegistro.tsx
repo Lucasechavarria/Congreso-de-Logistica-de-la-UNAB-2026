@@ -77,11 +77,11 @@ export default function SeleccionRegistro() {
                         Postulate como Disertante
                       </h3>
                       <span className="text-[10px] bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2 py-0.5 rounded-full font-semibold">
-                        Futuras Ediciones
+                        Inscripción Edición 2027
                       </span>
                     </div>
                     <p className="text-gray-600 leading-relaxed text-sm md:text-base font-medium">
-                      La convocatoria oficial ha finalizado. Mantenemos el formulario activo para recibir propuestas con miras a las futuras ediciones del congreso.
+                      La convocatoria oficial 2026 ha finalizado. Mantenemos el formulario activo para recibir propuestas con miras a la edición 2027.
                     </p>
                     <div className="flex items-center mt-3 text-xs text-congress-blue font-bold opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
                       <span>Espacio de Charla</span>
@@ -110,11 +110,16 @@ export default function SeleccionRegistro() {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-congress-blue transition-all duration-300">
-                      Postulate como Expositor
-                    </h3>
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <h3 className="text-xl font-bold text-gray-800 group-hover:text-congress-blue transition-all duration-300">
+                        Postulate como Expositor
+                      </h3>
+                      <span className="text-[10px] bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2 py-0.5 rounded-full font-semibold">
+                        Inscripción Edición 2027
+                      </span>
+                    </div>
                     <p className="text-gray-600 leading-relaxed text-sm md:text-base font-medium">
-                      Para empresas que deseen contar con un stand y visibilidad en el sector industrial.
+                      La asignación regular de stands 2026 ha cerrado. Mantenemos el formulario habilitado para registrar a tu empresa para la próxima edición.
                     </p>
                     <div className="flex items-center mt-3 text-xs text-congress-blue font-bold opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
                       <span>Stand Exclusivo</span>

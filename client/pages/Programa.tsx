@@ -582,7 +582,7 @@ export default function Programa() {
 
               <Link to="/registro-disertante" className="block w-full">
                 <button className="w-full py-4 rounded-xl bg-white/10 hover:bg-[#9c62de] text-white font-bold tracking-wide transition-all duration-300 border border-white/20 hover:border-transparent group-hover:shadow-[0_0_30px_rgba(156,98,222,0.6)] flex items-center justify-center gap-2 mt-auto">
-                  Enviar Propuesta (Futuro)
+                  Enviar Propuesta (Edición 2027)
                   <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                 </button>
               </Link>
@@ -609,7 +609,7 @@ export default function Programa() {
                 </div>
                 <h2 className="text-3xl font-bold text-white mb-4">Exponer Empresa</h2>
                 <p className="text-slate-300 text-lg mb-6 leading-relaxed">
-                  Mostrá tu marca, productos y servicios ante un público hiper-segmentado. Formá parte del ecosistema intermodal de innovación.
+                  Mostrá tu marca ante un público especializado. Mantenemos la recepción abierta para registrar a tu empresa de cara a la edición 2027.
                 </p>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center text-slate-200">
@@ -623,7 +623,7 @@ export default function Programa() {
 
               <Link to="/registro-empresas" className="block w-full">
                 <button className="w-full py-4 rounded-xl bg-gradient-to-r from-congress-blue to-congress-cyan hover:from-congress-blue-dark hover:to-congress-blue text-white font-bold tracking-wide transition-all duration-300 shadow-[0_10px_20px_rgba(0,0,0,0.2)] group-hover:shadow-[0_0_30px_rgba(156,98,222,0.6)] flex items-center justify-center gap-2 border border-white/10 mt-auto">
-                  Reservar Espacio
+                  Postular Empresa (Edición 2027)
                   <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                 </button>
               </Link>

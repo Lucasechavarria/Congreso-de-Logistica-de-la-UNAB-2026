@@ -238,12 +238,17 @@ export default function Empresas() {
             <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-transparent via-congress-cyan-light to-transparent"></div>
             <div className="absolute right-0 top-0 w-1 h-full bg-gradient-to-b from-transparent via-congress-cyan-light to-transparent"></div>
 
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-xs uppercase tracking-wide mb-6">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+              Convocatoria 2026 Cerrada · Registro para 2027
+            </div>
+
             <motion.h2 variants={fadeInUp} className="text-3xl md:text-5xl font-black text-white mb-6 tracking-tight">
               ¿Listo para <span className="text-transparent bg-clip-text bg-gradient-to-r from-congress-cyan-light to-congress-cyan text-glow">Exponer tu Empresa</span>?
             </motion.h2>
 
             <motion.p variants={fadeInUp} className="text-xl mb-10 text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              Únete a las empresas más innovadoras del sector y presenta tus productos y servicios al público especializado.
+              La asignación regular de stands 2026 ha finalizado. Registre a su empresa de cara a la edición 2027.
             </motion.p>
 
             <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row justify-center items-center gap-6">
@@ -253,7 +258,7 @@ export default function Empresas() {
                   className="w-full sm:w-auto bg-gradient-to-r from-[#3a1b77] to-congress-blue hover:from-congress-blue hover:to-[#3a1b77] text-white font-bold px-10 py-6 text-xl shadow-[0_0_30px_rgba(58,27,119,0.5)] border border-congress-cyan/30 rounded-xl transition-all duration-300 transform hover:scale-105 group relative overflow-hidden"
                 >
                   <span className="relative z-10 flex items-center gap-3">
-                    Inscribir a mi Empresa
+                    Postular a mi Empresa (Edición 2027)
                     <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                   </span>
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out"></div>

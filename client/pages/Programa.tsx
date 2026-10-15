@@ -258,28 +258,30 @@ export default function Programa() {
         if (!response.ok)
           throw new Error("No se pudo cargar la agenda desde el backend.");
         const data = await response.json();
-        // Mapear los datos del backend al formato visual
-        const mapped: ActividadCalendar[] = data.map((item: ProgramaBackendItem) => {
-          const aula = item.aula || item.sala || "Aula Magna";
-          // Si no hay disertantes, poner array vacío
-          const disertantes: DisertanteInfo[] = Array.isArray(item.disertantes) ? item.disertantes.map((d: DisertanteBackendItem) => ({
-            nombre: d.nombre || "",
-            bio: d.bio || "",
-            foto_url: d.foto_url || "",
-            tema_presentacion: d.tema_presentacion || "",
-            linkedin: d.linkedin || ""
-          })) : [];
-          return {
-            aula,
-            titulo: item.titulo,
-            disertantes,
-            descripcion: item.descripcion || "",
-            inicio: item.hora_inicio.substring(0, 5),
-            fin: item.hora_fin.substring(0, 5),
-            color: AULA_COLORS[aula] ? aula : "Aula Magna",
-            categoria: item.categoria || "LOGÍSTICA",
-          };
-        });
+        // Mapear los datos del backend al formato visual, protegiendo contra actividades sin horario
+        const mapped: ActividadCalendar[] = data
+          .filter((item: ProgramaBackendItem) => Boolean(item.hora_inicio && item.hora_fin))
+          .map((item: ProgramaBackendItem) => {
+            const aula = item.aula || item.sala || "Aula Magna";
+            // Si no hay disertantes, poner array vacío
+            const disertantes: DisertanteInfo[] = Array.isArray(item.disertantes) ? item.disertantes.map((d: DisertanteBackendItem) => ({
+              nombre: d.nombre || "",
+              bio: d.bio || "",
+              foto_url: d.foto_url || "",
+              tema_presentacion: d.tema_presentacion || "",
+              linkedin: d.linkedin || ""
+            })) : [];
+            return {
+              aula,
+              titulo: item.titulo,
+              disertantes,
+              descripcion: item.descripcion || "",
+              inicio: (item.hora_inicio || "").substring(0, 5),
+              fin: (item.hora_fin || "").substring(0, 5),
+              color: AULA_COLORS[aula] ? aula : "Aula Magna",
+              categoria: item.categoria || "LOGÍSTICA",
+            };
+          });
         setActividades(mapped);
         setError(null);
       } catch (err) {

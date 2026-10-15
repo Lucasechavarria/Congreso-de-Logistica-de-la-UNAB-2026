@@ -210,6 +210,8 @@ class PostulacionDisertanteSerializer(serializers.ModelSerializer):
         if not dni:
             raise serializers.ValidationError({"dni": "El DNI es obligatorio."})
 
+        postulacion = PostulacionDisertante.objects.filter(dni=dni, edicion=edicion_activa).first()
+
         TAG_EXTEMPORANEA = "[POSTULACIÓN EXTEMPORÁNEA / BANCO 2027]"
         proximo_anio = validated_data.get('postulacion_proximo_anio', True)
         if postulacion:

@@ -2044,6 +2044,21 @@ class ProgramaAdmin(admin.ModelAdmin):
         if custom_filters:
             qs = qs.filter(**custom_filters).distinct()
         return qs
+
+    def save_model(self, request, obj, form, change):
+        if not obj.edicion:
+            from .models import Edicion
+            obj.edicion = Edicion.objects.filter(activa=True).first()
+        super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        import logging
+        admin_logger = logging.getLogger('django.request')
+        try:
+            super().save_related(request, form, formsets, change)
+        except Exception as e:
+            admin_logger.error(f"[ProgramaAdmin] Error al guardar relaciones M2M (disertantes) para Programa ID {form.instance.pk}: {e}", exc_info=True)
+            raise
     
     actions = ['aprobar_y_publicar', 'marcar_borrador', 'exportar_excel', 'descargar_plantilla_modelo', 'set_logistica', 'set_tecnologia']
 

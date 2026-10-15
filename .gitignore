@@ -110,4 +110,5 @@ netlify/
 # Django generated static files
 backend/static/
 static/
+!backend/api/static/
 

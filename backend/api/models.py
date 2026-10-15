@@ -140,11 +140,36 @@ class Programa(models.Model):
     dia = models.DateField(default="2026-11-07", verbose_name="Día del Evento")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     aula = models.CharField(max_length=30, choices=AULA_CHOICES, default="Aula Magna", blank=True, verbose_name="Aula")
-    categoria = models.CharField(max_length=30, choices=CATEGORIA_CHOICES, default="LOGISTICA", verbose_name="Categoría")
+    categoria = models.CharField(max_length=50, choices=CATEGORIA_CHOICES, default="LOGISTICA", verbose_name="Categoría")
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PUBLICADO', verbose_name="Estado de publicación")
 
+    def save(self, *args, **kwargs):
+        import unicodedata
+        
+        # Asignar automáticamente edición activa si no está definida
+        if not self.edicion_id:
+            EdicionModel = self._meta.apps.get_model('api', 'Edicion')
+            activa = EdicionModel.objects.filter(activa=True).first()
+            if activa:
+                self.edicion = activa
+
+        # Sanitización de campos de texto contra caracteres invisibles, saltos erráticos y NUL bytes (\x00)
+        text_fields = ['titulo', 'descripcion', 'aula', 'categoria']
+        for field in text_fields:
+            val = getattr(self, field, None)
+            if val is not None:
+                cleaned = str(val).replace('\x00', '').replace('\xa0', ' ')
+                cleaned = unicodedata.normalize('NFC', cleaned).strip()
+                setattr(self, field, cleaned)
+
+        if self.titulo:
+            self.titulo = self.titulo[:255]
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.titulo} - {self.dia} {self.hora_inicio}"
+        hora = f" {self.hora_inicio}" if self.hora_inicio else ""
+        return f"{self.titulo[:160]} - {self.dia}{hora}"
 
 class Empresa(models.Model):
     edicion = models.ForeignKey('Edicion', on_delete=models.CASCADE, null=True, blank=True, related_name='empresas')

@@ -25,7 +25,7 @@ def _mapear_categoria(ejes_raw: str) -> str:
     elif any(w in ejes_clean for w in ["tecnolog", "ia", "digital", "data", "wms", "inteligencia"]):
         return "TECNOLOGIA"
     elif any(w in ejes_clean for w in ["e-com", "comercio electronico", "ecommerce"]):
-        return "E-COMMERS"
+        return "E-COMMERCE"
     elif any(w in ejes_clean for w in ["supply", "cadena", "operaciones", "lean", "suministro"]):
         return "SUPPLY CHAIN"
     elif any(w in ejes_clean for w in ["humano", "talento", "recursos", "management", "persona", "estrategia"]):

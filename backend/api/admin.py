@@ -2361,7 +2361,7 @@ class EjeTematicoFilter(admin.SimpleListFilter):
             ("TECNOLOGIA", "Tecnología"),
             ("LOGISTICA", "Logística"),
             ("PUERTOS/COMERCIO EXTERIOR", "Puertos/Comercio Exterior"),
-            ("E-COMMERS", "E-Commerce"),
+            ("E-COMMERCE", "E-Commerce"),
             ("SUPPLY CHAIN", "Supply Chain"),
             ("CAPITAL HUMANO", "Capital Humano"),
             ("RADIO", "Radio"),
@@ -2374,7 +2374,10 @@ class EjeTematicoFilter(admin.SimpleListFilter):
             valores = self.value().split(',')
             q_obj = models.Q()
             for val in valores:
-                q_obj |= models.Q(ejes_tematicos__icontains=val)
+                if val == "E-COMMERCE":
+                    q_obj |= models.Q(ejes_tematicos__icontains="E-COMMERCE") | models.Q(ejes_tematicos__icontains="E-COMMERS")
+                else:
+                    q_obj |= models.Q(ejes_tematicos__icontains=val)
             return queryset.filter(q_obj).distinct()
         return queryset
 

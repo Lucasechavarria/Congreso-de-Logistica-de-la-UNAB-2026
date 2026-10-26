@@ -104,13 +104,20 @@ const TRACK_CATEGORIES = {
   "TECNOLOGIA": { bg: "#7c3aed", text: "#ffffff", icon: Computer }, // violeta
   "LOGISTICA": { bg: "#1e40af", text: "#ffffff", icon: LocalShipping }, // azul institucional
   "PUERTOS/COMERCIO EXTERIOR": { bg: "#dc2626", text: "#ffffff", icon: Inventory }, // rojo
-  "E-COMMERS": { bg: "#be185d", text: "#ffffff", icon: Business }, // rosa
+  "E-COMMERCE": { bg: "#be185d", text: "#ffffff", icon: Business }, // rosa
   "SUPPLY CHAIN": { bg: "#0891b2", text: "#ffffff", icon: Inventory }, // cyan
   "CAPITAL HUMANO": { bg: "#059669", text: "#ffffff", icon: Group }, // verde
   "RADIO": { bg: "#374151", text: "#ffffff", icon: Nature }, // gris
   "SUSTENTABILIDAD": { bg: "#ea580c", text: "#ffffff", icon: Nature }, // naranja
   "TRANSPORTE": { bg: "#0ea5e9", text: "#ffffff", icon: DirectionsCar }, // azul claro
 } as const;
+
+function getTrackCategory(cat?: string) {
+  if (!cat) return TRACK_CATEGORIES["LOGISTICA"];
+  const clean = cat.trim().toUpperCase();
+  if (clean === "E-COMMERS" || clean === "E-COMMERCE") return TRACK_CATEGORIES["E-COMMERCE"];
+  return (TRACK_CATEGORIES as Record<string, { bg: string; text: string; icon: any }>)[clean] || TRACK_CATEGORIES["LOGISTICA"];
+}
 
 // Paleta para aulas por defecto y fallback dinámico
 const AULA_COLORS: Record<
@@ -279,7 +286,7 @@ export default function Programa() {
               inicio: (item.hora_inicio || "").substring(0, 5),
               fin: (item.hora_fin || "").substring(0, 5),
               color: AULA_COLORS[aula] ? aula : "Aula Magna",
-              categoria: item.categoria || "LOGÍSTICA",
+              categoria: (item.categoria?.trim().toUpperCase() === "E-COMMERS") ? "E-COMMERCE" : (item.categoria || "LOGÍSTICA"),
             };
           });
         setActividades(mapped);
@@ -414,7 +421,10 @@ export default function Programa() {
     if (filtroCategoria === "TODOS" && filtroAula === "TODAS" && filtroDisertante === "TODOS") {
       return true;
     }
-    const matchCategoria = filtroCategoria === "TODOS" || act.categoria === filtroCategoria;
+    const matchCategoria =
+      filtroCategoria === "TODOS" ||
+      act.categoria === filtroCategoria ||
+      (filtroCategoria === "E-COMMERCE" && act.categoria === "E-COMMERS");
     const matchAula = filtroAula === "TODAS" || act.aula === filtroAula;
     const matchDisertante = filtroDisertante === "TODOS" || act.disertantes.some(d => d.nombre === filtroDisertante);
     return matchCategoria && matchAula && matchDisertante;
@@ -897,7 +907,7 @@ export default function Programa() {
                       {filtroCategoria !== "TODOS" && (
                         <span
                           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-xs"
-                          style={{ backgroundColor: TRACK_CATEGORIES[filtroCategoria as keyof typeof TRACK_CATEGORIES]?.bg || '#2563eb' }}
+                          style={{ backgroundColor: getTrackCategory(filtroCategoria).bg }}
                         >
                           {filtroCategoria}
                           <button
@@ -1009,7 +1019,7 @@ export default function Programa() {
                       {isOpen && (
                         <div className="p-4 bg-slate-50/60 border-t border-slate-100 space-y-3">
                           {charlasEnAula.map((actividad, idx) => {
-                            const trackColor = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES];
+                            const trackColor = getTrackCategory(actividad.categoria);
                             const disertanteColor = getDisertanteColor(actividad.disertantes[0]?.nombre || "");
 
                             return (
@@ -1145,7 +1155,7 @@ export default function Programa() {
                                 const top = 35 + (startMin / 30) * 188;
                                 const height = Math.max((durMin / 30) * 188 - 6, 75);
 
-                                const trackColor = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES];
+                                const trackColor = getTrackCategory(actividad.categoria);
                                 const aulaColor = getAulaColor(actividad.aula);
                                 const disertanteColor = getDisertanteColor(actividad.disertantes[0]?.nombre || "");
 
@@ -1175,7 +1185,7 @@ export default function Programa() {
                                           }}
                                         >
                                           {(() => {
-                                            const IconComponent = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES]?.icon;
+                                            const IconComponent = getTrackCategory(actividad.categoria).icon;
                                             return IconComponent ? <IconComponent style={{ fontSize: 13, color: trackColor?.text || 'white' }} /> : null;
                                           })()}
                                           {actividad.categoria}
@@ -1250,7 +1260,7 @@ export default function Programa() {
                     {/* Actividades en esta hora */}
                     <div className="space-y-3">
                       {actividadesEnHora.map((actividad, idx) => {
-                        const trackColor = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES];
+                        const trackColor = getTrackCategory(actividad.categoria);
                         const aulaColor = AULA_COLORS[actividad.color] || AULA_COLORS["Aula Magna"];
                         const disertanteColor = getDisertanteColor(actividad.disertantes[0]?.nombre || "");
 
@@ -1278,7 +1288,7 @@ export default function Programa() {
                                   }}
                                 >
                                   {(() => {
-                                    const IconComponent = TRACK_CATEGORIES[actividad.categoria as keyof typeof TRACK_CATEGORIES]?.icon;
+                                    const IconComponent = getTrackCategory(actividad.categoria).icon;
                                     return IconComponent ? <IconComponent style={{ fontSize: 14, color: trackColor?.text || 'white' }} /> : null;
                                   })()}
                                   {actividad.categoria}
@@ -1377,7 +1387,7 @@ export default function Programa() {
                   <div
                     className="relative h-64 bg-gradient-to-br from-congress-blue to-congress-cyan overflow-hidden"
                     style={{
-                      background: `linear-gradient(135deg, ${TRACK_CATEGORIES[modalActividad.categoria as keyof typeof TRACK_CATEGORIES]?.bg || '#1e40af'} 0%, ${getDisertanteColor(modalActividad.disertantes[0]?.nombre || "")} 100%)`
+                      background: `linear-gradient(135deg, ${getTrackCategory(modalActividad.categoria).bg} 0%, ${getDisertanteColor(modalActividad.disertantes[0]?.nombre || "")} 100%)`
                     }}
                   >
                     {/* Botón de cierre */}
@@ -1432,7 +1442,7 @@ export default function Programa() {
                     <div className="absolute top-4 left-4">
                       <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-lg flex items-center justify-center">
                         {(() => {
-                          const IconComponent = TRACK_CATEGORIES[modalActividad.categoria as keyof typeof TRACK_CATEGORIES]?.icon;
+                          const IconComponent = getTrackCategory(modalActividad.categoria).icon;
                           return IconComponent ? <IconComponent className="text-white text-2xl" /> : <Category className="text-white text-2xl" />;
                         })()}
                       </div>
@@ -1542,12 +1552,12 @@ export default function Programa() {
                       <span
                         className="px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide flex items-center gap-2"
                         style={{
-                          backgroundColor: TRACK_CATEGORIES[modalActividad.categoria as keyof typeof TRACK_CATEGORIES]?.bg || '#1e40af',
-                          color: TRACK_CATEGORIES[modalActividad.categoria as keyof typeof TRACK_CATEGORIES]?.text || 'white'
+                          backgroundColor: getTrackCategory(modalActividad.categoria).bg,
+                          color: getTrackCategory(modalActividad.categoria).text
                         }}
                       >
                         {(() => {
-                          const IconComponent = TRACK_CATEGORIES[modalActividad.categoria as keyof typeof TRACK_CATEGORIES]?.icon;
+                          const IconComponent = getTrackCategory(modalActividad.categoria).icon;
                           return IconComponent ? <IconComponent className="text-lg" /> : null;
                         })()}
                         {modalActividad.categoria}

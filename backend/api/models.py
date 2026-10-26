@@ -566,7 +566,7 @@ class Certificado(models.Model):
             text_width = bbox[2] - bbox[0]
 
         x = (img.width - text_width) // 2
-        y = 485  # Posición vertical centrada en la ranura de nombre
+        y = 520  # Posición vertical centrada y armónicamente distribuida
         
         # Escribir el nombre (color azul institucional #0F2942)
         draw.text((x, y), nombre_apellido, font=font, fill=(15, 41, 66))

@@ -178,125 +178,79 @@
         color: var(--color-primary);
     }
 
-    /* Live preview diploma design */
-    .diploma-preview-box {
+    /* Official Live Preview Canvas Styles */
+    .official-preview-wrapper {
         width: 100%;
-        max-width: 500px;
-        aspect-ratio: 1.414 / 1;
-        background: radial-gradient(circle, #140f2b 0%, #080518 100%);
-        border: 10px double #a78bfa;
-        border-radius: 8px;
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
-        padding: 24px;
-        box-sizing: border-box;
+        max-width: 580px;
+        margin-top: 15px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        text-align: center;
+        gap: 15px;
+    }
+
+    .cert-canvas-frame {
+        width: 100%;
         position: relative;
-        overflow: hidden;
-        border-image: linear-gradient(135deg, var(--color-primary), var(--color-secondary)) 10;
-        margin-top: 20px;
+        background: #0f172a;
+        border-radius: 12px;
+        padding: 6px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(6, 182, 212, 0.15);
+        border: 1px solid rgba(197, 160, 89, 0.4);
+        box-sizing: border-box;
     }
 
-    .diploma-watermark {
-        position: absolute;
-        font-size: 150px;
-        opacity: 0.02;
-        color: #fff;
-        z-index: 1;
-        user-select: none;
+    #certCanvas {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 8px;
     }
 
-    .diploma-content {
-        z-index: 2;
+    .cert-preview-bar {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        width: 100%;
-    }
-
-    .diploma-title {
-        font-size: 16px;
-        font-weight: 800;
-        color: var(--color-primary);
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        margin-bottom: 10px;
-        text-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
-    }
-
-    .diploma-subtitle {
-        font-size: 10px;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    .diploma-name {
-        font-family: 'Playfair Display', Georgia, serif;
-        font-size: 26px;
-        font-style: italic;
-        color: #ffffff;
-        margin: 14px 0;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        border-bottom: 1px dashed rgba(255,255,255,0.15);
-        width: 80%;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .diploma-text {
-        font-size: 11px;
-        color: var(--text-secondary);
-        line-height: 1.6;
-        max-width: 380px;
-    }
-
-    .diploma-type-badge {
-        color: var(--color-secondary);
-        font-weight: 800;
-        text-transform: uppercase;
-    }
-
-    .diploma-footer {
-        margin-top: 24px;
-        width: 100%;
-        display: flex;
         justify-content: space-between;
-        font-size: 8px;
-        color: var(--text-muted);
-        border-top: 1px solid rgba(255,255,255,0.05);
-        padding-top: 12px;
+        width: 100%;
+        gap: 12px;
+        flex-wrap: wrap;
     }
 
-    .diploma-seal {
-        position: absolute;
-        bottom: 30px;
-        right: 30px;
-        width: 45px;
-        height: 45px;
-        background: radial-gradient(circle, rgba(6,182,212,0.2) 0%, rgba(6,182,212,0) 70%);
-        border: 1px dashed var(--color-secondary);
-        border-radius: 50%;
-        display: flex;
+    .badge-official-status {
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        opacity: 0.6;
-        animation: spinSeal 20s linear infinite;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        background: rgba(16, 185, 129, 0.15);
+        color: #6ee7b7;
+        font-size: 11px;
+        font-weight: 700;
+        border: 1px solid rgba(16, 185, 129, 0.3);
     }
 
-    @keyframes spinSeal {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+    .btn-preview-real-pdf {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #0f2942, #1e3a5f);
+        color: #f1f5f9;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        border-radius: 8px;
+        border: 1px solid #c5a059;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    .diploma-seal::after {
-        content: '★';
-        font-size: 10px;
-        color: var(--color-secondary);
+    .btn-preview-real-pdf:hover {
+        background: linear-gradient(135deg, #1e3a5f, #0f2942);
+        color: #fff;
+        border-color: #d4af37;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(197, 160, 89, 0.35);
     }
 
     .autocomplete-badge {
@@ -430,40 +384,28 @@
     <!-- PREVIEW COLUMN -->
     <div class="cert-preview-container">
         <div class="cert-header" style="width: 100%; border-bottom: 1px solid var(--b); margin-bottom: 15px; padding-bottom: 15px;">
-            <h2 style="font-size: 16px; color: var(--color-secondary);">👁️ Vista Previa del Certificado</h2>
-            <p>Representación interactiva en vivo del diploma digital oficial.</p>
+            <h2 style="font-size: 16px; color: var(--color-secondary);">👁️ Vista Previa en Vivo (Modelo Oficial 2026)</h2>
+            <p>Representación idéntica al PDF oficial que se emite y envía al participante.</p>
         </div>
 
-        <!-- DIPLOMA FRAME -->
-        <div class="diploma-preview-box">
-            <div class="diploma-watermark">UNAB</div>
-            <div class="diploma-content">
-                <div class="diploma-title">Certificado de Acreditación</div>
-                <div class="diploma-subtitle">El Comité Organizador hace constar que</div>
-                
-                <div class="diploma-name" id="previewName">Juan Pérez</div>
-                
-                <div class="diploma-text">
-                    Ha participado activamente en calidad de <span class="diploma-type-badge" id="previewType">Asistente</span> en el <strong>Congreso Internacional de Logística y Tecnología de la UNAB 2026</strong>, desarrollado el 22 de Mayo de 2026.
-                </div>
-                
-                <div class="diploma-footer">
-                    <div>
-                        <strong>Universidad Andrés Bello</strong><br>
-                        Facultad de Ingeniería
-                    </div>
-                    <div style="text-align: right;">
-                        <strong>Sede Central UNAB</strong><br>
-                        Comité Ejecutivo 2026
-                    </div>
-                </div>
+        <div class="official-preview-wrapper">
+            <div class="cert-canvas-frame">
+                <canvas id="certCanvas" width="2000" height="1414"></canvas>
             </div>
-            <div class="diploma-seal"></div>
+
+            <div class="cert-preview-bar">
+                <span class="badge-official-status">
+                    <span style="font-size: 14px;">●</span> Modelo 2026 Oficial UNaB
+                </span>
+                <a id="btnPreviewPdf" href="#" target="_blank" class="btn-preview-real-pdf">
+                    📄 Ver PDF Real Generado
+                </a>
+            </div>
         </div>
 
-        <div style="margin-top: 30px; width: 100%; text-align: center;">
+        <div style="margin-top: 25px; width: 100%; text-align: center;">
             <p style="font-size: 12px; color: var(--text-muted); font-style: italic;">
-                💡 Los cambios hechos en el formulario se reflejarán instantáneamente en este diploma de muestra.
+                💡 Al cambiar el nombre o el tipo en el formulario, el diploma oficial se actualiza en tiempo real.
             </p>
         </div>
     </div>
@@ -471,18 +413,75 @@
 </div>
 
 <script>
+// ── Official Backgrounds Preloading ───────────────────────
+const certBackgrounds = {
+    'ASISTENCIA': '{{ bg_asistencia|safe }}',
+    'DISERTANTE': '{{ bg_disertante|safe }}',
+    'EMPRESA': '{{ bg_empresa|safe }}'
+};
+
+const bgImages = {};
+let imagesLoaded = 0;
+const totalBgs = Object.keys(certBackgrounds).length;
+
+Object.entries(certBackgrounds).forEach(([key, src]) => {
+    const img = new Image();
+    img.onload = () => {
+        imagesLoaded++;
+        if (imagesLoaded >= 1) {
+            renderOfficialPreview();
+        }
+    };
+    img.src = src;
+    bgImages[key] = img;
+});
+
+function renderOfficialPreview() {
+    const canvas = document.getElementById('certCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const tipo = document.getElementById('tipo').value || 'ASISTENCIA';
+    const rawName = document.getElementById('nombre').value.trim() || 'NOMBRE DESTINATARIO';
+    const name = rawName.toUpperCase();
+    
+    const bg = bgImages[tipo] || bgImages['ASISTENCIA'];
+    if (bg && bg.complete && bg.naturalWidth > 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+        
+        // Exact name rendering matching models.py (dynamic scaling between 20 and 65)
+        let fontSize = 65;
+        ctx.fillStyle = '#0F2942'; // Azul institucional oficial
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        
+        while (fontSize > 20) {
+            ctx.font = `bold ${fontSize}px "Montserrat", "DejaVu Sans", sans-serif`;
+            const textWidth = ctx.measureText(name).width;
+            if (textWidth < 1500) break;
+            fontSize -= 5;
+        }
+        
+        ctx.font = `bold ${fontSize}px "Montserrat", "DejaVu Sans", sans-serif`;
+        // Coordinate y = 520 matches models.py
+        ctx.fillText(name, canvas.width / 2, 520);
+    }
+    
+    // Update live PDF link
+    const pdfBtn = document.getElementById('btnPreviewPdf');
+    if (pdfBtn) {
+        pdfBtn.href = `/admin/manual-certificate/?preview=1&nombre=${encodeURIComponent(rawName)}&tipo=${encodeURIComponent(tipo)}`;
+    }
+}
+
 // ── Live Preview Sync ──────────────────────────────────────
 function updatePreviewName(val) {
-    document.getElementById('previewName').textContent = val.trim() || 'Nombre Destinatario';
+    renderOfficialPreview();
 }
 
 function updatePreviewType(val) {
-    const map = {
-        'ASISTENCIA': 'Asistencia',
-        'DISERTANTE': 'Disertante',
-        'EMPRESA': 'Empresa / Stand'
-    };
-    document.getElementById('previewType').textContent = map[val] || val;
+    renderOfficialPreview();
 }
 
 // ── Predictive AJAX Search (Autocomplete) ──────────────────
@@ -553,8 +552,7 @@ function selectAsistente(item) {
     }
     
     // Update live previews
-    updatePreviewName(item.nombre);
-    updatePreviewType(tipoSelect.value);
+    renderOfficialPreview();
     
     resultsBox.style.display = 'none';
     
@@ -573,7 +571,9 @@ document.addEventListener('click', (e) => {
 });
 
 // Initial load
-updatePreviewName(nombreInput.value);
-updatePreviewType(document.getElementById('tipo').value);
+window.addEventListener('load', () => {
+    renderOfficialPreview();
+});
+renderOfficialPreview();
 </script>
 {% endblock %}

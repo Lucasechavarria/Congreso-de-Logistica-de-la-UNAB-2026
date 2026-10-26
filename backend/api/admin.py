@@ -974,9 +974,22 @@ def asistentes_search_api(request):
 def manual_certificate_view(request):
     """
     Vista para generar y enviar un certificado manualmente ingresando Nombre e Email.
+    Permite además previsualizar el PDF oficial real en vivo.
     """
     if not request.user.is_staff:
         return HttpResponse("No autorizado.", status=403)
+
+    # Vista previa directa en PDF sin guardar en base de datos
+    if request.method == 'GET' and request.GET.get('preview') == '1':
+        nombre = request.GET.get('nombre', 'PARTICIPANTE').strip().upper() or 'PARTICIPANTE'
+        tipo = request.GET.get('tipo', 'ASISTENCIA')
+        parts = nombre.split(' ')
+        asistente_mock = Asistente(first_name=parts[0], last_name=' '.join(parts[1:]) or '—', email='preview@unab.edu.ar')
+        cert_mock = Certificado(asistente=asistente_mock, tipo_certificado=tipo)
+        pdf_buffer = cert_mock.generar_pdf(save=False)
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="certificado_{tipo.lower()}_preview.pdf"'
+        return response
 
     if request.method == 'POST':
         nombre = request.POST.get('nombre')
@@ -1011,9 +1024,23 @@ def manual_certificate_view(request):
             except Exception as e:
                 messages.error(request, f"Error crítico: {str(e)}")
 
+    import base64
+    from django.conf import settings
+    cert_dir = os.path.join(settings.BASE_DIR, 'certificates')
+
+    def get_cert_b64(fname):
+        fpath = os.path.join(cert_dir, fname)
+        if os.path.exists(fpath):
+            with open(fpath, 'rb') as f:
+                return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        return ""
+
     context = {
         **admin.site.each_context(request),
         'title': 'Generación de Certificado Manual',
+        'bg_asistencia': get_cert_b64('Certificados-congreso-2026.png'),
+        'bg_disertante': get_cert_b64('Certificados-congreso-disertantes-2026.png'),
+        'bg_empresa': get_cert_b64('Certificados-congreso-empresas-2026.png'),
     }
     return render(request, 'admin/manual_certificate.html', context)
 

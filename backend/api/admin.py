@@ -1119,6 +1119,7 @@ def manual_certificate_view(request):
 
         origen_tipo = request.POST.get('origen_tipo', '').strip().lower()
         origen_id = request.POST.get('origen_id', '').strip()
+        nuevo_registro = None
 
         if not nombre or not email_addr:
             messages.error(request, "Nombre y Email son obligatorios.")
@@ -1139,7 +1140,13 @@ def manual_certificate_view(request):
                             models.Q(email_contacto__iexact=email_addr)
                         ).first()
                     if not empresa:
-                        empresa = Empresa.objects.create(nombre_empresa=nombre, email_empresa=email_addr)
+                        empresa = Empresa.objects.create(
+                            nombre_empresa=nombre,
+                            email_empresa=email_addr,
+                            rubro_logistico="Sector Logístico y Transporte",
+                            acepta_tyc=True
+                        )
+                        nuevo_registro = "Empresa"
 
                     asistente = Asistente.objects.filter(email=email_addr).first()
                     if not asistente:
@@ -1151,6 +1158,8 @@ def manual_certificate_view(request):
                             profile_type=Asistente.ProfileType.PROFESSIONAL,
                             terminos_aceptados=True
                         )
+                        if not nuevo_registro:
+                            nuevo_registro = "Asistente Corporativo"
                     else:
                         asistente.empresa_vinculada = empresa
                         asistente.save(update_fields=['empresa_vinculada'])
@@ -1164,6 +1173,15 @@ def manual_certificate_view(request):
                             models.Q(nombre__iexact=nombre) | 
                             models.Q(usuario__email__iexact=email_addr)
                         ).first()
+                    if not disertante:
+                        disertante = Disertante.objects.create(
+                            nombre=nombre,
+                            edicion=edicion_activa,
+                            estado='APROBADO',
+                            tema_presentacion="Disertación Congreso de Logística 2026"
+                        )
+                        nuevo_registro = "Disertante"
+
                     parts = nombre.split(' ')
                     asistente = Asistente.objects.filter(email=email_addr).first()
                     if not asistente:
@@ -1175,6 +1193,8 @@ def manual_certificate_view(request):
                             profile_type=Asistente.ProfileType.PROFESSIONAL,
                             terminos_aceptados=True
                         )
+                        if not nuevo_registro:
+                            nuevo_registro = "Asistente Disertante"
                     else:
                         if disertante:
                             asistente.disertante_vinculado = disertante
@@ -1186,6 +1206,8 @@ def manual_certificate_view(request):
                         asistente = Asistente.objects.filter(id=int(origen_id)).first()
                     if not asistente:
                         asistente = Asistente.objects.filter(email=email_addr).first()
+                    if not asistente:
+                        parts = nombre.split(' ')
                         asistente = Asistente.objects.create(
                             email=email_addr,
                             first_name=parts[0],
@@ -1193,6 +1215,7 @@ def manual_certificate_view(request):
                             profile_type=Asistente.ProfileType.VISITOR,
                             terminos_aceptados=True
                         )
+                        nuevo_registro = "Asistente"
 
                 # Obtener o crear certificado para evitar duplicados y soportar reintentos
                 cert, created = Certificado.objects.get_or_create(
@@ -1209,13 +1232,14 @@ def manual_certificate_view(request):
                 error_msg = result[1] if isinstance(result, tuple) else "Error desconocido en el servidor de correo."
 
                 tipo_display = cert.get_tipo_certificado_display()
+                alta_info = f" (Se registró en base de datos como nuevo {nuevo_registro})" if nuevo_registro else ""
                 if success:
                     cert.email_enviado = True
                     cert.fecha_envio = timezone.now()
                     cert.save(update_fields=['email_enviado', 'fecha_envio'])
-                    messages.success(request, f"Certificado de {tipo_display} para '{nombre}' generado y enviado exitosamente a {email_addr}.")
+                    messages.success(request, f"Certificado de {tipo_display} para '{nombre}' generado y enviado exitosamente a {email_addr}.{alta_info}")
                 else:
-                    messages.error(request, f"Certificado de {tipo_display} generado pero no se pudo enviar por email a {email_addr}: {error_msg}")
+                    messages.error(request, f"Certificado de {tipo_display} generado pero no se pudo enviar por email a {email_addr}: {error_msg}.{alta_info}")
             except Exception as e:
                 messages.error(request, f"Error crítico al procesar el certificado: {str(e)}")
 

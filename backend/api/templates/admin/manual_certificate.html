@@ -476,11 +476,12 @@
         </form>
 
         <div class="info-panel">
-            <h4>Información Importante:</h4>
+            <h4>💡 Alta Automática y Tolerancia a Datos Faltantes:</h4>
             <ul>
-                <li>Si el correo ya existe en el sistema, se utilizará el registro existente del asistente.</li>
-                <li>Si el correo NO existe, se creará un registro de "Asistente" mínimo para poder procesar el envío.</li>
-                <li>El certificado se genera en tiempo real a partir del template oficial del congreso y se despacha como un archivo PDF adjunto.</li>
+                <li><strong>¿No está en el sistema?</strong> Puedes ingresar libremente su Nombre / Razón Social y Correo. Al presionar "Generar y Enviar", el sistema creará automáticamente la ficha en la base de datos como <strong>Asistente</strong>, <strong>Disertante</strong> o <strong>Empresa</strong> según el tipo de certificado seleccionado.</li>
+                <li><strong>¿Faltan datos (DNI, Teléfono, CUIT, Biografía, etc.)?</strong> No es impedimento: la base de datos admite el alta inmediata con datos mínimos requeridos (Nombre y Email), completando los campos restantes con valores por defecto seguros.</li>
+                <li><strong>Si el correo ya existe:</strong> Se vincula automáticamente al registro existente para evitar duplicaciones.</li>
+                <li><strong>Trazabilidad permanente:</strong> El certificado queda registrado formalmente en la base de datos de la edición activa y se despacha de inmediato con su PDF oficial adjunto.</li>
             </ul>
         </div>
     </div>
@@ -629,10 +630,36 @@ function triggerSearch(q) {
             if (data.results && data.results.length > 0) {
                 renderResults(data.results);
             } else {
-                resultsBox.style.display = 'none';
+                renderEmptySuggestion(q);
             }
         })
         .catch(err => console.error('Error fetching autocomplete:', err));
+}
+
+function renderEmptySuggestion(q) {
+    resultsBox.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'autocomplete-item';
+    div.style.borderLeft = '3px solid #06b6d4';
+    div.innerHTML = `
+        <div class="autocomplete-header">
+            <span class="autocomplete-name">
+                <span>➕</span>
+                <span>Crear nuevo registro: <strong>${q}</strong></span>
+            </span>
+            <span class="role-badge" style="background: rgba(6, 182, 212, 0.2); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.4);">Alta Automática</span>
+        </div>
+        <div class="autocomplete-subtitulo">No figura aún en el sistema. Se registrará en la base de datos al generar el certificado con datos mínimos.</div>
+    `;
+    div.addEventListener('click', () => {
+        resultsBox.style.display = 'none';
+        emailInput.focus();
+        badge.innerHTML = `✨ Nuevo registro: <strong>${q}</strong> se dará de alta en la base de datos`;
+        badge.classList.add('show');
+        setTimeout(() => badge.classList.remove('show'), 4000);
+    });
+    resultsBox.appendChild(div);
+    resultsBox.style.display = 'block';
 }
 
 nombreInput.addEventListener('input', () => {

@@ -265,3 +265,64 @@ class MultiCategoryCertificateAdminTests(TestCase):
         self.assertIsNotNone(cert_dis)
         self.assertEqual(cert_dis.asistente.disertante_vinculado, self.disertante)
 
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_manual_certificate_creation_of_unregistered_entities(self, mock_send):
+        """
+        Valida que al emitir un certificado para una persona, disertante o empresa
+        que NO existe en la base de datos, el sistema cree automáticamente los registros
+        correspondientes en sus tablas respectivas aun faltando datos secundarios.
+        """
+        mock_send.return_value = True
+        from api.models import Empresa, Disertante
+
+        # 1. Nueva Persona (Asistente General no registrado previamente, sin DNI ni teléfono)
+        res_nuevo_asist = self.client.post('/admin/manual-certificate/', {
+            'nombre': 'Esteban Quito',
+            'email': 'esteban.quito@externo.org',
+            'tipo': 'ASISTENCIA'
+        }, follow=True)
+        self.assertEqual(res_nuevo_asist.status_code, 200)
+
+        asist_db = Asistente.objects.filter(email='esteban.quito@externo.org').first()
+        self.assertIsNotNone(asist_db)
+        self.assertEqual(asist_db.first_name, 'Esteban')
+        self.assertEqual(asist_db.last_name, 'Quito')
+        self.assertIsNone(asist_db.dni)  # Comprueba tolerancia a DNI faltante
+
+        cert_asist = Certificado.objects.filter(asistente=asist_db, tipo_certificado='ASISTENCIA').first()
+        self.assertIsNotNone(cert_asist)
+
+        # 2. Nuevo Disertante no registrado previamente
+        res_nuevo_dis = self.client.post('/admin/manual-certificate/', {
+            'nombre': 'Ing. Roberto Lavalle',
+            'email': 'roberto.lavalle@ingenieria.com',
+            'tipo': 'DISERTANTE'
+        }, follow=True)
+        self.assertEqual(res_nuevo_dis.status_code, 200)
+
+        dis_db = Disertante.objects.filter(nombre='Ing. Roberto Lavalle').first()
+        self.assertIsNotNone(dis_db)
+        self.assertEqual(dis_db.estado, 'APROBADO')
+        self.assertEqual(dis_db.edicion, self.edicion)
+
+        asist_dis_db = Asistente.objects.filter(email='roberto.lavalle@ingenieria.com').first()
+        self.assertIsNotNone(asist_dis_db)
+        self.assertEqual(asist_dis_db.disertante_vinculado, dis_db)
+
+        # 3. Nueva Empresa no registrada previamente
+        res_nueva_emp = self.client.post('/admin/manual-certificate/', {
+            'nombre': 'Logística Global Express SRL',
+            'email': 'facturacion@globalexpress.com.ar',
+            'tipo': 'EMPRESA'
+        }, follow=True)
+        self.assertEqual(res_nueva_emp.status_code, 200)
+
+        emp_db = Empresa.objects.filter(nombre_empresa='Logística Global Express SRL').first()
+        self.assertIsNotNone(emp_db)
+        self.assertEqual(emp_db.email_empresa, 'facturacion@globalexpress.com.ar')
+
+        asist_emp_db = Asistente.objects.filter(email='facturacion@globalexpress.com.ar').first()
+        self.assertIsNotNone(asist_emp_db)
+        self.assertEqual(asist_emp_db.empresa_vinculada, emp_db)
+
+

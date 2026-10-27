@@ -942,7 +942,8 @@ class MiembroGrupoInline(admin.TabularInline):
 
 def asistentes_search_api(request):
     """
-    Endpoint AJAX para buscar asistentes por nombre, apellido, email o DNI.
+    Endpoint AJAX para buscar asistentes, disertantes y empresas por nombre, apellido, razón social, email, DNI o CUIT.
+    Soporta filtro opcional ?categoria=ALL|ASISTENTE|DISERTANTE|EMPRESA
     """
     if not request.user.is_staff:
         return JsonResponse({'error': 'No autorizado'}, status=403)
@@ -950,25 +951,135 @@ def asistentes_search_api(request):
     q = request.GET.get('q', '').strip()
     if len(q) < 2:
         return JsonResponse({'results': []})
-        
-    asistentes = Asistente.objects.filter(
-        models.Q(first_name__icontains=q) |
-        models.Q(last_name__icontains=q) |
-        models.Q(email__icontains=q) |
-        models.Q(dni__icontains=q)
-    ).distinct()[:15]
-    
+
+    categoria = request.GET.get('categoria', 'ALL').strip().upper()
     results = []
-    for a in asistentes:
-        results.append({
-            'id': a.id,
-            'nombre': f"{a.first_name} {a.last_name}".strip(),
-            'email': a.email,
-            'dni': a.dni or '',
-            'perfil': a.get_profile_type_display() if hasattr(a, 'get_profile_type_display') else a.profile_type
-        })
-        
-    return JsonResponse({'results': results})
+
+    # 1. BÚSQUEDA EN EMPRESAS / SPONSORS / STANDS
+    if categoria in ('ALL', 'EMPRESA'):
+        empresas = Empresa.objects.filter(
+            models.Q(nombre_empresa__icontains=q) |
+            models.Q(cuit__icontains=q) |
+            models.Q(email_empresa__icontains=q) |
+            models.Q(email_contacto__icontains=q) |
+            models.Q(nombre_contacto__icontains=q)
+        ).distinct()[:8]
+
+        for e in empresas:
+            email_emp = e.email_empresa or e.email_contacto or ''
+            detalle_contacto = f"Contacto: {e.nombre_contacto}" if e.nombre_contacto else "Institución / Stand"
+            if e.cuit:
+                detalle_contacto = f"CUIT: {e.cuit} • {detalle_contacto}"
+            results.append({
+                'id': f"emp_{e.id}",
+                'raw_id': e.id,
+                'nombre': e.nombre_empresa.strip(),
+                'email': email_emp,
+                'dni': e.cuit or '',
+                'tipo_registro': 'EMPRESA',
+                'tipo_sugerido': 'EMPRESA',
+                'badge_icon': '🏢',
+                'perfil': 'Empresa / Stand',
+                'subtitulo': detalle_contacto
+            })
+
+    # 2. BÚSQUEDA EN DISERTANTES Y PONENTES
+    if categoria in ('ALL', 'DISERTANTE'):
+        disertantes = Disertante.objects.filter(
+            models.Q(nombre__icontains=q) |
+            models.Q(empresa_institucion__icontains=q) |
+            models.Q(tema_presentacion__icontains=q) |
+            models.Q(usuario__email__icontains=q)
+        ).select_related('usuario').distinct()[:8]
+
+        nombres_dis_vistos = set()
+        for d in disertantes:
+            email_dis = d.usuario.email if (d.usuario and d.usuario.email) else ''
+            # Si no tiene email de usuario, intentar buscar si está como Asistente vinculado
+            asist_dis = Asistente.objects.filter(models.Q(disertante_vinculado=d) | models.Q(first_name__icontains=d.nombre.split(' ')[0])).first()
+            if not email_dis and asist_dis and asist_dis.email:
+                email_dis = asist_dis.email
+
+            nombres_dis_vistos.add(d.nombre.strip().upper())
+            sub = d.tema_presentacion or d.empresa_institucion or 'Disertante Oficial Congreso'
+            results.append({
+                'id': f"dis_{d.id}",
+                'raw_id': d.id,
+                'nombre': d.nombre.strip(),
+                'email': email_dis,
+                'dni': asist_dis.dni if asist_dis and asist_dis.dni else '',
+                'tipo_registro': 'DISERTANTE',
+                'tipo_sugerido': 'DISERTANTE',
+                'badge_icon': '🎙️',
+                'perfil': 'Disertante',
+                'subtitulo': sub[:75]
+            })
+
+        # Postulaciones de disertantes aprobadas/en trámite
+        postulaciones = PostulacionDisertante.objects.filter(
+            models.Q(nombre_apellido__icontains=q) |
+            models.Q(email__icontains=q) |
+            models.Q(dni__icontains=q) |
+            models.Q(titulo_charla__icontains=q)
+        ).distinct()[:5]
+
+        for p in postulaciones:
+            if p.nombre_apellido.strip().upper() not in nombres_dis_vistos:
+                results.append({
+                    'id': f"post_dis_{p.id}",
+                    'raw_id': p.id,
+                    'nombre': p.nombre_apellido.strip(),
+                    'email': p.email or '',
+                    'dni': p.dni or '',
+                    'tipo_registro': 'DISERTANTE',
+                    'tipo_sugerido': 'DISERTANTE',
+                    'badge_icon': '🎙️',
+                    'perfil': 'Disertante (Postulado)',
+                    'subtitulo': (p.titulo_charla or p.empresa_institucion or 'Disertante')[:75]
+                })
+                nombres_dis_vistos.add(p.nombre_apellido.strip().upper())
+
+    # 3. BÚSQUEDA EN ASISTENTES GENERALES
+    if categoria in ('ALL', 'ASISTENTE'):
+        asistentes = Asistente.objects.filter(
+            models.Q(first_name__icontains=q) |
+            models.Q(last_name__icontains=q) |
+            models.Q(email__icontains=q) |
+            models.Q(dni__icontains=q)
+        ).select_related('empresa_vinculada', 'disertante_vinculado').distinct()[:10]
+
+        for a in asistentes:
+            # Si el asistente ya está vinculado a un disertante o empresa, reflejarlo
+            if a.disertante_vinculado:
+                t_sug = 'DISERTANTE'
+                b_icon = '🎙️'
+                p_label = 'Disertante'
+                sub = a.disertante_vinculado.nombre
+            elif a.empresa_vinculada:
+                t_sug = 'EMPRESA'
+                b_icon = '🏢'
+                p_label = 'Empresa'
+                sub = f"Rep. de {a.empresa_vinculada.nombre_empresa}"
+            else:
+                t_sug = 'ASISTENCIA'
+                b_icon = '👤'
+                p_label = a.get_profile_type_display() if hasattr(a, 'get_profile_type_display') else a.profile_type
+                sub = f"DNI: {a.dni}" if a.dni else "Asistente Acreditado"
+
+            results.append({
+                'id': f"asist_{a.id}",
+                'raw_id': a.id,
+                'nombre': f"{a.first_name} {a.last_name}".strip(),
+                'email': a.email or '',
+                'dni': a.dni or '',
+                'tipo_registro': 'ASISTENTE',
+                'tipo_sugerido': t_sug,
+                'badge_icon': b_icon,
+                'perfil': p_label,
+                'subtitulo': sub
+            })
+
+    return JsonResponse({'results': results[:25]})
 
 
 def manual_certificate_view(request):

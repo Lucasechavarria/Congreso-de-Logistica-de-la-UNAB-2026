@@ -1090,10 +1090,24 @@ def manual_certificate_view(request):
     if not request.user.is_staff:
         return HttpResponse("No autorizado.", status=403)
 
+    # Descarga directa de certificado previamente emitido por ID
+    if request.method == 'GET' and request.GET.get('descargar_cert'):
+        cert_id = request.GET.get('descargar_cert')
+        cert = Certificado.objects.filter(id=cert_id).first()
+        if cert:
+            from django.utils.text import slugify
+            pdf_buffer = cert.generar_pdf(save=True)
+            nom = cert.asistente.empresa_vinculada.nombre_empresa if (cert.tipo_certificado == 'EMPRESA' and cert.asistente.empresa_vinculada) else (cert.asistente.disertante_vinculado.nombre if (cert.tipo_certificado == 'DISERTANTE' and cert.asistente.disertante_vinculado) else cert.asistente.nombre_completo)
+            safe_filename = f"certificado_{cert.tipo_certificado.lower()}_{slugify(nom) or 'participante'}.pdf"
+            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+            return response
+
     # Vista previa directa en PDF sin guardar en base de datos
     if request.method == 'GET' and request.GET.get('preview') == '1':
         nombre = request.GET.get('nombre', 'PARTICIPANTE').strip() or 'PARTICIPANTE'
         tipo = request.GET.get('tipo', 'ASISTENCIA')
+        is_download = request.GET.get('download') == '1'
         
         if tipo == 'EMPRESA':
             emp_mock = Empresa(nombre_empresa=nombre)
@@ -1109,22 +1123,39 @@ def manual_certificate_view(request):
         cert_mock = Certificado(asistente=asistente_mock, tipo_certificado=tipo)
         pdf_buffer = cert_mock.generar_pdf(save=False)
         response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="certificado_{tipo.lower()}_preview.pdf"'
+        from django.utils.text import slugify
+        disposition = 'attachment' if is_download else 'inline'
+        response['Content-Disposition'] = f'{disposition}; filename="certificado_{tipo.lower()}_{slugify(nombre) or "preview"}.pdf"'
         return response
+
+    ultimo_cert = None
 
     if request.method == 'POST':
         nombre = request.POST.get('nombre', '').strip()
         email_addr = request.POST.get('email', '').strip().lower()
         tipo = request.POST.get('tipo', 'ASISTENCIA')
+        accion = request.POST.get('accion', 'enviar')  # 'enviar' o 'descargar'
 
         origen_tipo = request.POST.get('origen_tipo', '').strip().lower()
         origen_id = request.POST.get('origen_id', '').strip()
         nuevo_registro = None
 
-        if not nombre or not email_addr:
-            messages.error(request, "Nombre y Email son obligatorios.")
+        if not nombre:
+            messages.error(request, "El Nombre o Razón Social es obligatorio.")
+        elif accion == 'enviar' and not email_addr:
+            messages.error(request, "El correo electrónico es OBLIGATORIO para enviar el certificado por email. Si desea entregarlo en persona o compartirlo por WhatsApp, utilice la opción 'Generar y Descargar PDF'.")
         else:
             try:
+                import uuid
+                from django.utils.text import slugify
+
+                # Si no se especificó email (permitido en accion == 'descargar'), generar placeholder seguro
+                email_efectivo = email_addr
+                email_es_placeholder = False
+                if not email_efectivo:
+                    email_efectivo = f"sin-email-{uuid.uuid4().hex[:8]}@congresounab.ar"
+                    email_es_placeholder = True
+
                 edicion_activa = Edicion.objects.filter(activa=True).first()
                 if not edicion_activa:
                     edicion_activa = Edicion.objects.order_by('-anio').first()
@@ -1134,24 +1165,27 @@ def manual_certificate_view(request):
                     if origen_tipo == 'empresa' and origen_id.isdigit():
                         empresa = Empresa.objects.filter(id=int(origen_id)).first()
                     if not empresa:
-                        empresa = Empresa.objects.filter(
-                            models.Q(nombre_empresa__iexact=nombre) | 
-                            models.Q(email_empresa__iexact=email_addr) | 
-                            models.Q(email_contacto__iexact=email_addr)
-                        ).first()
+                        emp_query = models.Q(nombre_empresa__iexact=nombre)
+                        if email_addr:
+                            emp_query |= models.Q(email_empresa__iexact=email_addr) | models.Q(email_contacto__iexact=email_addr)
+                        empresa = Empresa.objects.filter(emp_query).first()
                     if not empresa:
                         empresa = Empresa.objects.create(
                             nombre_empresa=nombre,
-                            email_empresa=email_addr,
+                            email_empresa=email_addr if email_addr else None,
                             rubro_logistico="Sector Logístico y Transporte",
                             acepta_tyc=True
                         )
                         nuevo_registro = "Empresa"
 
-                    asistente = Asistente.objects.filter(email=email_addr).first()
+                    asistente = None
+                    if email_addr:
+                        asistente = Asistente.objects.filter(email=email_addr).first()
+                    if not asistente:
+                        asistente = Asistente.objects.filter(empresa_vinculada=empresa).first()
                     if not asistente:
                         asistente = Asistente.objects.create(
-                            email=email_addr,
+                            email=email_efectivo,
                             first_name=nombre,
                             last_name='—',
                             empresa_vinculada=empresa,
@@ -1162,17 +1196,19 @@ def manual_certificate_view(request):
                             nuevo_registro = "Asistente Corporativo"
                     else:
                         asistente.empresa_vinculada = empresa
-                        asistente.save(update_fields=['empresa_vinculada'])
+                        if email_addr and asistente.email != email_addr:
+                            asistente.email = email_addr
+                        asistente.save(update_fields=['empresa_vinculada', 'email'] if email_addr else ['empresa_vinculada'])
 
                 elif tipo == 'DISERTANTE':
                     disertante = None
                     if origen_tipo == 'disertante' and origen_id.isdigit():
                         disertante = Disertante.objects.filter(id=int(origen_id)).first()
                     if not disertante:
-                        disertante = Disertante.objects.filter(
-                            models.Q(nombre__iexact=nombre) | 
-                            models.Q(usuario__email__iexact=email_addr)
-                        ).first()
+                        dis_query = models.Q(nombre__iexact=nombre)
+                        if email_addr:
+                            dis_query |= models.Q(usuario__email__iexact=email_addr)
+                        disertante = Disertante.objects.filter(dis_query).first()
                     if not disertante:
                         disertante = Disertante.objects.create(
                             nombre=nombre,
@@ -1183,10 +1219,14 @@ def manual_certificate_view(request):
                         nuevo_registro = "Disertante"
 
                     parts = nombre.split(' ')
-                    asistente = Asistente.objects.filter(email=email_addr).first()
+                    asistente = None
+                    if email_addr:
+                        asistente = Asistente.objects.filter(email=email_addr).first()
+                    if not asistente:
+                        asistente = Asistente.objects.filter(disertante_vinculado=disertante).first()
                     if not asistente:
                         asistente = Asistente.objects.create(
-                            email=email_addr,
+                            email=email_efectivo,
                             first_name=parts[0],
                             last_name=' '.join(parts[1:]) or '—',
                             disertante_vinculado=disertante,
@@ -1196,20 +1236,21 @@ def manual_certificate_view(request):
                         if not nuevo_registro:
                             nuevo_registro = "Asistente Disertante"
                     else:
-                        if disertante:
-                            asistente.disertante_vinculado = disertante
-                            asistente.save(update_fields=['disertante_vinculado'])
+                        asistente.disertante_vinculado = disertante
+                        if email_addr and asistente.email != email_addr:
+                            asistente.email = email_addr
+                        asistente.save(update_fields=['disertante_vinculado', 'email'] if email_addr else ['disertante_vinculado'])
 
                 else: # ASISTENCIA
                     asistente = None
                     if origen_tipo == 'asistente' and origen_id.isdigit():
                         asistente = Asistente.objects.filter(id=int(origen_id)).first()
-                    if not asistente:
+                    if not asistente and email_addr:
                         asistente = Asistente.objects.filter(email=email_addr).first()
                     if not asistente:
                         parts = nombre.split(' ')
                         asistente = Asistente.objects.create(
-                            email=email_addr,
+                            email=email_efectivo,
                             first_name=parts[0],
                             last_name=' '.join(parts[1:]) or '—',
                             profile_type=Asistente.ProfileType.VISITOR,
@@ -1224,15 +1265,34 @@ def manual_certificate_view(request):
                     tipo_certificado=tipo
                 )
 
-                # Despachar el certificado por email
+                # Generar el PDF oficial y guardarlo en base de datos
+                pdf_buffer = cert.generar_pdf(save=True)
+                tipo_display = cert.get_tipo_certificado_display()
+                alta_info = f" (Se registró en base de datos como nuevo {nuevo_registro})" if nuevo_registro else ""
+
+                # CASO 1: ACCIÓN DESCARGAR DIRECTAMENTE
+                if accion == 'descargar':
+                    safe_filename = f"certificado_{tipo.lower()}_{slugify(nombre) or 'participante'}.pdf"
+                    response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+                    response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+                    return response
+
+                # CASO 2: ACCIÓN ENVIAR POR EMAIL
                 from .email import send_certificate_email
                 result = send_certificate_email(cert)
 
                 success = result[0] if isinstance(result, tuple) else result
                 error_msg = result[1] if isinstance(result, tuple) else "Error desconocido en el servidor de correo."
 
-                tipo_display = cert.get_tipo_certificado_display()
-                alta_info = f" (Se registró en base de datos como nuevo {nuevo_registro})" if nuevo_registro else ""
+                wa_msg = f"¡Hola! Te compartimos el Certificado Oficial de {tipo_display} del 2º Congreso de Logística y Transporte 2026 de la Universidad Nacional Guillermo Brown (UNaB) para *{nombre}*. ¡Muchas gracias por tu participación!"
+                ultimo_cert = {
+                    'id': cert.id,
+                    'nombre': nombre,
+                    'tipo': tipo_display,
+                    'email': email_addr if not email_es_placeholder else None,
+                    'wa_text': wa_msg,
+                }
+
                 if success:
                     cert.email_enviado = True
                     cert.fecha_envio = timezone.now()
@@ -1260,6 +1320,7 @@ def manual_certificate_view(request):
         'bg_asistencia': get_cert_b64('Certificados-congreso-2026.png'),
         'bg_disertante': get_cert_b64('Certificados-congreso-disertantes-2026.png'),
         'bg_empresa': get_cert_b64('Certificados-congreso-empresas-2026.png'),
+        'ultimo_cert': ultimo_cert,
     }
     return render(request, 'admin/manual_certificate.html', context)
 

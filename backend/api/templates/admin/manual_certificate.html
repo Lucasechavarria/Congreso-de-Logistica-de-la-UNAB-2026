@@ -347,6 +347,197 @@
         box-shadow: 0 6px 18px rgba(197, 160, 89, 0.35);
     }
 
+    .btn-download-real-pdf {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #064e3b, #047857);
+        color: #ecfdf5;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        border-radius: 8px;
+        border: 1px solid #10b981;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .btn-download-real-pdf:hover {
+        background: linear-gradient(135deg, #047857, #059669);
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+    }
+
+    /* Dual Action Buttons Grid */
+    .actions-buttons-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 25px;
+    }
+
+    @media (max-width: 640px) {
+        .actions-buttons-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .btn-action-send, .btn-action-download {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 16px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1px solid transparent;
+        text-align: left;
+        transition: all 0.25s ease;
+        font-family: inherit;
+    }
+
+    .btn-action-send {
+        background: linear-gradient(135deg, #0284c7, #06b6d4);
+        color: #ffffff;
+        border-color: rgba(6, 182, 212, 0.6);
+        box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3);
+    }
+
+    .btn-action-send:hover {
+        background: linear-gradient(135deg, #0369a1, #0891b2);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 22px rgba(6, 182, 212, 0.45);
+    }
+
+    .btn-action-download {
+        background: linear-gradient(135deg, #059669, #10b981);
+        color: #ffffff;
+        border-color: rgba(16, 185, 129, 0.6);
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-action-download:hover {
+        background: linear-gradient(135deg, #047857, #059669);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 22px rgba(16, 185, 129, 0.45);
+    }
+
+    .btn-action-wa {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: #25D366;
+        color: #0b2914;
+        font-size: 13px;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+        font-family: inherit;
+    }
+
+    .btn-action-wa:hover {
+        background: #22bf5b;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45);
+    }
+
+    .btn-icon-lg {
+        font-size: 22px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    .btn-text-content {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .btn-text-content strong {
+        font-size: 13px;
+        letter-spacing: 0.2px;
+    }
+
+    .btn-text-content small {
+        font-size: 11px;
+        opacity: 0.9;
+        font-weight: normal;
+    }
+
+    /* Cert Success Card */
+    .cert-success-card {
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 25px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .cert-success-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #6ee7b7;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .cert-success-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn-success-dl {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: #0f172a;
+        border: 1px solid #10b981;
+        color: #6ee7b7;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-success-dl:hover {
+        background: #10b981;
+        color: #0f172a;
+    }
+
+    .btn-success-wa {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: #25D366;
+        color: #064e24;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-success-wa:hover {
+        background: #22bf5b;
+        transform: translateY(-1px);
+    }
+
     .autocomplete-badge {
         display: inline-flex;
         align-items: center;
@@ -419,6 +610,30 @@
         </div>
         {% endif %}
 
+        {% if ultimo_cert %}
+        <div class="cert-success-card">
+            <div class="cert-success-header">
+                <span style="font-size: 20px;">🎉</span>
+                <div>
+                    <div>¡Certificado de {{ ultimo_cert.tipo }} emitido exitosamente!</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-top: 2px;">
+                        Destinatario: <strong>{{ ultimo_cert.nombre }}</strong> {% if ultimo_cert.email %}&bull; Enviado a <strong>{{ ultimo_cert.email }}</strong>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="cert-success-actions">
+                <a href="?descargar_cert={{ ultimo_cert.id }}" class="btn-success-dl">
+                    <span>📥</span>
+                    <span>Descargar Copia en PDF</span>
+                </a>
+                <a href="https://api.whatsapp.com/send?text={{ ultimo_cert.wa_text|urlencode }}" target="_blank" class="btn-success-wa">
+                    <span>💬</span>
+                    <span>Compartir por WhatsApp</span>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="autocomplete-badge" id="autocompleteBadge">
             ✨ Datos autocompletados desde base de datos
         </div>
@@ -435,9 +650,10 @@
             {% csrf_token %}
             <input type="hidden" name="origen_tipo" id="origenTipo" value="">
             <input type="hidden" name="origen_id" id="origenId" value="">
+            <input type="hidden" name="accion" id="accionInput" value="enviar">
             
             <div class="form-field-group">
-                <label for="nombre">Nombre o Razón Social</label>
+                <label for="nombre">Nombre o Razón Social <span style="color: #ef4444;">*</span></label>
                 <input type="text" name="nombre" id="nombre" required 
                     class="premium-input"
                     placeholder="Buscar participante, disertante o empresa..."
@@ -449,10 +665,13 @@
             </div>
             
             <div class="form-field-group">
-                <label for="email">Correo Electrónico de Envío</label>
-                <input type="email" name="email" id="email" required 
+                <label for="email">
+                    Correo Electrónico 
+                    <span style="font-size: 11px; font-weight: normal; color: #94a3b8;">(Requerido para envío por email, opcional para descarga)</span>
+                </label>
+                <input type="email" name="email" id="email" 
                     class="premium-input"
-                    placeholder="ejemplo@correo.com"
+                    placeholder="ejemplo@correo.com (dejar vacío si solo descargará)"
                     autocomplete="off">
             </div>
 
@@ -465,23 +684,42 @@
                 </select>
             </div>
 
-            <div class="btn-row">
+            <!-- DUAL ACTION BUTTONS (ENVIAR O DESCARGAR) -->
+            <div class="actions-buttons-grid">
+                <button type="submit" class="btn-action-send" onclick="return handleAction('enviar');">
+                    <span class="btn-icon-lg">📧</span>
+                    <div class="btn-text-content">
+                        <strong>Generar y Enviar por Email</strong>
+                        <small>Exige correo electrónico</small>
+                    </div>
+                </button>
+                <button type="submit" class="btn-action-download" onclick="return handleAction('descargar');">
+                    <span class="btn-icon-lg">📥</span>
+                    <div class="btn-text-content">
+                        <strong>Generar y Descargar PDF</strong>
+                        <small>Descarga directa (sin requerir email)</small>
+                    </div>
+                </button>
+            </div>
+
+            <div class="btn-row" style="margin-top: 20px;">
                 <a href="{% url 'admin:index' %}" class="btn-back">
                     &lsaquo; Volver al Inicio
                 </a>
-                <button type="submit" class="btn-neon-cyan" style="box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);">
-                    Generar y Enviar Certificado
+                <button type="button" class="btn-action-wa" onclick="shareViaWhatsApp();">
+                    <span style="font-size: 15px;">💬</span>
+                    <span>Compartir por WhatsApp</span>
                 </button>
             </div>
         </form>
 
         <div class="info-panel">
-            <h4>💡 Alta Automática y Tolerancia a Datos Faltantes:</h4>
+            <h4>💡 Envíos, Descargas y Opciones para Compartir:</h4>
             <ul>
-                <li><strong>¿No está en el sistema?</strong> Puedes ingresar libremente su Nombre / Razón Social y Correo. Al presionar "Generar y Enviar", el sistema creará automáticamente la ficha en la base de datos como <strong>Asistente</strong>, <strong>Disertante</strong> o <strong>Empresa</strong> según el tipo de certificado seleccionado.</li>
-                <li><strong>¿Faltan datos (DNI, Teléfono, CUIT, Biografía, etc.)?</strong> No es impedimento: la base de datos admite el alta inmediata con datos mínimos requeridos (Nombre y Email), completando los campos restantes con valores por defecto seguros.</li>
-                <li><strong>Si el correo ya existe:</strong> Se vincula automáticamente al registro existente para evitar duplicaciones.</li>
-                <li><strong>Trazabilidad permanente:</strong> El certificado queda registrado formalmente en la base de datos de la edición activa y se despacha de inmediato con su PDF oficial adjunto.</li>
+                <li><strong>📧 Envío por Correo:</strong> Si eliges <em>"Generar y Enviar por Email"</em>, el correo electrónico es el <strong>dato obligatorio</strong> para garantizar el despacho del PDF oficial adjunto.</li>
+                <li><strong>📥 Descarga Directa:</strong> Si la persona o empresa no cuenta con correo a mano o prefieres entregar en mano / compartir por WhatsApp o Telegram, utiliza <em>"Generar y Descargar PDF"</em>. Se registrará igualmente en la base de datos y se descargará el PDF oficial en tu equipo sin exigir correo.</li>
+                <li><strong>💬 Compartir por WhatsApp:</strong> Puedes hacer clic en el botón de WhatsApp para generar un mensaje oficial personalizado listo para enviar por WhatsApp Web o desde tu teléfono.</li>
+                <li><strong>Tolerancia a datos faltantes:</strong> Si el registro no existe en el sistema, se da de alta automáticamente en su tabla respectiva (Asistente, Disertante o Empresa) tolerando la ausencia de datos secundarios (DNI, Teléfono, CUIT, etc.).</li>
             </ul>
         </div>
     </div>
@@ -500,11 +738,16 @@
 
             <div class="cert-preview-bar">
                 <span class="badge-official-status">
-                    <span style="font-size: 14px;">●</span> Modelo 2026 Oficial UNaB
+                    <span style="font-size: 14px;">●</span> Modelo 2026 UNaB
                 </span>
-                <a id="btnPreviewPdf" href="#" target="_blank" class="btn-preview-real-pdf">
-                    📄 Ver PDF Real Generado
-                </a>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a id="btnPreviewPdf" href="#" target="_blank" class="btn-preview-real-pdf" title="Abrir en pestaña nueva">
+                        📄 Ver PDF
+                    </a>
+                    <a id="btnDownloadPreviewPdf" href="#" class="btn-download-real-pdf" title="Descargar archivo PDF directamente">
+                        📥 Descargar PDF
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -573,11 +816,50 @@ function renderOfficialPreview() {
         ctx.fillText(name, canvas.width / 2, 520);
     }
     
-    // Update live PDF link
+    // Update live PDF links
     const pdfBtn = document.getElementById('btnPreviewPdf');
     if (pdfBtn) {
         pdfBtn.href = `/admin/manual-certificate/?preview=1&nombre=${encodeURIComponent(rawName)}&tipo=${encodeURIComponent(tipo)}`;
     }
+    const downloadPdfBtn = document.getElementById('btnDownloadPreviewPdf');
+    if (downloadPdfBtn) {
+        downloadPdfBtn.href = `/admin/manual-certificate/?preview=1&download=1&nombre=${encodeURIComponent(rawName)}&tipo=${encodeURIComponent(tipo)}`;
+    }
+}
+
+// ── Handling Dual Actions & WhatsApp Share ─────────────────
+function handleAction(action) {
+    const nombre = document.getElementById('nombre').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const accionInput = document.getElementById('accionInput');
+    if (accionInput) {
+        accionInput.value = action;
+    }
+
+    if (!nombre) {
+        alert("Por favor ingresa el Nombre o Razón Social.");
+        document.getElementById('nombre').focus();
+        return false;
+    }
+
+    if (action === 'enviar') {
+        if (!email) {
+            alert("⚠️ El correo electrónico es OBLIGATORIO para enviar el certificado por email.\n\nSi no dispones del correo a mano, puedes presionar 'Generar y Descargar PDF' para obtener el archivo directamente y entregarlo en mano o compartirlo por WhatsApp.");
+            document.getElementById('email').focus();
+            return false;
+        }
+    }
+    return true;
+}
+
+function shareViaWhatsApp() {
+    const rawName = document.getElementById('nombre').value.trim() || 'Participante';
+    const tipoSelect = document.getElementById('tipo');
+    const tipoText = tipoSelect.options[tipoSelect.selectedIndex].text;
+    
+    const msg = `¡Hola! Te compartimos el Certificado Oficial de ${tipoText} del 2º Congreso de Logística y Transporte 2026 de la Universidad Nacional Guillermo Brown (UNaB) para *${rawName}*. ¡Muchas gracias por tu participación!`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
 }
 
 // ── Live Preview Sync ──────────────────────────────────────

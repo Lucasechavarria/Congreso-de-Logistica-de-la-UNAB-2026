@@ -325,4 +325,68 @@ class MultiCategoryCertificateAdminTests(TestCase):
         self.assertIsNotNone(asist_emp_db)
         self.assertEqual(asist_emp_db.empresa_vinculada, emp_db)
 
+    def test_manual_certificate_email_required_for_sending(self):
+        """
+        Valida que si se elige la acción de enviar por email ('accion': 'enviar'),
+        el correo electrónico sea estrictamente OBLIGATORIO y no permita el despacho sin él.
+        """
+        res = self.client.post('/admin/manual-certificate/', {
+            'nombre': 'Persona Sin Email',
+            'email': '',
+            'tipo': 'ASISTENCIA',
+            'accion': 'enviar'
+        }, follow=True)
+        self.assertEqual(res.status_code, 200)
+        messages_list = [m.message for m in res.context['messages']]
+        self.assertTrue(any("OBLIGATORIO para enviar el certificado por email" in msg for msg in messages_list))
+        # Verifica que no se haya creado ningún certificado
+        self.assertFalse(Certificado.objects.filter(asistente__first_name='Persona').exists())
+
+    def test_manual_certificate_direct_download_without_email(self):
+        """
+        Valida que si se elige 'Generar y Descargar PDF' ('accion': 'descargar'),
+        NO sea obligatorio el email: se registre en base de datos y se retorne la descarga directa del PDF.
+        """
+        res = self.client.post('/admin/manual-certificate/', {
+            'nombre': 'Lautaro Entrega Mano',
+            'email': '',
+            'tipo': 'ASISTENCIA',
+            'accion': 'descargar'
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'application/pdf')
+        self.assertIn('attachment;', res['Content-Disposition'])
+        self.assertIn('certificado_asistencia_lautaro-entrega-mano.pdf', res['Content-Disposition'])
+
+        # Comprueba que se haya guardado en base de datos
+        asist = Asistente.objects.filter(first_name='Lautaro', last_name='Entrega Mano').first()
+        self.assertIsNotNone(asist)
+        cert = Certificado.objects.filter(asistente=asist).first()
+        self.assertIsNotNone(cert)
+        self.assertFalse(cert.email_enviado)
+
+    def test_manual_certificate_download_by_cert_id(self):
+        """
+        Valida que un certificado ya emitido se pueda descargar directamente vía GET ?descargar_cert=<id>
+        """
+        cert = Certificado.objects.create(
+            asistente=self.asistente,
+            edicion=self.edicion,
+            tipo_certificado='ASISTENCIA'
+        )
+        res = self.client.get(f'/admin/manual-certificate/?descargar_cert={cert.id}')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'application/pdf')
+        self.assertIn('attachment;', res['Content-Disposition'])
+
+    def test_manual_certificate_preview_download_mode(self):
+        """
+        Valida la descarga directa desde el panel de vista previa vía GET ?preview=1&download=1
+        """
+        res = self.client.get('/admin/manual-certificate/?preview=1&download=1&nombre=Prueba+Preview&tipo=DISERTANTE')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'application/pdf')
+        self.assertIn('attachment;', res['Content-Disposition'])
+        self.assertIn('certificado_disertante_prueba-preview.pdf', res['Content-Disposition'])
+
 

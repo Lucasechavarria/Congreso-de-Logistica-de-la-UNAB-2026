@@ -18,6 +18,7 @@ def generate_balanced_certificates():
     cg2_path = os.path.join(root_dir, "public", "images", "logo-congreso-2026-negro.png")
     logo_cin_path = os.path.join(root_dir, "public", "images", "logo_cin.png")
     sig_path = os.path.join(root_dir, "public", "images", "Firma_Rector_Transparent.png")
+    ig_path = os.path.join(root_dir, "public", "images", "instagram_official_logo.png")
 
     width, height = 2000, 1414
 
@@ -26,6 +27,7 @@ def generate_balanced_certificates():
     l_cin = Image.open(logo_cin_path).convert("RGBA") if os.path.exists(logo_cin_path) else None
     l_cg2 = Image.open(cg2_path).convert("RGBA") if os.path.exists(cg2_path) else None
     sig_img = Image.open(sig_path).convert("RGBA") if os.path.exists(sig_path) else None
+    l_ig = Image.open(ig_path).convert("RGBA") if os.path.exists(ig_path) else None
 
     if l_cg2:
         bbox = l_cg2.getbbox()
@@ -221,15 +223,35 @@ def generate_balanced_certificates():
         rt_w = rt_bbox[2] - rt_bbox[0]
         draw.text(((width - rt_w) // 2, 1210), r_title, font=f_rector_title, fill=(100, 116, 139, 255))
 
-        # Bottom Bar
-        bar_h = 60
+        # Bottom Bar with Official Instagram Integration
+        bar_h = 62
         draw.rectangle([0, height - bar_h, width, height], fill=(15, 41, 66, 255))
         draw.line([0, height - bar_h, width, height - bar_h], fill=(197, 160, 89, 255), width=3)
 
-        footer_text = "UNIVERSIDAD NACIONAL GUILLERMO BROWN  •  CONGRESO DE LOGÍSTICA Y TRANSPORTE 2026"
-        ft_bbox = draw.textbbox((0, 0), footer_text, font=f_footer)
-        ft_w = ft_bbox[2] - ft_bbox[0]
-        draw.text(((width - ft_w) // 2, height - bar_h + 18), footer_text, font=f_footer, fill=(255, 255, 255, 255))
+        part1 = "UNIVERSIDAD NACIONAL GUILLERMO BROWN  •  CONGRESO DE LOGÍSTICA Y TRANSPORTE 2026  •"
+        f_footer = ImageFont.truetype(font_path, 19)
+        p1_bbox = draw.textbbox((0, 0), part1, font=f_footer)
+        p1_w = p1_bbox[2] - p1_bbox[0]
+
+        ig_text = "@congresologisticounab"
+        t2_bbox = draw.textbbox((0, 0), ig_text, font=f_footer)
+        t2_w = t2_bbox[2] - t2_bbox[0]
+
+        ig_size = 28
+        spacing = 12
+        total_w = p1_w + spacing + ig_size + spacing + t2_w
+        start_x = (width - total_w) // 2
+        bar_y_text = height - bar_h + 19
+
+        draw.text((start_x, bar_y_text), part1, font=f_footer, fill=(255, 255, 255, 255))
+
+        if l_ig:
+            ig_res = l_ig.resize((ig_size, ig_size), Image.Resampling.LANCZOS)
+            ig_x = start_x + p1_w + spacing
+            ig_y = height - bar_h + ((bar_h - ig_size) // 2)
+            img.paste(ig_res, (ig_x, ig_y), ig_res)
+
+        draw.text((start_x + p1_w + spacing + ig_size + spacing, bar_y_text), ig_text, font=f_footer, fill=(255, 255, 255, 255))
 
         # Save Base Background Template
         bg_out = os.path.join(cert_dir, item["filename"])

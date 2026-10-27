@@ -686,17 +686,35 @@ def send_certificate_email(certificado_instance):
 
         # Determinar asunto, cuerpo y nombre de archivo según el tipo
         tipo = getattr(certificado_instance, 'tipo_certificado', 'ASISTENCIA')
+        ig_link = "https://www.instagram.com/congresologisticounab?utm_source=ig_web_button_share_sheet&mdxt=ZDNlZDc0MzIxNw=="
         if tipo == 'DISERTANTE':
             subject = 'Certificado de Disertante - 2º Congreso de Logística UNAB 2026'
-            body = 'Estimado/a disertante,\n\nAdjuntamos su certificado oficial en reconocimiento a su destacada disertación en el 2º Congreso de Logística y Transporte UNAB 2026.\n\nAgradecemos profundamente su valioso aporte académico e institucional.\n\nAtentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
+            body = (
+                'Estimado/a disertante,\n\n'
+                'Adjuntamos su certificado oficial en reconocimiento a su destacada disertación en el 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
+                'Agradecemos profundamente su valioso aporte académico e institucional.\n\n'
+                f'Seguinos en Instagram: {ig_link}\n\n'
+                'Atentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
+            )
             filename_prefix = 'Certificado_Disertante'
         elif tipo == 'EMPRESA':
             subject = 'Certificado de Reconocimiento Empresarial - 2º Congreso de Logística UNAB 2026'
-            body = 'Estimada institución / empresa,\n\nAdjuntamos su certificado oficial de reconocimiento por su valioso acompañamiento y auspicio en el 2º Congreso de Logística y Transporte UNAB 2026.\n\nAtentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
+            body = (
+                'Estimada institución / empresa,\n\n'
+                'Adjuntamos su certificado oficial de reconocimiento por su valioso acompañamiento y auspicio en el 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
+                f'Seguinos en Instagram: {ig_link}\n\n'
+                'Atentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
+            )
             filename_prefix = 'Certificado_Empresarial'
         else:
             subject = 'Certificado de Asistencia - 2º Congreso de Logística UNAB 2026'
-            body = 'Estimado/a participante,\n\nAdjuntamos tu certificado de asistencia oficial al 2º Congreso de Logística y Transporte UNAB 2026.\n\n¡Gracias por formar parte de esta edición!\n\nAtentamente,\nUniversidad Nacional Guillermo Brown'
+            body = (
+                'Estimado/a participante,\n\n'
+                'Adjuntamos tu certificado de asistencia oficial al 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
+                '¡Gracias por formar parte de esta edición!\n\n'
+                f'Seguinos en Instagram: {ig_link}\n\n'
+                'Atentamente,\nUniversidad Nacional Guillermo Brown'
+            )
             filename_prefix = 'Certificado_Asistencia'
 
         target_name = f"{asistente.first_name}_{asistente.last_name}".strip().replace(" ", "_") or "Participante"

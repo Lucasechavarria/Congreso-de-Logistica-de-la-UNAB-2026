@@ -89,8 +89,12 @@ export default function Contacto() {
           <motion.div variants={fadeInUp}>
             <Card className="group border-0 shadow-xl hover:shadow-2xl rounded-2xl bg-gradient-to-br from-congress-cyan/90 to-congress-blue/80 p-6 transition-all duration-300 transform hover:scale-105 text-center h-full">
               <CardHeader className="flex flex-col items-center justify-center mb-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-congress-cyan to-congress-cyan-light rounded-full flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300 icon-float">
-                  <Instagram className="w-10 h-10 text-white" />
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300 icon-float overflow-hidden">
+                  <img 
+                    src="/images/instagram_official_logo.png" 
+                    alt="Instagram Oficial" 
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <CardTitle className="text-2xl font-bold text-white group-hover:text-congress-blue transition-colors">
                   Instagram
@@ -98,8 +102,8 @@ export default function Contacto() {
               </CardHeader>
               <CardContent>
                 <a
-                  href="https://www.instagram.com/congresologisticounab/"
-                  className="text-lg text-white font-medium leading-relaxed hover:underline"
+                  href="https://www.instagram.com/congresologisticounab?utm_source=ig_web_button_share_sheet&mdxt=ZDNlZDc0MzIxNw=="
+                  className="text-lg text-white font-medium leading-relaxed hover:underline flex items-center justify-center gap-2"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

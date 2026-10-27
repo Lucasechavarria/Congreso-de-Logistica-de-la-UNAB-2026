@@ -267,6 +267,22 @@ export default function Layout({ children }: LayoutProps) {
                   }
                   label="+54 9 11 7827-0919"
                 />
+
+                {/* Instagram Oficial */}
+                <a
+                  href="https://www.instagram.com/congresologisticounab?utm_source=ig_web_button_share_sheet&mdxt=ZDNlZDc0MzIxNw=="
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-300 hover:text-white transition-colors flex items-center justify-start space-x-2 group"
+                  title="Seguinos en Instagram"
+                >
+                  <img 
+                    src="/images/instagram_official_logo.png" 
+                    alt="Instagram Oficial Congreso" 
+                    className="w-5 h-5 rounded-[5px] flex-shrink-0 group-hover:scale-110 transition-transform shadow-sm"
+                  />
+                  <span>@congresologisticounab</span>
+                </a>
               </div>
             </div>
             <div className="notranslate flex flex-col items-center text-center">

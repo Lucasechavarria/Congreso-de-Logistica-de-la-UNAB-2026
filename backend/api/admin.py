@@ -1159,6 +1159,8 @@ def manual_certificate_view(request):
                 edicion_activa = Edicion.objects.filter(activa=True).first()
                 if not edicion_activa:
                     edicion_activa = Edicion.objects.order_by('-anio').first()
+                if not edicion_activa:
+                    edicion_activa, _ = Edicion.objects.get_or_create(anio=2026, defaults={'nombre': '2º Congreso de Logística 2026', 'activa': True})
 
                 if tipo == 'EMPRESA':
                     empresa = None

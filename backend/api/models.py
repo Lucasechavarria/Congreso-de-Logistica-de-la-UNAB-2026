@@ -585,7 +585,8 @@ class Certificado(models.Model):
         buffer.seek(0)
         
         if save:
-            file_name = f"certificado_{self.tipo_certificado.lower()}_{self.asistente.email}.pdf"
+            identificador = self.asistente.email if getattr(self.asistente, 'email', None) else f"asistente_{self.asistente_id}"
+            file_name = f"certificado_{self.tipo_certificado.lower()}_{identificador}.pdf"
             self.pdf_generado.save(file_name, ContentFile(buffer.getvalue()), save=True)
         
         return buffer

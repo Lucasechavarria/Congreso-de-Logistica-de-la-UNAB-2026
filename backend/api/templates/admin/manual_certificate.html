@@ -650,7 +650,6 @@
             {% csrf_token %}
             <input type="hidden" name="origen_tipo" id="origenTipo" value="">
             <input type="hidden" name="origen_id" id="origenId" value="">
-            <input type="hidden" name="accion" id="accionInput" value="enviar">
             
             <div class="form-field-group">
                 <label for="nombre">Nombre o Razón Social <span style="color: #ef4444;">*</span></label>
@@ -686,14 +685,14 @@
 
             <!-- DUAL ACTION BUTTONS (ENVIAR O DESCARGAR) -->
             <div class="actions-buttons-grid">
-                <button type="submit" class="btn-action-send" onclick="return handleAction('enviar');">
+                <button type="submit" name="accion" value="enviar" class="btn-action-send" onclick="return handleAction('enviar');">
                     <span class="btn-icon-lg">📧</span>
                     <div class="btn-text-content">
                         <strong>Generar y Enviar por Email</strong>
                         <small>Exige correo electrónico</small>
                     </div>
                 </button>
-                <button type="submit" class="btn-action-download" onclick="return handleAction('descargar');">
+                <button type="submit" name="accion" value="descargar" class="btn-action-download" onclick="return handleAction('descargar');">
                     <span class="btn-icon-lg">📥</span>
                     <div class="btn-text-content">
                         <strong>Generar y Descargar PDF</strong>

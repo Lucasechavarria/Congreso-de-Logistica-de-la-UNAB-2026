@@ -103,40 +103,128 @@
         letter-spacing: 1px;
     }
 
+    /* Category filter tabs */
+    .search-category-tabs {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+        background: rgba(15, 23, 42, 0.7);
+        padding: 4px;
+        border-radius: 10px;
+        border: 1px solid var(--b);
+        overflow-x: auto;
+    }
+
+    .cat-tab-btn {
+        flex: 1;
+        min-width: fit-content;
+        padding: 7px 12px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        color: var(--text-secondary);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .cat-tab-btn:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .cat-tab-btn.active {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(167, 139, 250, 0.25));
+        border-color: rgba(6, 182, 212, 0.6);
+        color: #fff;
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+    }
+
     /* Autocomplete suggestions */
     .autocomplete-results {
         position: absolute;
         top: 100%;
         left: 0;
         width: 100%;
-        background: #120e25;
+        background: #110e23;
         border: 1px solid var(--b);
         border-radius: 10px;
         z-index: 100;
-        max-height: 250px;
+        max-height: 280px;
         overflow-y: auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        box-shadow: 0 12px 36px rgba(0,0,0,0.7);
         display: none;
     }
 
     .autocomplete-item {
         padding: 12px 16px;
-        border-bottom: 1px solid rgba(255,255,255,0.03);
+        border-bottom: 1px solid rgba(255,255,255,0.05);
         cursor: pointer;
         transition: all 0.2s ease;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 5px;
     }
 
     .autocomplete-item:hover {
-        background: rgba(167, 139, 250, 0.12);
+        background: rgba(167, 139, 250, 0.15);
+    }
+
+    .autocomplete-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
     }
 
     .autocomplete-name {
         font-weight: 700;
         color: #fff;
         font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .role-asistente {
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .role-disertante {
+        background: rgba(236, 72, 153, 0.2);
+        color: #f472b6;
+        border: 1px solid rgba(236, 72, 153, 0.4);
+    }
+
+    .role-empresa {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fcd34d;
+        border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .autocomplete-subtitulo {
+        font-size: 11px;
+        color: #94a3b8;
     }
 
     .autocomplete-meta {
@@ -144,6 +232,12 @@
         color: var(--text-muted);
         display: flex;
         justify-content: space-between;
+        align-items: center;
+    }
+
+    .email-warning {
+        color: #fbbf24;
+        font-weight: 600;
     }
 
     .alert { 
@@ -329,14 +423,24 @@
             ✨ Datos autocompletados desde base de datos
         </div>
 
+        <!-- CATEGORY TABS -->
+        <div class="search-category-tabs">
+            <button type="button" class="cat-tab-btn active" id="tabALL" onclick="setSearchCategory('ALL')">🌟 Todos</button>
+            <button type="button" class="cat-tab-btn" id="tabASISTENTE" onclick="setSearchCategory('ASISTENTE')">👤 Asistentes</button>
+            <button type="button" class="cat-tab-btn" id="tabDISERTANTE" onclick="setSearchCategory('DISERTANTE')">🎙️ Disertantes</button>
+            <button type="button" class="cat-tab-btn" id="tabEMPRESA" onclick="setSearchCategory('EMPRESA')">🏢 Empresas</button>
+        </div>
+
         <form method="post" class="space-y-6" id="certForm">
             {% csrf_token %}
+            <input type="hidden" name="origen_tipo" id="origenTipo" value="">
+            <input type="hidden" name="origen_id" id="origenId" value="">
             
             <div class="form-field-group">
-                <label for="nombre">Nombre Completo</label>
+                <label for="nombre">Nombre o Razón Social</label>
                 <input type="text" name="nombre" id="nombre" required 
                     class="premium-input"
-                    placeholder="Escribe el nombre del destinatario..."
+                    placeholder="Buscar participante, disertante o empresa..."
                     autocomplete="off"
                     oninput="updatePreviewName(this.value)">
                 
@@ -345,7 +449,7 @@
             </div>
             
             <div class="form-field-group">
-                <label for="email">Correo Electrónico</label>
+                <label for="email">Correo Electrónico de Envío</label>
                 <input type="email" name="email" id="email" required 
                     class="premium-input"
                     placeholder="ejemplo@correo.com"
@@ -484,34 +588,67 @@ function updatePreviewType(val) {
     renderOfficialPreview();
 }
 
-// ── Predictive AJAX Search (Autocomplete) ──────────────────
+// ── Predictive AJAX Search & Category Filter ──────────────
 const nombreInput = document.getElementById('nombre');
 const emailInput = document.getElementById('email');
 const resultsBox = document.getElementById('autocompleteResults');
 const badge = document.getElementById('autocompleteBadge');
+const origenTipoInput = document.getElementById('origenTipo');
+const origenIdInput = document.getElementById('origenId');
 
+let currentSearchCategory = 'ALL';
 let debounceTimer;
+
+function setSearchCategory(cat) {
+    currentSearchCategory = cat;
+    
+    // Update active tab UI
+    ['ALL', 'ASISTENTE', 'DISERTANTE', 'EMPRESA'].forEach(c => {
+        const btn = document.getElementById('tab' + c);
+        if (btn) {
+            if (c === cat) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+    });
+
+    // Re-trigger search if user already typed something
+    const q = nombreInput.value.trim();
+    if (q.length >= 2) {
+        triggerSearch(q);
+    }
+}
+
+function triggerSearch(q) {
+    const url = `/admin/asistentes-search/?q=${encodeURIComponent(q)}&categoria=${encodeURIComponent(currentSearchCategory)}`;
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data.results && data.results.length > 0) {
+                renderResults(data.results);
+            } else {
+                resultsBox.style.display = 'none';
+            }
+        })
+        .catch(err => console.error('Error fetching autocomplete:', err));
+}
 
 nombreInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
-    const q = nombreInput.value.trim();
+    // Reset origin if user manually changes text
+    if (origenIdInput) origenIdInput.value = '';
+    if (origenTipoInput) origenTipoInput.value = '';
 
+    const q = nombreInput.value.trim();
     if (q.length < 2) {
         resultsBox.style.display = 'none';
         return;
     }
 
     debounceTimer = setTimeout(() => {
-        fetch(`/admin/asistentes-search/?q=${encodeURIComponent(q)}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.results && data.results.length > 0) {
-                    renderResults(data.results);
-                } else {
-                    resultsBox.style.display = 'none';
-                }
-            })
-            .catch(err => console.error('Error fetching autocomplete:', err));
+        triggerSearch(q);
     }, 200);
 });
 
@@ -521,11 +658,30 @@ function renderResults(list) {
     list.forEach(item => {
         const div = document.createElement('div');
         div.className = 'autocomplete-item';
+        
+        let roleClass = 'role-asistente';
+        if (item.origen === 'disertante') roleClass = 'role-disertante';
+        else if (item.origen === 'empresa') roleClass = 'role-empresa';
+
+        const emailHtml = item.email 
+            ? `<span>📧 ${item.email}</span>` 
+            : `<span class="email-warning">⚠️ Sin email registrado (ingrésalo manualmente)</span>`;
+
+        const subHtml = item.subtitulo 
+            ? `<div class="autocomplete-subtitulo">${item.subtitulo}</div>` 
+            : '';
+
         div.innerHTML = `
-            <div class="autocomplete-name">${item.nombre}</div>
+            <div class="autocomplete-header">
+                <span class="autocomplete-name">
+                    <span>${item.badge_icon || '👤'}</span>
+                    <span>${item.nombre}</span>
+                </span>
+                <span class="role-badge ${roleClass}">${item.perfil}</span>
+            </div>
+            ${subHtml}
             <div class="autocomplete-meta">
-                <span>📧 ${item.email}</span>
-                <span>👤 ${item.perfil || 'Asistente'}</span>
+                ${emailHtml}
             </div>
         `;
         div.addEventListener('click', () => {
@@ -539,11 +695,16 @@ function renderResults(list) {
 // User clicked a suggestion
 function selectAsistente(item) {
     nombreInput.value = item.nombre;
-    emailInput.value = item.email;
+    emailInput.value = item.email || '';
     
-    // Auto-select tipo based on perfil
+    if (origenTipoInput) origenTipoInput.value = item.origen || '';
+    if (origenIdInput) origenIdInput.value = item.id || '';
+    
+    // Auto-select tipo based on tipo_sugerido or perfil
     const tipoSelect = document.getElementById('tipo');
-    if (item.perfil.toUpperCase().includes('DISERTANTE')) {
+    if (item.tipo_sugerido) {
+        tipoSelect.value = item.tipo_sugerido;
+    } else if (item.perfil.toUpperCase().includes('DISERTANTE')) {
         tipoSelect.value = 'DISERTANTE';
     } else if (item.perfil.toUpperCase().includes('EMPRESA') || item.perfil.toUpperCase().includes('STAND')) {
         tipoSelect.value = 'EMPRESA';
@@ -553,19 +714,25 @@ function selectAsistente(item) {
     
     // Update live previews
     renderOfficialPreview();
-    
     resultsBox.style.display = 'none';
     
+    // If no email registered, focus on email input to guide the admin
+    if (!item.email) {
+        emailInput.focus();
+        emailInput.placeholder = "Ingresa el email para enviar a esta empresa/disertante...";
+    }
+    
     // Show alert badge
+    badge.innerHTML = `✨ Vinculado: ${item.badge_icon || ''} ${item.perfil} — <strong>${item.nombre}</strong>`;
     badge.classList.add('show');
     setTimeout(() => {
         badge.classList.remove('show');
-    }, 4000);
+    }, 4500);
 }
 
 // Close suggestions on outside click
 document.addEventListener('click', (e) => {
-    if (e.target !== nombreInput && e.target !== resultsBox) {
+    if (e.target !== nombreInput && !resultsBox.contains(e.target)) {
         resultsBox.style.display = 'none';
     }
 });

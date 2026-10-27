@@ -151,3 +151,117 @@ class CertificateQueueTests(TestCase):
         # @admin.site.admin_view redirige al login de Django Admin si no está logueado
         self.assertEqual(response.status_code, 302)
         self.assertIn('/admin/login/', response.url)
+
+
+class MultiCategoryCertificateAdminTests(TestCase):
+    def setUp(self):
+        self.edicion, _ = Edicion.objects.get_or_create(
+            anio=2026,
+            defaults={'nombre': "Congreso 2026", 'activa': True}
+        )
+        self.admin_user = User.objects.create_superuser(
+            username='admin_multi',
+            email='admin_multi@unab.edu.ar',
+            password='password123'
+        )
+        self.client.login(username='admin_multi', password='password123')
+
+        from api.models import Empresa, Disertante
+        self.empresa = Empresa.objects.create(
+            nombre_empresa="TechLogistics SA",
+            email_empresa="contacto@techlogistics.com",
+            rubro_logistico="Automatización y Software"
+        )
+        self.disertante = Disertante.objects.create(
+            nombre="Dra. Valentina Rossi",
+            tema_presentacion="Inteligencia Artificial en Cadena de Suministro"
+        )
+        self.asistente = Asistente.objects.create(
+            first_name="Carlos",
+            last_name="Gomez",
+            email="carlos.gomez@empresa.com",
+            dni="30123456",
+            profile_type=Asistente.ProfileType.VISITOR,
+            terminos_aceptados=True
+        )
+
+    def test_asistentes_search_api_multicategory(self):
+        """
+        Valida que el buscador predictivo devuelva asistentes, disertantes y empresas,
+        y respete los filtros por categoría.
+        """
+        # Búsqueda global "Tech" (debe encontrar Empresa)
+        res_emp = self.client.get(reverse('admin:admin-asistentes-search') + '?q=Tech')
+        self.assertEqual(res_emp.status_code, 200)
+        data_emp = res_emp.json()
+        nombres_emp = [item['nombre'] for item in data_emp['results']]
+        self.assertIn("TechLogistics SA", nombres_emp)
+
+        # Búsqueda global "Rossi" (debe encontrar Disertante)
+        res_dis = self.client.get(reverse('admin:admin-asistentes-search') + '?q=Rossi')
+        self.assertEqual(res_dis.status_code, 200)
+        data_dis = res_dis.json()
+        nombres_dis = [item['nombre'] for item in data_dis['results']]
+        self.assertIn("Dra. Valentina Rossi", nombres_dis)
+
+        # Filtro de categoría: Buscar "Tech" en ASISTENTE no debe traer Empresa
+        res_filter = self.client.get(reverse('admin:admin-asistentes-search') + '?q=Tech&categoria=ASISTENTE')
+        self.assertEqual(res_filter.status_code, 200)
+        data_filter = res_filter.json()
+        self.assertEqual(len(data_filter['results']), 0)
+
+        # Filtro de categoría EMPRESA
+        res_filter_emp = self.client.get(reverse('admin:admin-asistentes-search') + '?q=Tech&categoria=EMPRESA')
+        self.assertEqual(res_filter_emp.status_code, 200)
+        self.assertEqual(len(res_filter_emp.json()['results']), 1)
+
+    def test_manual_certificate_preview_pdf(self):
+        """
+        Valida que la vista previa en vivo genere PDFs reales en memoria para
+        cada uno de los tres tipos de certificados.
+        """
+        for tipo in ['ASISTENCIA', 'DISERTANTE', 'EMPRESA']:
+            url = f"/admin/manual-certificate/?preview=1&nombre=Prueba%20{tipo}&tipo={tipo}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response['Content-Type'], 'application/pdf')
+            self.assertTrue(len(response.content) > 1000)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_manual_certificate_post_empresa_y_disertante(self, mock_send):
+        """
+        Valida la emisión manual de certificados para una Empresa y un Disertante,
+        verificando la correcta vinculación en base de datos.
+        """
+        mock_send.return_value = True
+
+        # Emisión para Empresa seleccionada del predictivo
+        post_empresa = {
+            'nombre': self.empresa.nombre_empresa,
+            'email': self.empresa.email_empresa,
+            'tipo': 'EMPRESA',
+            'origen_tipo': 'empresa',
+            'origen_id': str(self.empresa.id)
+        }
+        res_emp = self.client.post('/admin/manual-certificate/', post_empresa, follow=True)
+        self.assertEqual(res_emp.status_code, 200)
+
+        cert_emp = Certificado.objects.filter(tipo_certificado='EMPRESA', asistente__email=self.empresa.email_empresa).first()
+        self.assertIsNotNone(cert_emp)
+        self.assertEqual(cert_emp.asistente.empresa_vinculada, self.empresa)
+
+        # Emisión para Disertante seleccionado del predictivo
+        post_dis = {
+            'nombre': self.disertante.nombre,
+            'email': 'valentina.rossi@unab.edu.ar',
+            'tipo': 'DISERTANTE',
+            'origen_tipo': 'disertante',
+            'origen_id': str(self.disertante.id)
+        }
+        res_dis = self.client.post('/admin/manual-certificate/', post_dis, follow=True)
+        self.assertEqual(res_dis.status_code, 200)
+
+        cert_dis = Certificado.objects.filter(tipo_certificado='DISERTANTE', asistente__email='valentina.rossi@unab.edu.ar').first()
+        self.assertIsNotNone(cert_dis)
+        self.assertEqual(cert_dis.asistente.disertante_vinculado, self.disertante)
+

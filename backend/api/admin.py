@@ -1092,10 +1092,20 @@ def manual_certificate_view(request):
 
     # Vista previa directa en PDF sin guardar en base de datos
     if request.method == 'GET' and request.GET.get('preview') == '1':
-        nombre = request.GET.get('nombre', 'PARTICIPANTE').strip().upper() or 'PARTICIPANTE'
+        nombre = request.GET.get('nombre', 'PARTICIPANTE').strip() or 'PARTICIPANTE'
         tipo = request.GET.get('tipo', 'ASISTENCIA')
-        parts = nombre.split(' ')
-        asistente_mock = Asistente(first_name=parts[0], last_name=' '.join(parts[1:]) or '—', email='preview@unab.edu.ar')
+        
+        if tipo == 'EMPRESA':
+            emp_mock = Empresa(nombre_empresa=nombre)
+            asistente_mock = Asistente(first_name=nombre, last_name='', email='preview@unab.edu.ar', empresa_vinculada=emp_mock)
+        elif tipo == 'DISERTANTE':
+            dis_mock = Disertante(nombre=nombre)
+            parts = nombre.split(' ')
+            asistente_mock = Asistente(first_name=parts[0], last_name=' '.join(parts[1:]) or '—', email='preview@unab.edu.ar', disertante_vinculado=dis_mock)
+        else:
+            parts = nombre.split(' ')
+            asistente_mock = Asistente(first_name=parts[0], last_name=' '.join(parts[1:]) or '—', email='preview@unab.edu.ar')
+            
         cert_mock = Certificado(asistente=asistente_mock, tipo_certificado=tipo)
         pdf_buffer = cert_mock.generar_pdf(save=False)
         response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
@@ -1103,37 +1113,111 @@ def manual_certificate_view(request):
         return response
 
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        email_addr = request.POST.get('email')
+        nombre = request.POST.get('nombre', '').strip()
+        email_addr = request.POST.get('email', '').strip().lower()
         tipo = request.POST.get('tipo', 'ASISTENCIA')
+
+        origen_tipo = request.POST.get('origen_tipo', '').strip().lower()
+        origen_id = request.POST.get('origen_id', '').strip()
 
         if not nombre or not email_addr:
             messages.error(request, "Nombre y Email son obligatorios.")
         else:
             try:
-                # Buscamos si ya existe un asistente con ese email, si no creamos uno temporal
-                asistente, _ = Asistente.objects.get_or_create(
-                    email=email_addr,
-                    defaults={'first_name': nombre.split(' ')[0], 'last_name': ' '.join(nombre.split(' ')[1:]) or '—'}
+                edicion_activa = Edicion.objects.filter(activa=True).first()
+                if not edicion_activa:
+                    edicion_activa = Edicion.objects.order_by('-anio').first()
+
+                if tipo == 'EMPRESA':
+                    empresa = None
+                    if origen_tipo == 'empresa' and origen_id.isdigit():
+                        empresa = Empresa.objects.filter(id=int(origen_id)).first()
+                    if not empresa:
+                        empresa = Empresa.objects.filter(
+                            models.Q(nombre_empresa__iexact=nombre) | 
+                            models.Q(email_empresa__iexact=email_addr) | 
+                            models.Q(email_contacto__iexact=email_addr)
+                        ).first()
+                    if not empresa:
+                        empresa = Empresa.objects.create(nombre_empresa=nombre, email_empresa=email_addr)
+
+                    asistente = Asistente.objects.filter(email=email_addr).first()
+                    if not asistente:
+                        asistente = Asistente.objects.create(
+                            email=email_addr,
+                            first_name=nombre,
+                            last_name='—',
+                            empresa_vinculada=empresa,
+                            profile_type=Asistente.ProfileType.PROFESSIONAL,
+                            terminos_aceptados=True
+                        )
+                    else:
+                        asistente.empresa_vinculada = empresa
+                        asistente.save(update_fields=['empresa_vinculada'])
+
+                elif tipo == 'DISERTANTE':
+                    disertante = None
+                    if origen_tipo == 'disertante' and origen_id.isdigit():
+                        disertante = Disertante.objects.filter(id=int(origen_id)).first()
+                    if not disertante:
+                        disertante = Disertante.objects.filter(
+                            models.Q(nombre__iexact=nombre) | 
+                            models.Q(usuario__email__iexact=email_addr)
+                        ).first()
+                    parts = nombre.split(' ')
+                    asistente = Asistente.objects.filter(email=email_addr).first()
+                    if not asistente:
+                        asistente = Asistente.objects.create(
+                            email=email_addr,
+                            first_name=parts[0],
+                            last_name=' '.join(parts[1:]) or '—',
+                            disertante_vinculado=disertante,
+                            profile_type=Asistente.ProfileType.PROFESSIONAL,
+                            terminos_aceptados=True
+                        )
+                    else:
+                        if disertante:
+                            asistente.disertante_vinculado = disertante
+                            asistente.save(update_fields=['disertante_vinculado'])
+
+                else: # ASISTENCIA
+                    asistente = None
+                    if origen_tipo == 'asistente' and origen_id.isdigit():
+                        asistente = Asistente.objects.filter(id=int(origen_id)).first()
+                    if not asistente:
+                        asistente = Asistente.objects.filter(email=email_addr).first()
+                        asistente = Asistente.objects.create(
+                            email=email_addr,
+                            first_name=parts[0],
+                            last_name=' '.join(parts[1:]) or '—',
+                            profile_type=Asistente.ProfileType.VISITOR,
+                            terminos_aceptados=True
+                        )
+
+                # Obtener o crear certificado para evitar duplicados y soportar reintentos
+                cert, created = Certificado.objects.get_or_create(
+                    asistente=asistente,
+                    edicion=edicion_activa,
+                    tipo_certificado=tipo
                 )
-                
-                cert = Certificado(asistente=asistente, tipo_certificado=tipo)
-                cert.save()
-                
-                # Usar la lógica de envío en memoria
+
+                # Despachar el certificado por email
                 from .email import send_certificate_email
                 result = send_certificate_email(cert)
-                
-                # Manejar retorno simple (bool) o tupla (bool, str) para compatibilidad
+
                 success = result[0] if isinstance(result, tuple) else result
                 error_msg = result[1] if isinstance(result, tuple) else "Error desconocido en el servidor de correo."
-                
+
+                tipo_display = cert.get_tipo_certificado_display()
                 if success:
-                    messages.success(request, f"Certificado enviado exitosamente a {email_addr}.")
+                    cert.email_enviado = True
+                    cert.fecha_envio = timezone.now()
+                    cert.save(update_fields=['email_enviado', 'fecha_envio'])
+                    messages.success(request, f"Certificado de {tipo_display} para '{nombre}' generado y enviado exitosamente a {email_addr}.")
                 else:
-                    messages.error(request, f"Error al enviar el certificado a {email_addr}: {error_msg}")
+                    messages.error(request, f"Certificado de {tipo_display} generado pero no se pudo enviar por email a {email_addr}: {error_msg}")
             except Exception as e:
-                messages.error(request, f"Error crítico: {str(e)}")
+                messages.error(request, f"Error crítico al procesar el certificado: {str(e)}")
 
     import base64
     from django.conf import settings

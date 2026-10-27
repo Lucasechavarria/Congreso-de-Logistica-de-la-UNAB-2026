@@ -540,8 +540,16 @@ class Certificado(models.Model):
         draw = ImageDraw.Draw(img)
 
         # Determinar el nombre a imprimir
-        if self.tipo_certificado == 'EMPRESA' and getattr(self.asistente, 'empresa_vinculada', None) and self.asistente.empresa_vinculada.nombre_empresa:
-            nombre_apellido = self.asistente.empresa_vinculada.nombre_empresa.upper()
+        if self.tipo_certificado == 'EMPRESA':
+            if getattr(self.asistente, 'empresa_vinculada', None) and self.asistente.empresa_vinculada.nombre_empresa:
+                nombre_apellido = self.asistente.empresa_vinculada.nombre_empresa.upper()
+            else:
+                nombre_apellido = f"{self.asistente.first_name} {self.asistente.last_name}".strip().upper()
+        elif self.tipo_certificado == 'DISERTANTE':
+            if getattr(self.asistente, 'disertante_vinculado', None) and self.asistente.disertante_vinculado.nombre:
+                nombre_apellido = self.asistente.disertante_vinculado.nombre.upper()
+            else:
+                nombre_apellido = f"{self.asistente.first_name} {self.asistente.last_name}".strip().upper()
         else:
             nombre_apellido = f"{self.asistente.first_name} {self.asistente.last_name}".strip().upper()
 

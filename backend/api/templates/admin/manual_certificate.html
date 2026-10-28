@@ -103,40 +103,128 @@
         letter-spacing: 1px;
     }
 
+    /* Category filter tabs */
+    .search-category-tabs {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+        background: rgba(15, 23, 42, 0.7);
+        padding: 4px;
+        border-radius: 10px;
+        border: 1px solid var(--b);
+        overflow-x: auto;
+    }
+
+    .cat-tab-btn {
+        flex: 1;
+        min-width: fit-content;
+        padding: 7px 12px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        color: var(--text-secondary);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .cat-tab-btn:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .cat-tab-btn.active {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(167, 139, 250, 0.25));
+        border-color: rgba(6, 182, 212, 0.6);
+        color: #fff;
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+    }
+
     /* Autocomplete suggestions */
     .autocomplete-results {
         position: absolute;
         top: 100%;
         left: 0;
         width: 100%;
-        background: #120e25;
+        background: #110e23;
         border: 1px solid var(--b);
         border-radius: 10px;
         z-index: 100;
-        max-height: 250px;
+        max-height: 280px;
         overflow-y: auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        box-shadow: 0 12px 36px rgba(0,0,0,0.7);
         display: none;
     }
 
     .autocomplete-item {
         padding: 12px 16px;
-        border-bottom: 1px solid rgba(255,255,255,0.03);
+        border-bottom: 1px solid rgba(255,255,255,0.05);
         cursor: pointer;
         transition: all 0.2s ease;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 5px;
     }
 
     .autocomplete-item:hover {
-        background: rgba(167, 139, 250, 0.12);
+        background: rgba(167, 139, 250, 0.15);
+    }
+
+    .autocomplete-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
     }
 
     .autocomplete-name {
         font-weight: 700;
         color: #fff;
         font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .role-asistente {
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .role-disertante {
+        background: rgba(236, 72, 153, 0.2);
+        color: #f472b6;
+        border: 1px solid rgba(236, 72, 153, 0.4);
+    }
+
+    .role-empresa {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fcd34d;
+        border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .autocomplete-subtitulo {
+        font-size: 11px;
+        color: #94a3b8;
     }
 
     .autocomplete-meta {
@@ -144,6 +232,12 @@
         color: var(--text-muted);
         display: flex;
         justify-content: space-between;
+        align-items: center;
+    }
+
+    .email-warning {
+        color: #fbbf24;
+        font-weight: 600;
     }
 
     .alert { 
@@ -178,125 +272,270 @@
         color: var(--color-primary);
     }
 
-    /* Live preview diploma design */
-    .diploma-preview-box {
+    /* Official Live Preview Canvas Styles */
+    .official-preview-wrapper {
         width: 100%;
-        max-width: 500px;
-        aspect-ratio: 1.414 / 1;
-        background: radial-gradient(circle, #140f2b 0%, #080518 100%);
-        border: 10px double #a78bfa;
-        border-radius: 8px;
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
-        padding: 24px;
-        box-sizing: border-box;
+        max-width: 580px;
+        margin-top: 15px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        text-align: center;
+        gap: 15px;
+    }
+
+    .cert-canvas-frame {
+        width: 100%;
         position: relative;
-        overflow: hidden;
-        border-image: linear-gradient(135deg, var(--color-primary), var(--color-secondary)) 10;
-        margin-top: 20px;
+        background: #0f172a;
+        border-radius: 12px;
+        padding: 6px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(6, 182, 212, 0.15);
+        border: 1px solid rgba(197, 160, 89, 0.4);
+        box-sizing: border-box;
     }
 
-    .diploma-watermark {
-        position: absolute;
-        font-size: 150px;
-        opacity: 0.02;
+    #certCanvas {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 8px;
+    }
+
+    .cert-preview-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .badge-official-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        background: rgba(16, 185, 129, 0.15);
+        color: #6ee7b7;
+        font-size: 11px;
+        font-weight: 700;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-preview-real-pdf {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #0f2942, #1e3a5f);
+        color: #f1f5f9;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        border-radius: 8px;
+        border: 1px solid #c5a059;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .btn-preview-real-pdf:hover {
+        background: linear-gradient(135deg, #1e3a5f, #0f2942);
         color: #fff;
-        z-index: 1;
-        user-select: none;
+        border-color: #d4af37;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(197, 160, 89, 0.35);
     }
 
-    .diploma-content {
-        z-index: 2;
+    .btn-download-real-pdf {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #064e3b, #047857);
+        color: #ecfdf5;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        border-radius: 8px;
+        border: 1px solid #10b981;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .btn-download-real-pdf:hover {
+        background: linear-gradient(135deg, #047857, #059669);
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+    }
+
+    /* Dual Action Buttons Grid */
+    .actions-buttons-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 25px;
+    }
+
+    @media (max-width: 640px) {
+        .actions-buttons-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .btn-action-send, .btn-action-download {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 16px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1px solid transparent;
+        text-align: left;
+        transition: all 0.25s ease;
+        font-family: inherit;
+    }
+
+    .btn-action-send {
+        background: linear-gradient(135deg, #0284c7, #06b6d4);
+        color: #ffffff;
+        border-color: rgba(6, 182, 212, 0.6);
+        box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3);
+    }
+
+    .btn-action-send:hover {
+        background: linear-gradient(135deg, #0369a1, #0891b2);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 22px rgba(6, 182, 212, 0.45);
+    }
+
+    .btn-action-download {
+        background: linear-gradient(135deg, #059669, #10b981);
+        color: #ffffff;
+        border-color: rgba(16, 185, 129, 0.6);
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-action-download:hover {
+        background: linear-gradient(135deg, #047857, #059669);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 22px rgba(16, 185, 129, 0.45);
+    }
+
+    .btn-action-wa {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: #25D366;
+        color: #0b2914;
+        font-size: 13px;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+        font-family: inherit;
+    }
+
+    .btn-action-wa:hover {
+        background: #22bf5b;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45);
+    }
+
+    .btn-icon-lg {
+        font-size: 22px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    .btn-text-content {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        width: 100%;
     }
 
-    .diploma-title {
-        font-size: 16px;
-        font-weight: 800;
-        color: var(--color-primary);
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        margin-bottom: 10px;
-        text-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
+    .btn-text-content strong {
+        font-size: 13px;
+        letter-spacing: 0.2px;
     }
 
-    .diploma-subtitle {
-        font-size: 10px;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    .diploma-name {
-        font-family: 'Playfair Display', Georgia, serif;
-        font-size: 26px;
-        font-style: italic;
-        color: #ffffff;
-        margin: 14px 0;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        border-bottom: 1px dashed rgba(255,255,255,0.15);
-        width: 80%;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .diploma-text {
+    .btn-text-content small {
         font-size: 11px;
-        color: var(--text-secondary);
-        line-height: 1.6;
-        max-width: 380px;
+        opacity: 0.9;
+        font-weight: normal;
     }
 
-    .diploma-type-badge {
-        color: var(--color-secondary);
-        font-weight: 800;
-        text-transform: uppercase;
-    }
-
-    .diploma-footer {
-        margin-top: 24px;
-        width: 100%;
+    /* Cert Success Card */
+    .cert-success-card {
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 25px;
         display: flex;
-        justify-content: space-between;
-        font-size: 8px;
-        color: var(--text-muted);
-        border-top: 1px solid rgba(255,255,255,0.05);
-        padding-top: 12px;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     }
 
-    .diploma-seal {
-        position: absolute;
-        bottom: 30px;
-        right: 30px;
-        width: 45px;
-        height: 45px;
-        background: radial-gradient(circle, rgba(6,182,212,0.2) 0%, rgba(6,182,212,0) 70%);
-        border: 1px dashed var(--color-secondary);
-        border-radius: 50%;
+    .cert-success-header {
         display: flex;
         align-items: center;
-        justify-content: center;
-        opacity: 0.6;
-        animation: spinSeal 20s linear infinite;
+        gap: 10px;
+        color: #6ee7b7;
+        font-size: 14px;
+        font-weight: 700;
     }
 
-    @keyframes spinSeal {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+    .cert-success-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
-    .diploma-seal::after {
-        content: '★';
-        font-size: 10px;
-        color: var(--color-secondary);
+    .btn-success-dl {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: #0f172a;
+        border: 1px solid #10b981;
+        color: #6ee7b7;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-success-dl:hover {
+        background: #10b981;
+        color: #0f172a;
+    }
+
+    .btn-success-wa {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: #25D366;
+        color: #064e24;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-success-wa:hover {
+        background: #22bf5b;
+        transform: translateY(-1px);
     }
 
     .autocomplete-badge {
@@ -371,18 +610,52 @@
         </div>
         {% endif %}
 
+        {% if ultimo_cert %}
+        <div class="cert-success-card">
+            <div class="cert-success-header">
+                <span style="font-size: 20px;">🎉</span>
+                <div>
+                    <div>¡Certificado de {{ ultimo_cert.tipo }} emitido exitosamente!</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-top: 2px;">
+                        Destinatario: <strong>{{ ultimo_cert.nombre }}</strong> {% if ultimo_cert.email %}&bull; Enviado a <strong>{{ ultimo_cert.email }}</strong>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="cert-success-actions">
+                <a href="?descargar_cert={{ ultimo_cert.id }}" class="btn-success-dl">
+                    <span>📥</span>
+                    <span>Descargar Copia en PDF</span>
+                </a>
+                <a href="https://api.whatsapp.com/send?text={{ ultimo_cert.wa_text|urlencode }}" target="_blank" class="btn-success-wa">
+                    <span>💬</span>
+                    <span>Compartir por WhatsApp</span>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="autocomplete-badge" id="autocompleteBadge">
             ✨ Datos autocompletados desde base de datos
         </div>
 
+        <!-- CATEGORY TABS -->
+        <div class="search-category-tabs">
+            <button type="button" class="cat-tab-btn active" id="tabALL" onclick="setSearchCategory('ALL')">🌟 Todos</button>
+            <button type="button" class="cat-tab-btn" id="tabASISTENTE" onclick="setSearchCategory('ASISTENTE')">👤 Asistentes</button>
+            <button type="button" class="cat-tab-btn" id="tabDISERTANTE" onclick="setSearchCategory('DISERTANTE')">🎙️ Disertantes</button>
+            <button type="button" class="cat-tab-btn" id="tabEMPRESA" onclick="setSearchCategory('EMPRESA')">🏢 Empresas</button>
+        </div>
+
         <form method="post" class="space-y-6" id="certForm">
             {% csrf_token %}
+            <input type="hidden" name="origen_tipo" id="origenTipo" value="">
+            <input type="hidden" name="origen_id" id="origenId" value="">
             
             <div class="form-field-group">
-                <label for="nombre">Nombre Completo</label>
+                <label for="nombre">Nombre o Razón Social <span style="color: #ef4444;">*</span></label>
                 <input type="text" name="nombre" id="nombre" required 
                     class="premium-input"
-                    placeholder="Escribe el nombre del destinatario..."
+                    placeholder="Buscar participante, disertante o empresa..."
                     autocomplete="off"
                     oninput="updatePreviewName(this.value)">
                 
@@ -391,10 +664,13 @@
             </div>
             
             <div class="form-field-group">
-                <label for="email">Correo Electrónico</label>
-                <input type="email" name="email" id="email" required 
+                <label for="email">
+                    Correo Electrónico 
+                    <span style="font-size: 11px; font-weight: normal; color: #94a3b8;">(Requerido para envío por email, opcional para descarga)</span>
+                </label>
+                <input type="email" name="email" id="email" 
                     class="premium-input"
-                    placeholder="ejemplo@correo.com"
+                    placeholder="ejemplo@correo.com (dejar vacío si solo descargará)"
                     autocomplete="off">
             </div>
 
@@ -407,22 +683,42 @@
                 </select>
             </div>
 
-            <div class="btn-row">
+            <!-- DUAL ACTION BUTTONS (ENVIAR O DESCARGAR) -->
+            <div class="actions-buttons-grid">
+                <button type="submit" name="accion" value="enviar" class="btn-action-send" onclick="return handleAction('enviar');">
+                    <span class="btn-icon-lg">📧</span>
+                    <div class="btn-text-content">
+                        <strong>Generar y Enviar por Email</strong>
+                        <small>Exige correo electrónico</small>
+                    </div>
+                </button>
+                <button type="submit" name="accion" value="descargar" class="btn-action-download" onclick="return handleAction('descargar');">
+                    <span class="btn-icon-lg">📥</span>
+                    <div class="btn-text-content">
+                        <strong>Generar y Descargar PDF</strong>
+                        <small>Descarga directa (sin requerir email)</small>
+                    </div>
+                </button>
+            </div>
+
+            <div class="btn-row" style="margin-top: 20px;">
                 <a href="{% url 'admin:index' %}" class="btn-back">
                     &lsaquo; Volver al Inicio
                 </a>
-                <button type="submit" class="btn-neon-cyan" style="box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);">
-                    Generar y Enviar Certificado
+                <button type="button" class="btn-action-wa" onclick="shareViaWhatsApp();">
+                    <span style="font-size: 15px;">💬</span>
+                    <span>Compartir por WhatsApp</span>
                 </button>
             </div>
         </form>
 
         <div class="info-panel">
-            <h4>Información Importante:</h4>
+            <h4>💡 Envíos, Descargas y Opciones para Compartir:</h4>
             <ul>
-                <li>Si el correo ya existe en el sistema, se utilizará el registro existente del asistente.</li>
-                <li>Si el correo NO existe, se creará un registro de "Asistente" mínimo para poder procesar el envío.</li>
-                <li>El certificado se genera en tiempo real a partir del template oficial del congreso y se despacha como un archivo PDF adjunto.</li>
+                <li><strong>📧 Envío por Correo:</strong> Si eliges <em>"Generar y Enviar por Email"</em>, el correo electrónico es el <strong>dato obligatorio</strong> para garantizar el despacho del PDF oficial adjunto.</li>
+                <li><strong>📥 Descarga Directa:</strong> Si la persona o empresa no cuenta con correo a mano o prefieres entregar en mano / compartir por WhatsApp o Telegram, utiliza <em>"Generar y Descargar PDF"</em>. Se registrará igualmente en la base de datos y se descargará el PDF oficial en tu equipo sin exigir correo.</li>
+                <li><strong>💬 Compartir por WhatsApp:</strong> Puedes hacer clic en el botón de WhatsApp para generar un mensaje oficial personalizado listo para enviar por WhatsApp Web o desde tu teléfono.</li>
+                <li><strong>Tolerancia a datos faltantes:</strong> Si el registro no existe en el sistema, se da de alta automáticamente en su tabla respectiva (Asistente, Disertante o Empresa) tolerando la ausencia de datos secundarios (DNI, Teléfono, CUIT, etc.).</li>
             </ul>
         </div>
     </div>
@@ -430,40 +726,33 @@
     <!-- PREVIEW COLUMN -->
     <div class="cert-preview-container">
         <div class="cert-header" style="width: 100%; border-bottom: 1px solid var(--b); margin-bottom: 15px; padding-bottom: 15px;">
-            <h2 style="font-size: 16px; color: var(--color-secondary);">👁️ Vista Previa del Certificado</h2>
-            <p>Representación interactiva en vivo del diploma digital oficial.</p>
+            <h2 style="font-size: 16px; color: var(--color-secondary);">👁️ Vista Previa en Vivo (Modelo Oficial 2026)</h2>
+            <p>Representación idéntica al PDF oficial que se emite y envía al participante.</p>
         </div>
 
-        <!-- DIPLOMA FRAME -->
-        <div class="diploma-preview-box">
-            <div class="diploma-watermark">UNAB</div>
-            <div class="diploma-content">
-                <div class="diploma-title">Certificado de Acreditación</div>
-                <div class="diploma-subtitle">El Comité Organizador hace constar que</div>
-                
-                <div class="diploma-name" id="previewName">Juan Pérez</div>
-                
-                <div class="diploma-text">
-                    Ha participado activamente en calidad de <span class="diploma-type-badge" id="previewType">Asistente</span> en el <strong>Congreso Internacional de Logística y Tecnología de la UNAB 2026</strong>, desarrollado el 22 de Mayo de 2026.
-                </div>
-                
-                <div class="diploma-footer">
-                    <div>
-                        <strong>Universidad Andrés Bello</strong><br>
-                        Facultad de Ingeniería
-                    </div>
-                    <div style="text-align: right;">
-                        <strong>Sede Central UNAB</strong><br>
-                        Comité Ejecutivo 2026
-                    </div>
+        <div class="official-preview-wrapper">
+            <div class="cert-canvas-frame">
+                <canvas id="certCanvas" width="2000" height="1414"></canvas>
+            </div>
+
+            <div class="cert-preview-bar">
+                <span class="badge-official-status">
+                    <span style="font-size: 14px;">●</span> Modelo 2026 UNaB
+                </span>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a id="btnPreviewPdf" href="#" target="_blank" class="btn-preview-real-pdf" title="Abrir en pestaña nueva">
+                        📄 Ver PDF
+                    </a>
+                    <a id="btnDownloadPreviewPdf" href="#" class="btn-download-real-pdf" title="Descargar archivo PDF directamente">
+                        📥 Descargar PDF
+                    </a>
                 </div>
             </div>
-            <div class="diploma-seal"></div>
         </div>
 
-        <div style="margin-top: 30px; width: 100%; text-align: center;">
+        <div style="margin-top: 25px; width: 100%; text-align: center;">
             <p style="font-size: 12px; color: var(--text-muted); font-style: italic;">
-                💡 Los cambios hechos en el formulario se reflejarán instantáneamente en este diploma de muestra.
+                💡 Al cambiar el nombre o el tipo en el formulario, el diploma oficial se actualiza en tiempo real.
             </p>
         </div>
     </div>
@@ -471,48 +760,203 @@
 </div>
 
 <script>
+// ── Official Backgrounds Preloading ───────────────────────
+const certBackgrounds = {
+    'ASISTENCIA': '{{ bg_asistencia|safe }}',
+    'DISERTANTE': '{{ bg_disertante|safe }}',
+    'EMPRESA': '{{ bg_empresa|safe }}'
+};
+
+const bgImages = {};
+let imagesLoaded = 0;
+const totalBgs = Object.keys(certBackgrounds).length;
+
+Object.entries(certBackgrounds).forEach(([key, src]) => {
+    const img = new Image();
+    img.onload = () => {
+        imagesLoaded++;
+        if (imagesLoaded >= 1) {
+            renderOfficialPreview();
+        }
+    };
+    img.src = src;
+    bgImages[key] = img;
+});
+
+function renderOfficialPreview() {
+    const canvas = document.getElementById('certCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const tipo = document.getElementById('tipo').value || 'ASISTENCIA';
+    const rawName = document.getElementById('nombre').value.trim() || 'NOMBRE DESTINATARIO';
+    const name = rawName.toUpperCase();
+    
+    const bg = bgImages[tipo] || bgImages['ASISTENCIA'];
+    if (bg && bg.complete && bg.naturalWidth > 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+        
+        // Exact name rendering matching models.py (dynamic scaling between 20 and 65)
+        let fontSize = 65;
+        ctx.fillStyle = '#0F2942'; // Azul institucional oficial
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        
+        while (fontSize > 20) {
+            ctx.font = `bold ${fontSize}px "Montserrat", "DejaVu Sans", sans-serif`;
+            const textWidth = ctx.measureText(name).width;
+            if (textWidth < 1500) break;
+            fontSize -= 5;
+        }
+        
+        ctx.font = `bold ${fontSize}px "Montserrat", "DejaVu Sans", sans-serif`;
+        // Coordinate y = 520 matches models.py
+        ctx.fillText(name, canvas.width / 2, 520);
+    }
+    
+    // Update live PDF links
+    const pdfBtn = document.getElementById('btnPreviewPdf');
+    if (pdfBtn) {
+        pdfBtn.href = `/admin/manual-certificate/?preview=1&nombre=${encodeURIComponent(rawName)}&tipo=${encodeURIComponent(tipo)}`;
+    }
+    const downloadPdfBtn = document.getElementById('btnDownloadPreviewPdf');
+    if (downloadPdfBtn) {
+        downloadPdfBtn.href = `/admin/manual-certificate/?preview=1&download=1&nombre=${encodeURIComponent(rawName)}&tipo=${encodeURIComponent(tipo)}`;
+    }
+}
+
+// ── Handling Dual Actions & WhatsApp Share ─────────────────
+function handleAction(action) {
+    const nombre = document.getElementById('nombre').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const accionInput = document.getElementById('accionInput');
+    if (accionInput) {
+        accionInput.value = action;
+    }
+
+    if (!nombre) {
+        alert("Por favor ingresa el Nombre o Razón Social.");
+        document.getElementById('nombre').focus();
+        return false;
+    }
+
+    if (action === 'enviar') {
+        if (!email) {
+            alert("⚠️ El correo electrónico es OBLIGATORIO para enviar el certificado por email.\n\nSi no dispones del correo a mano, puedes presionar 'Generar y Descargar PDF' para obtener el archivo directamente y entregarlo en mano o compartirlo por WhatsApp.");
+            document.getElementById('email').focus();
+            return false;
+        }
+    }
+    return true;
+}
+
+function shareViaWhatsApp() {
+    const rawName = document.getElementById('nombre').value.trim() || 'Participante';
+    const tipoSelect = document.getElementById('tipo');
+    const tipoText = tipoSelect.options[tipoSelect.selectedIndex].text;
+    
+    const msg = `¡Hola! Te compartimos el Certificado Oficial de ${tipoText} del 2º Congreso de Logística y Transporte 2026 de la Universidad Nacional Guillermo Brown (UNaB) para *${rawName}*. ¡Muchas gracias por tu participación!`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+}
+
 // ── Live Preview Sync ──────────────────────────────────────
 function updatePreviewName(val) {
-    document.getElementById('previewName').textContent = val.trim() || 'Nombre Destinatario';
+    renderOfficialPreview();
 }
 
 function updatePreviewType(val) {
-    const map = {
-        'ASISTENCIA': 'Asistencia',
-        'DISERTANTE': 'Disertante',
-        'EMPRESA': 'Empresa / Stand'
-    };
-    document.getElementById('previewType').textContent = map[val] || val;
+    renderOfficialPreview();
 }
 
-// ── Predictive AJAX Search (Autocomplete) ──────────────────
+// ── Predictive AJAX Search & Category Filter ──────────────
 const nombreInput = document.getElementById('nombre');
 const emailInput = document.getElementById('email');
 const resultsBox = document.getElementById('autocompleteResults');
 const badge = document.getElementById('autocompleteBadge');
+const origenTipoInput = document.getElementById('origenTipo');
+const origenIdInput = document.getElementById('origenId');
 
+let currentSearchCategory = 'ALL';
 let debounceTimer;
+
+function setSearchCategory(cat) {
+    currentSearchCategory = cat;
+    
+    // Update active tab UI
+    ['ALL', 'ASISTENTE', 'DISERTANTE', 'EMPRESA'].forEach(c => {
+        const btn = document.getElementById('tab' + c);
+        if (btn) {
+            if (c === cat) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+    });
+
+    // Re-trigger search if user already typed something
+    const q = nombreInput.value.trim();
+    if (q.length >= 2) {
+        triggerSearch(q);
+    }
+}
+
+function triggerSearch(q) {
+    const url = `/admin/asistentes-search/?q=${encodeURIComponent(q)}&categoria=${encodeURIComponent(currentSearchCategory)}`;
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data.results && data.results.length > 0) {
+                renderResults(data.results);
+            } else {
+                renderEmptySuggestion(q);
+            }
+        })
+        .catch(err => console.error('Error fetching autocomplete:', err));
+}
+
+function renderEmptySuggestion(q) {
+    resultsBox.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'autocomplete-item';
+    div.style.borderLeft = '3px solid #06b6d4';
+    div.innerHTML = `
+        <div class="autocomplete-header">
+            <span class="autocomplete-name">
+                <span>➕</span>
+                <span>Crear nuevo registro: <strong>${q}</strong></span>
+            </span>
+            <span class="role-badge" style="background: rgba(6, 182, 212, 0.2); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.4);">Alta Automática</span>
+        </div>
+        <div class="autocomplete-subtitulo">No figura aún en el sistema. Se registrará en la base de datos al generar el certificado con datos mínimos.</div>
+    `;
+    div.addEventListener('click', () => {
+        resultsBox.style.display = 'none';
+        emailInput.focus();
+        badge.innerHTML = `✨ Nuevo registro: <strong>${q}</strong> se dará de alta en la base de datos`;
+        badge.classList.add('show');
+        setTimeout(() => badge.classList.remove('show'), 4000);
+    });
+    resultsBox.appendChild(div);
+    resultsBox.style.display = 'block';
+}
 
 nombreInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
-    const q = nombreInput.value.trim();
+    // Reset origin if user manually changes text
+    if (origenIdInput) origenIdInput.value = '';
+    if (origenTipoInput) origenTipoInput.value = '';
 
+    const q = nombreInput.value.trim();
     if (q.length < 2) {
         resultsBox.style.display = 'none';
         return;
     }
 
     debounceTimer = setTimeout(() => {
-        fetch(`/admin/asistentes-search/?q=${encodeURIComponent(q)}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.results && data.results.length > 0) {
-                    renderResults(data.results);
-                } else {
-                    resultsBox.style.display = 'none';
-                }
-            })
-            .catch(err => console.error('Error fetching autocomplete:', err));
+        triggerSearch(q);
     }, 200);
 });
 
@@ -522,11 +966,30 @@ function renderResults(list) {
     list.forEach(item => {
         const div = document.createElement('div');
         div.className = 'autocomplete-item';
+        
+        let roleClass = 'role-asistente';
+        if (item.origen === 'disertante') roleClass = 'role-disertante';
+        else if (item.origen === 'empresa') roleClass = 'role-empresa';
+
+        const emailHtml = item.email 
+            ? `<span>📧 ${item.email}</span>` 
+            : `<span class="email-warning">⚠️ Sin email registrado (ingrésalo manualmente)</span>`;
+
+        const subHtml = item.subtitulo 
+            ? `<div class="autocomplete-subtitulo">${item.subtitulo}</div>` 
+            : '';
+
         div.innerHTML = `
-            <div class="autocomplete-name">${item.nombre}</div>
+            <div class="autocomplete-header">
+                <span class="autocomplete-name">
+                    <span>${item.badge_icon || '👤'}</span>
+                    <span>${item.nombre}</span>
+                </span>
+                <span class="role-badge ${roleClass}">${item.perfil}</span>
+            </div>
+            ${subHtml}
             <div class="autocomplete-meta">
-                <span>📧 ${item.email}</span>
-                <span>👤 ${item.perfil || 'Asistente'}</span>
+                ${emailHtml}
             </div>
         `;
         div.addEventListener('click', () => {
@@ -540,11 +1003,16 @@ function renderResults(list) {
 // User clicked a suggestion
 function selectAsistente(item) {
     nombreInput.value = item.nombre;
-    emailInput.value = item.email;
+    emailInput.value = item.email || '';
     
-    // Auto-select tipo based on perfil
+    if (origenTipoInput) origenTipoInput.value = item.origen || '';
+    if (origenIdInput) origenIdInput.value = item.id || '';
+    
+    // Auto-select tipo based on tipo_sugerido or perfil
     const tipoSelect = document.getElementById('tipo');
-    if (item.perfil.toUpperCase().includes('DISERTANTE')) {
+    if (item.tipo_sugerido) {
+        tipoSelect.value = item.tipo_sugerido;
+    } else if (item.perfil.toUpperCase().includes('DISERTANTE')) {
         tipoSelect.value = 'DISERTANTE';
     } else if (item.perfil.toUpperCase().includes('EMPRESA') || item.perfil.toUpperCase().includes('STAND')) {
         tipoSelect.value = 'EMPRESA';
@@ -553,27 +1021,34 @@ function selectAsistente(item) {
     }
     
     // Update live previews
-    updatePreviewName(item.nombre);
-    updatePreviewType(tipoSelect.value);
-    
+    renderOfficialPreview();
     resultsBox.style.display = 'none';
     
+    // If no email registered, focus on email input to guide the admin
+    if (!item.email) {
+        emailInput.focus();
+        emailInput.placeholder = "Ingresa el email para enviar a esta empresa/disertante...";
+    }
+    
     // Show alert badge
+    badge.innerHTML = `✨ Vinculado: ${item.badge_icon || ''} ${item.perfil} — <strong>${item.nombre}</strong>`;
     badge.classList.add('show');
     setTimeout(() => {
         badge.classList.remove('show');
-    }, 4000);
+    }, 4500);
 }
 
 // Close suggestions on outside click
 document.addEventListener('click', (e) => {
-    if (e.target !== nombreInput && e.target !== resultsBox) {
+    if (e.target !== nombreInput && !resultsBox.contains(e.target)) {
         resultsBox.style.display = 'none';
     }
 });
 
 // Initial load
-updatePreviewName(nombreInput.value);
-updatePreviewType(document.getElementById('tipo').value);
+window.addEventListener('load', () => {
+    renderOfficialPreview();
+});
+renderOfficialPreview();
 </script>
 {% endblock %}

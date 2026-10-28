@@ -540,8 +540,16 @@ class Certificado(models.Model):
         draw = ImageDraw.Draw(img)
 
         # Determinar el nombre a imprimir
-        if self.tipo_certificado == 'EMPRESA' and getattr(self.asistente, 'empresa_vinculada', None) and self.asistente.empresa_vinculada.nombre_empresa:
-            nombre_apellido = self.asistente.empresa_vinculada.nombre_empresa.upper()
+        if self.tipo_certificado == 'EMPRESA':
+            if getattr(self.asistente, 'empresa_vinculada', None) and self.asistente.empresa_vinculada.nombre_empresa:
+                nombre_apellido = self.asistente.empresa_vinculada.nombre_empresa.upper()
+            else:
+                nombre_apellido = f"{self.asistente.first_name} {self.asistente.last_name}".strip().upper()
+        elif self.tipo_certificado == 'DISERTANTE':
+            if getattr(self.asistente, 'disertante_vinculado', None) and self.asistente.disertante_vinculado.nombre:
+                nombre_apellido = self.asistente.disertante_vinculado.nombre.upper()
+            else:
+                nombre_apellido = f"{self.asistente.first_name} {self.asistente.last_name}".strip().upper()
         else:
             nombre_apellido = f"{self.asistente.first_name} {self.asistente.last_name}".strip().upper()
 
@@ -566,7 +574,7 @@ class Certificado(models.Model):
             text_width = bbox[2] - bbox[0]
 
         x = (img.width - text_width) // 2
-        y = 485  # Posición vertical centrada en la ranura de nombre
+        y = 520  # Posición vertical centrada y armónicamente distribuida
         
         # Escribir el nombre (color azul institucional #0F2942)
         draw.text((x, y), nombre_apellido, font=font, fill=(15, 41, 66))
@@ -577,7 +585,8 @@ class Certificado(models.Model):
         buffer.seek(0)
         
         if save:
-            file_name = f"certificado_{self.tipo_certificado.lower()}_{self.asistente.email}.pdf"
+            identificador = self.asistente.email if getattr(self.asistente, 'email', None) else f"asistente_{self.asistente_id}"
+            file_name = f"certificado_{self.tipo_certificado.lower()}_{identificador}.pdf"
             self.pdf_generado.save(file_name, ContentFile(buffer.getvalue()), save=True)
         
         return buffer

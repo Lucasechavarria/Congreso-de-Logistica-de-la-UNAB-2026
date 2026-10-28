@@ -942,7 +942,8 @@ class MiembroGrupoInline(admin.TabularInline):
 
 def asistentes_search_api(request):
     """
-    Endpoint AJAX para buscar asistentes por nombre, apellido, email o DNI.
+    Endpoint AJAX para buscar asistentes, disertantes y empresas por nombre, apellido, razón social, email, DNI o CUIT.
+    Soporta filtro opcional ?categoria=ALL|ASISTENTE|DISERTANTE|EMPRESA
     """
     if not request.user.is_staff:
         return JsonResponse({'error': 'No autorizado'}, status=403)
@@ -950,70 +951,378 @@ def asistentes_search_api(request):
     q = request.GET.get('q', '').strip()
     if len(q) < 2:
         return JsonResponse({'results': []})
-        
-    asistentes = Asistente.objects.filter(
-        models.Q(first_name__icontains=q) |
-        models.Q(last_name__icontains=q) |
-        models.Q(email__icontains=q) |
-        models.Q(dni__icontains=q)
-    ).distinct()[:15]
-    
+
+    categoria = request.GET.get('categoria', 'ALL').strip().upper()
     results = []
-    for a in asistentes:
-        results.append({
-            'id': a.id,
-            'nombre': f"{a.first_name} {a.last_name}".strip(),
-            'email': a.email,
-            'dni': a.dni or '',
-            'perfil': a.get_profile_type_display() if hasattr(a, 'get_profile_type_display') else a.profile_type
-        })
-        
-    return JsonResponse({'results': results})
+
+    # 1. BÚSQUEDA EN EMPRESAS / SPONSORS / STANDS
+    if categoria in ('ALL', 'EMPRESA'):
+        empresas = Empresa.objects.filter(
+            models.Q(nombre_empresa__icontains=q) |
+            models.Q(cuit__icontains=q) |
+            models.Q(email_empresa__icontains=q) |
+            models.Q(email_contacto__icontains=q) |
+            models.Q(nombre_contacto__icontains=q)
+        ).distinct()[:8]
+
+        for e in empresas:
+            email_emp = e.email_empresa or e.email_contacto or ''
+            detalle_contacto = f"Contacto: {e.nombre_contacto}" if e.nombre_contacto else "Institución / Stand"
+            if e.cuit:
+                detalle_contacto = f"CUIT: {e.cuit} • {detalle_contacto}"
+            results.append({
+                'id': f"emp_{e.id}",
+                'raw_id': e.id,
+                'nombre': e.nombre_empresa.strip(),
+                'email': email_emp,
+                'dni': e.cuit or '',
+                'tipo_registro': 'EMPRESA',
+                'tipo_sugerido': 'EMPRESA',
+                'badge_icon': '🏢',
+                'perfil': 'Empresa / Stand',
+                'subtitulo': detalle_contacto
+            })
+
+    # 2. BÚSQUEDA EN DISERTANTES Y PONENTES
+    if categoria in ('ALL', 'DISERTANTE'):
+        disertantes = Disertante.objects.filter(
+            models.Q(nombre__icontains=q) |
+            models.Q(empresa_institucion__icontains=q) |
+            models.Q(tema_presentacion__icontains=q) |
+            models.Q(usuario__email__icontains=q)
+        ).select_related('usuario').distinct()[:8]
+
+        nombres_dis_vistos = set()
+        for d in disertantes:
+            email_dis = d.usuario.email if (d.usuario and d.usuario.email) else ''
+            # Si no tiene email de usuario, intentar buscar si está como Asistente vinculado
+            asist_dis = Asistente.objects.filter(models.Q(disertante_vinculado=d) | models.Q(first_name__icontains=d.nombre.split(' ')[0])).first()
+            if not email_dis and asist_dis and asist_dis.email:
+                email_dis = asist_dis.email
+
+            nombres_dis_vistos.add(d.nombre.strip().upper())
+            sub = d.tema_presentacion or d.empresa_institucion or 'Disertante Oficial Congreso'
+            results.append({
+                'id': f"dis_{d.id}",
+                'raw_id': d.id,
+                'nombre': d.nombre.strip(),
+                'email': email_dis,
+                'dni': asist_dis.dni if asist_dis and asist_dis.dni else '',
+                'tipo_registro': 'DISERTANTE',
+                'tipo_sugerido': 'DISERTANTE',
+                'badge_icon': '🎙️',
+                'perfil': 'Disertante',
+                'subtitulo': sub[:75]
+            })
+
+        # Postulaciones de disertantes aprobadas/en trámite
+        postulaciones = PostulacionDisertante.objects.filter(
+            models.Q(nombre_apellido__icontains=q) |
+            models.Q(email__icontains=q) |
+            models.Q(dni__icontains=q) |
+            models.Q(titulo_charla__icontains=q)
+        ).distinct()[:5]
+
+        for p in postulaciones:
+            if p.nombre_apellido.strip().upper() not in nombres_dis_vistos:
+                results.append({
+                    'id': f"post_dis_{p.id}",
+                    'raw_id': p.id,
+                    'nombre': p.nombre_apellido.strip(),
+                    'email': p.email or '',
+                    'dni': p.dni or '',
+                    'tipo_registro': 'DISERTANTE',
+                    'tipo_sugerido': 'DISERTANTE',
+                    'badge_icon': '🎙️',
+                    'perfil': 'Disertante (Postulado)',
+                    'subtitulo': (p.titulo_charla or p.empresa_institucion or 'Disertante')[:75]
+                })
+                nombres_dis_vistos.add(p.nombre_apellido.strip().upper())
+
+    # 3. BÚSQUEDA EN ASISTENTES GENERALES
+    if categoria in ('ALL', 'ASISTENTE'):
+        asistentes = Asistente.objects.filter(
+            models.Q(first_name__icontains=q) |
+            models.Q(last_name__icontains=q) |
+            models.Q(email__icontains=q) |
+            models.Q(dni__icontains=q)
+        ).select_related('empresa_vinculada', 'disertante_vinculado').distinct()[:10]
+
+        for a in asistentes:
+            # Si el asistente ya está vinculado a un disertante o empresa, reflejarlo
+            if a.disertante_vinculado:
+                t_sug = 'DISERTANTE'
+                b_icon = '🎙️'
+                p_label = 'Disertante'
+                sub = a.disertante_vinculado.nombre
+            elif a.empresa_vinculada:
+                t_sug = 'EMPRESA'
+                b_icon = '🏢'
+                p_label = 'Empresa'
+                sub = f"Rep. de {a.empresa_vinculada.nombre_empresa}"
+            else:
+                t_sug = 'ASISTENCIA'
+                b_icon = '👤'
+                p_label = a.get_profile_type_display() if hasattr(a, 'get_profile_type_display') else a.profile_type
+                sub = f"DNI: {a.dni}" if a.dni else "Asistente Acreditado"
+
+            results.append({
+                'id': f"asist_{a.id}",
+                'raw_id': a.id,
+                'nombre': f"{a.first_name} {a.last_name}".strip(),
+                'email': a.email or '',
+                'dni': a.dni or '',
+                'tipo_registro': 'ASISTENTE',
+                'tipo_sugerido': t_sug,
+                'badge_icon': b_icon,
+                'perfil': p_label,
+                'subtitulo': sub
+            })
+
+    return JsonResponse({'results': results[:25]})
 
 
 def manual_certificate_view(request):
     """
     Vista para generar y enviar un certificado manualmente ingresando Nombre e Email.
+    Permite además previsualizar el PDF oficial real en vivo.
     """
     if not request.user.is_staff:
         return HttpResponse("No autorizado.", status=403)
 
-    if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        email_addr = request.POST.get('email')
-        tipo = request.POST.get('tipo', 'ASISTENCIA')
+    # Descarga directa de certificado previamente emitido por ID
+    if request.method == 'GET' and request.GET.get('descargar_cert'):
+        cert_id = request.GET.get('descargar_cert')
+        cert = Certificado.objects.filter(id=cert_id).first()
+        if cert:
+            from django.utils.text import slugify
+            pdf_buffer = cert.generar_pdf(save=True)
+            nom = cert.asistente.empresa_vinculada.nombre_empresa if (cert.tipo_certificado == 'EMPRESA' and cert.asistente.empresa_vinculada) else (cert.asistente.disertante_vinculado.nombre if (cert.tipo_certificado == 'DISERTANTE' and cert.asistente.disertante_vinculado) else cert.asistente.nombre_completo)
+            safe_filename = f"certificado_{cert.tipo_certificado.lower()}_{slugify(nom) or 'participante'}.pdf"
+            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+            return response
 
-        if not nombre or not email_addr:
-            messages.error(request, "Nombre y Email son obligatorios.")
+    # Vista previa directa en PDF sin guardar en base de datos
+    if request.method == 'GET' and request.GET.get('preview') == '1':
+        nombre = request.GET.get('nombre', 'PARTICIPANTE').strip() or 'PARTICIPANTE'
+        tipo = request.GET.get('tipo', 'ASISTENCIA')
+        is_download = request.GET.get('download') == '1'
+        
+        if tipo == 'EMPRESA':
+            emp_mock = Empresa(nombre_empresa=nombre)
+            asistente_mock = Asistente(first_name=nombre, last_name='', email='preview@unab.edu.ar', empresa_vinculada=emp_mock)
+        elif tipo == 'DISERTANTE':
+            dis_mock = Disertante(nombre=nombre)
+            parts = nombre.split(' ')
+            asistente_mock = Asistente(first_name=parts[0], last_name=' '.join(parts[1:]) or '—', email='preview@unab.edu.ar', disertante_vinculado=dis_mock)
+        else:
+            parts = nombre.split(' ')
+            asistente_mock = Asistente(first_name=parts[0], last_name=' '.join(parts[1:]) or '—', email='preview@unab.edu.ar')
+            
+        cert_mock = Certificado(asistente=asistente_mock, tipo_certificado=tipo)
+        pdf_buffer = cert_mock.generar_pdf(save=False)
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        from django.utils.text import slugify
+        disposition = 'attachment' if is_download else 'inline'
+        response['Content-Disposition'] = f'{disposition}; filename="certificado_{tipo.lower()}_{slugify(nombre) or "preview"}.pdf"'
+        return response
+
+    ultimo_cert = None
+
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre', '').strip()
+        email_addr = request.POST.get('email', '').strip().lower()
+        tipo = request.POST.get('tipo', 'ASISTENCIA')
+        accion = request.POST.get('accion', 'enviar')  # 'enviar' o 'descargar'
+
+        origen_tipo = request.POST.get('origen_tipo', '').strip().lower()
+        origen_id = request.POST.get('origen_id', '').strip()
+        nuevo_registro = None
+
+        if not nombre:
+            messages.error(request, "El Nombre o Razón Social es obligatorio.")
+        elif accion == 'enviar' and not email_addr:
+            messages.error(request, "El correo electrónico es OBLIGATORIO para enviar el certificado por email. Si desea entregarlo en persona o compartirlo por WhatsApp, utilice la opción 'Generar y Descargar PDF'.")
         else:
             try:
-                # Buscamos si ya existe un asistente con ese email, si no creamos uno temporal
-                asistente, _ = Asistente.objects.get_or_create(
-                    email=email_addr,
-                    defaults={'first_name': nombre.split(' ')[0], 'last_name': ' '.join(nombre.split(' ')[1:]) or '—'}
+                import uuid
+                from django.utils.text import slugify
+
+                # Si no se especificó email (permitido en accion == 'descargar'), generar placeholder seguro
+                email_efectivo = email_addr
+                email_es_placeholder = False
+                if not email_efectivo:
+                    email_efectivo = f"sin-email-{uuid.uuid4().hex[:8]}@congresounab.ar"
+                    email_es_placeholder = True
+
+                edicion_activa = Edicion.objects.filter(activa=True).first()
+                if not edicion_activa:
+                    edicion_activa = Edicion.objects.order_by('-anio').first()
+                if not edicion_activa:
+                    edicion_activa, _ = Edicion.objects.get_or_create(anio=2026, defaults={'nombre': '2º Congreso de Logística 2026', 'activa': True})
+
+                if tipo == 'EMPRESA':
+                    empresa = None
+                    if origen_tipo == 'empresa' and origen_id.isdigit():
+                        empresa = Empresa.objects.filter(id=int(origen_id)).first()
+                    if not empresa:
+                        emp_query = models.Q(nombre_empresa__iexact=nombre)
+                        if email_addr:
+                            emp_query |= models.Q(email_empresa__iexact=email_addr) | models.Q(email_contacto__iexact=email_addr)
+                        empresa = Empresa.objects.filter(emp_query).first()
+                    if not empresa:
+                        empresa = Empresa.objects.create(
+                            nombre_empresa=nombre,
+                            email_empresa=email_addr if email_addr else None,
+                            rubro_logistico="Sector Logístico y Transporte",
+                            acepta_tyc=True
+                        )
+                        nuevo_registro = "Empresa"
+
+                    asistente = None
+                    if email_addr:
+                        asistente = Asistente.objects.filter(email=email_addr).first()
+                    if not asistente:
+                        asistente = Asistente.objects.filter(empresa_vinculada=empresa).first()
+                    if not asistente:
+                        asistente = Asistente.objects.create(
+                            email=email_efectivo,
+                            first_name=nombre,
+                            last_name='—',
+                            empresa_vinculada=empresa,
+                            profile_type=Asistente.ProfileType.PROFESSIONAL,
+                            terminos_aceptados=True
+                        )
+                        if not nuevo_registro:
+                            nuevo_registro = "Asistente Corporativo"
+                    else:
+                        asistente.empresa_vinculada = empresa
+                        if email_addr and asistente.email != email_addr:
+                            asistente.email = email_addr
+                        asistente.save(update_fields=['empresa_vinculada', 'email'] if email_addr else ['empresa_vinculada'])
+
+                elif tipo == 'DISERTANTE':
+                    disertante = None
+                    if origen_tipo == 'disertante' and origen_id.isdigit():
+                        disertante = Disertante.objects.filter(id=int(origen_id)).first()
+                    if not disertante:
+                        dis_query = models.Q(nombre__iexact=nombre)
+                        if email_addr:
+                            dis_query |= models.Q(usuario__email__iexact=email_addr)
+                        disertante = Disertante.objects.filter(dis_query).first()
+                    if not disertante:
+                        disertante = Disertante.objects.create(
+                            nombre=nombre,
+                            edicion=edicion_activa,
+                            estado='APROBADO',
+                            tema_presentacion="Disertación Congreso de Logística 2026"
+                        )
+                        nuevo_registro = "Disertante"
+
+                    parts = nombre.split(' ')
+                    asistente = None
+                    if email_addr:
+                        asistente = Asistente.objects.filter(email=email_addr).first()
+                    if not asistente:
+                        asistente = Asistente.objects.filter(disertante_vinculado=disertante).first()
+                    if not asistente:
+                        asistente = Asistente.objects.create(
+                            email=email_efectivo,
+                            first_name=parts[0],
+                            last_name=' '.join(parts[1:]) or '—',
+                            disertante_vinculado=disertante,
+                            profile_type=Asistente.ProfileType.PROFESSIONAL,
+                            terminos_aceptados=True
+                        )
+                        if not nuevo_registro:
+                            nuevo_registro = "Asistente Disertante"
+                    else:
+                        asistente.disertante_vinculado = disertante
+                        if email_addr and asistente.email != email_addr:
+                            asistente.email = email_addr
+                        asistente.save(update_fields=['disertante_vinculado', 'email'] if email_addr else ['disertante_vinculado'])
+
+                else: # ASISTENCIA
+                    asistente = None
+                    if origen_tipo == 'asistente' and origen_id.isdigit():
+                        asistente = Asistente.objects.filter(id=int(origen_id)).first()
+                    if not asistente and email_addr:
+                        asistente = Asistente.objects.filter(email=email_addr).first()
+                    if not asistente:
+                        parts = nombre.split(' ')
+                        asistente = Asistente.objects.create(
+                            email=email_efectivo,
+                            first_name=parts[0],
+                            last_name=' '.join(parts[1:]) or '—',
+                            profile_type=Asistente.ProfileType.VISITOR,
+                            terminos_aceptados=True
+                        )
+                        nuevo_registro = "Asistente"
+
+                # Obtener o crear certificado para evitar duplicados y soportar reintentos
+                cert, created = Certificado.objects.get_or_create(
+                    asistente=asistente,
+                    edicion=edicion_activa,
+                    tipo_certificado=tipo
                 )
-                
-                cert = Certificado(asistente=asistente, tipo_certificado=tipo)
-                cert.save()
-                
-                # Usar la lógica de envío en memoria
+
+                # Generar el PDF oficial y guardarlo en base de datos
+                pdf_buffer = cert.generar_pdf(save=True)
+                tipo_display = cert.get_tipo_certificado_display()
+                alta_info = f" (Se registró en base de datos como nuevo {nuevo_registro})" if nuevo_registro else ""
+
+                # CASO 1: ACCIÓN DESCARGAR DIRECTAMENTE
+                if accion == 'descargar':
+                    safe_filename = f"certificado_{tipo.lower()}_{slugify(nombre) or 'participante'}.pdf"
+                    response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+                    response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+                    return response
+
+                # CASO 2: ACCIÓN ENVIAR POR EMAIL
                 from .email import send_certificate_email
                 result = send_certificate_email(cert)
-                
-                # Manejar retorno simple (bool) o tupla (bool, str) para compatibilidad
+
                 success = result[0] if isinstance(result, tuple) else result
                 error_msg = result[1] if isinstance(result, tuple) else "Error desconocido en el servidor de correo."
-                
+
+                wa_msg = f"¡Hola! Te compartimos el Certificado Oficial de {tipo_display} del 2º Congreso de Logística y Transporte 2026 de la Universidad Nacional Guillermo Brown (UNaB) para *{nombre}*. ¡Muchas gracias por tu participación!"
+                ultimo_cert = {
+                    'id': cert.id,
+                    'nombre': nombre,
+                    'tipo': tipo_display,
+                    'email': email_addr if not email_es_placeholder else None,
+                    'wa_text': wa_msg,
+                }
+
                 if success:
-                    messages.success(request, f"Certificado enviado exitosamente a {email_addr}.")
+                    cert.email_enviado = True
+                    cert.fecha_envio = timezone.now()
+                    cert.save(update_fields=['email_enviado', 'fecha_envio'])
+                    messages.success(request, f"Certificado de {tipo_display} para '{nombre}' generado y enviado exitosamente a {email_addr}.{alta_info}")
                 else:
-                    messages.error(request, f"Error al enviar el certificado a {email_addr}: {error_msg}")
+                    messages.error(request, f"Certificado de {tipo_display} generado pero no se pudo enviar por email a {email_addr}: {error_msg}.{alta_info}")
             except Exception as e:
-                messages.error(request, f"Error crítico: {str(e)}")
+                messages.error(request, f"Error crítico al procesar el certificado: {str(e)}")
+
+    import base64
+    from django.conf import settings
+    cert_dir = os.path.join(settings.BASE_DIR, 'certificates')
+
+    def get_cert_b64(fname):
+        fpath = os.path.join(cert_dir, fname)
+        if os.path.exists(fpath):
+            with open(fpath, 'rb') as f:
+                return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        return ""
 
     context = {
         **admin.site.each_context(request),
         'title': 'Generación de Certificado Manual',
+        'bg_asistencia': get_cert_b64('Certificados-congreso-2026.png'),
+        'bg_disertante': get_cert_b64('Certificados-congreso-disertantes-2026.png'),
+        'bg_empresa': get_cert_b64('Certificados-congreso-empresas-2026.png'),
+        'ultimo_cert': ultimo_cert,
     }
     return render(request, 'admin/manual_certificate.html', context)
 

@@ -86,10 +86,10 @@ const PANTALLA_CONFIG: Record<
   DISERTANTE: {
     titulo: "¡Asistencia Confirmada!",
     icono: <Mic2 className="w-16 h-16 text-white" />,
-    gradient: "from-violet-600 via-purple-700 to-[#2d1854]",
-    iconBg: "bg-violet-500/20",
+    gradient: "from-amber-500 via-orange-600 to-[#2d1854]",
+    iconBg: "bg-amber-500/20",
     badge: "Disertante",
-    badgeBg: "bg-violet-900/30 text-violet-200 border border-violet-500/30",
+    badgeBg: "bg-amber-950/40 text-amber-200 border border-amber-400/40",
   },
   PRENSA: {
     titulo: "¡Asistencia Confirmada!",

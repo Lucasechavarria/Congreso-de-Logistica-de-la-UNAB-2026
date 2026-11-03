@@ -286,6 +286,20 @@ const RegistroParticipantes: React.FC = () => {
   const [otraInstitucion, setOtraInstitucion] = useState("");
   const selectedInstitution = watch("institution");
 
+  const filterInstitutionOption = (option: { label: string; value: string }, inputValue: string) => {
+    if (option.value === "Otra") return true;
+    if (!inputValue) return true;
+    const query = inputValue.toLowerCase().trim();
+    const labelLower = option.label.toLowerCase();
+    if (labelLower.includes(query)) return true;
+    // Si es la UNaB ("Universidad Nacional Guillermo Brown (UNaB)"), contemplar búsquedas por Almirante Brown / Alte Brown / Alte. Brown en mayúsculas o minúsculas
+    if (labelLower.includes("guillermo brown") || labelLower.includes("(unab)")) {
+      const unabAliases = "universidad nacional de almirante brown alte brown alte. brown guillermo brown unab";
+      if (unabAliases.includes(query)) return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     import("../data/instituciones-argentina.json").then((data) => {
       const lista = (data.default || data).map((nombre: string) => ({ label: nombre, value: nombre }));
@@ -324,6 +338,13 @@ const RegistroParticipantes: React.FC = () => {
         }
 
         const currentValues = watch();
+        const rawInst = data.institution || (currentValues as any).institution;
+        const normalizedInst =
+          typeof rawInst === "string" &&
+          (rawInst.toLowerCase().includes("almirante brown") || rawInst.toLowerCase().includes("alte brown") || rawInst.toLowerCase().includes("alte. brown"))
+            ? "Universidad Nacional Guillermo Brown (UNaB)"
+            : rawInst;
+
         const updateData: any = {
           ...currentValues,
           firstName: data.first_name || currentValues.firstName,
@@ -332,7 +353,7 @@ const RegistroParticipantes: React.FC = () => {
           phone: data.phone || currentValues.phone,
           profileType: newProfile,
           // Nuevos campos para auto-completado
-          institution: data.institution || (currentValues as any).institution,
+          institution: normalizedInst,
           isUnabStudent: data.is_unab_student !== undefined ? data.is_unab_student : (currentValues as any).isUnabStudent,
           career: data.career || (currentValues as any).career,
           yearOfStudy: data.year_of_study || (currentValues as any).yearOfStudy,
@@ -759,11 +780,7 @@ const RegistroParticipantes: React.FC = () => {
                       classNamePrefix="react-select"
                       isClearable
                       noOptionsMessage={() => "Si tu institución no aparece, elige 'Otra' y escribe el nombre"}
-                      filterOption={(option, inputValue) => {
-                        if (option.value === "Otra") return true;
-                        if (!inputValue) return true;
-                        return option.label.toLowerCase().includes(inputValue.toLowerCase());
-                      }}
+                      filterOption={filterInstitutionOption}
                       styles={{
                         control: (base, state) => ({
                           ...base,
@@ -860,11 +877,7 @@ const RegistroParticipantes: React.FC = () => {
                     classNamePrefix="react-select"
                     isClearable
                     noOptionsMessage={() => "Si tu institución no aparece, elige 'Otra' y escribe el nombre"}
-                    filterOption={(option, inputValue) => {
-                      if (option.value === "Otra") return true;
-                      if (!inputValue) return true;
-                      return option.label.toLowerCase().includes(inputValue.toLowerCase());
-                    }}
+                    filterOption={filterInstitutionOption}
                     styles={{
                       control: (base, state) => ({
                         ...base,

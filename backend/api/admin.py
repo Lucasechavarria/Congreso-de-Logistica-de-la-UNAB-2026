@@ -578,9 +578,13 @@ def dashboard_api_view(request):
                     models.Q(detalle_estudiante__institution__icontains='unab') |
                     models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte. brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
                     models.Q(detalle_docente__institution__icontains='guillermo brown') |
-                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                    models.Q(detalle_docente__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='alte brown') |
+                    models.Q(detalle_docente__institution__icontains='alte. brown')
                 )
                 q_rule = unab_q if valor == 'si' else ~unab_q
             elif campo == 'asistencia_confirmada':
@@ -896,9 +900,13 @@ class EsUNaBFilter(admin.SimpleListFilter):
                     models.Q(detalle_estudiante__institution__icontains='unab') |
                     models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte. brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
                     models.Q(detalle_docente__institution__icontains='guillermo brown') |
-                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                    models.Q(detalle_docente__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='alte brown') |
+                    models.Q(detalle_docente__institution__icontains='alte. brown')
                 ).distinct()
             if val == 'no':
                 return queryset.exclude(
@@ -906,9 +914,13 @@ class EsUNaBFilter(admin.SimpleListFilter):
                     models.Q(detalle_estudiante__institution__icontains='unab') |
                     models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte. brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
                     models.Q(detalle_docente__institution__icontains='guillermo brown') |
-                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                    models.Q(detalle_docente__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='alte brown') |
+                    models.Q(detalle_docente__institution__icontains='alte. brown')
                 ).distinct()
         return queryset
 

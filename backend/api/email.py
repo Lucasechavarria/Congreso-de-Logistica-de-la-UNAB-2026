@@ -28,6 +28,66 @@ def sanitize_email_subject(text: str) -> str:
     return s.strip()
 
 import traceback
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+DOMINIOS_TYPO_COMUNES = {
+    'gmai.com': 'gmail.com',
+    'gmial.com': 'gmail.com',
+    'gamil.com': 'gmail.com',
+    'gnail.com': 'gmail.com',
+    'gmail.con': 'gmail.com',
+    'gmail.co': 'gmail.com',
+    'gmail.cm': 'gmail.com',
+    'gmail.om': 'gmail.com',
+    'hotmial.com': 'hotmail.com',
+    'hotmal.com': 'hotmail.com',
+    'homtail.com': 'hotmail.com',
+    'hotmail.con': 'hotmail.com',
+    'outlok.com': 'outlook.com',
+    'oultook.com': 'outlook.com',
+    'outlook.con': 'outlook.com',
+    'yaho.com': 'yahoo.com',
+    'yahooo.com': 'yahoo.com',
+    'yahoo.con': 'yahoo.com',
+    'icoud.com': 'icloud.com',
+    'icloud.con': 'icloud.com',
+    'live.con': 'live.com',
+}
+
+DOMINIOS_PLACEHOLDER = (
+    'sin-email.congreso.unab',
+    'congresounab.ar',
+)
+
+def validar_email_destinatario(email_str: str):
+    """
+    Valida que el correo electrónico del destinatario sea sintácticamente válido,
+    no sea un placeholder interno y no tenga un error tipográfico obvio de dominio
+    que provoque rebotes (bounces) en la casilla oficial del congreso.
+    Retorna (es_valido: bool, mensaje_error: str | None).
+    """
+    if not email_str or not str(email_str).strip():
+        return False, "El participante no tiene un correo electrónico registrado."
+
+    clean_mail = str(email_str).strip().lower()
+
+    if clean_mail.startswith('sin-email-') or any(clean_mail.endswith(f"@{d}") for d in DOMINIOS_PLACEHOLDER):
+        return False, f"El correo '{clean_mail}' es un marcador interno temporal (sin email real). Corrija el correo del participante para enviarlo."
+
+    try:
+        validate_email(clean_mail)
+    except DjangoValidationError:
+        return False, f"El formato del correo electrónico '{clean_mail}' es inválido."
+
+    if '@' in clean_mail:
+        dominio = clean_mail.rsplit('@', 1)[1]
+        if dominio in DOMINIOS_TYPO_COMUNES:
+            sugerencia = DOMINIOS_TYPO_COMUNES[dominio]
+            return False, f"El dominio '@{dominio}' parece tener un error de tipeo (¿quiso decir @{sugerencia}?). Corrija el email antes de reenviar para evitar rebotes."
+
+    return True, None
+
 
 def registrar_log_email(destinatario: str, asunto: str, tipo_email: str, exitoso: bool, error_msg: str = None):
     """
@@ -36,9 +96,9 @@ def registrar_log_email(destinatario: str, asunto: str, tipo_email: str, exitoso
     try:
         from .models import LogEnvioEmail
         LogEnvioEmail.objects.create(
-            destinatario=destinatario or "desconocido",
-            asunto=asunto or "Sin asunto",
-            tipo_email=tipo_email,
+            destinatario=(destinatario or "desconocido")[:254],
+            asunto=(asunto or "Sin asunto")[:255],
+            tipo_email=(tipo_email or "general")[:50],
             exitoso=exitoso,
             error=error_msg
         )
@@ -674,60 +734,79 @@ def send_group_confirmation_emails(representante):
 
 def send_certificate_email(certificado_instance):
     """
-    Genera el certificado en memoria, lo envía por email y lo ELIMINA del servidor inmediatamente.
+    Genera el certificado en memoria y lo envía únicamente al email registrado del participante
+    (sin enviar copia a CONGRESO_EMAIL para no saturar la casilla del evento).
+    Registra tanto éxitos como errores en LogEnvioEmail para su gestión desde el Admin.
     Soporta los tipos ASISTENCIA, DISERTANTE y EMPRESA.
     """
     asistente = certificado_instance.asistente
+    tipo = getattr(certificado_instance, 'tipo_certificado', 'ASISTENCIA')
+    ig_link = "https://www.instagram.com/congresologisticounab?utm_source=ig_web_button_share_sheet&mdxt=ZDNlZDc0MzIxNw=="
+
+    if tipo == 'DISERTANTE':
+        subject = 'Certificado de Disertante - 2º Congreso de Logística UNAB 2026'
+        body = (
+            'Estimado/a disertante,\n\n'
+            'Adjuntamos su certificado oficial en reconocimiento a su destacada disertación en el 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
+            'Agradecemos profundamente su valioso aporte académico e institucional.\n\n'
+            f'Seguinos en Instagram: {ig_link}\n\n'
+            'Atentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
+        )
+        filename_prefix = 'Certificado_Disertante'
+    elif tipo == 'EMPRESA':
+        subject = 'Certificado de Reconocimiento Empresarial - 2º Congreso de Logística UNAB 2026'
+        body = (
+            'Estimada institución / empresa,\n\n'
+            'Adjuntamos su certificado oficial de reconocimiento por su valioso acompañamiento y auspicio en el 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
+            f'Seguinos en Instagram: {ig_link}\n\n'
+            'Atentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
+        )
+        filename_prefix = 'Certificado_Empresarial'
+    else:
+        subject = 'Certificado de Asistencia - 2º Congreso de Logística UNAB 2026'
+        body = (
+            'Estimado/a participante,\n\n'
+            'Adjuntamos tu certificado de asistencia oficial al 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
+            '¡Gracias por formar parte de esta edición!\n\n'
+            f'Seguinos en Instagram: {ig_link}\n\n'
+            'Atentamente,\nUniversidad Nacional Guillermo Brown'
+        )
+        filename_prefix = 'Certificado_Asistencia'
+
+    tipo_email_log = f"certificado_{str(tipo).lower()}"
+    destinatario_email = getattr(asistente, 'email', '') or ''
+
+    # 1. Validar el correo electrónico antes de tocar SMTP para evitar rebotes en la casilla oficial
+    es_valido, motivo_invalido = validar_email_destinatario(destinatario_email)
+    if not es_valido:
+        print(f"[WARNING] Envío de certificado cancelado preventivamente para {destinatario_email}: {motivo_invalido}")
+        certificado_instance.intentos += 1
+        certificado_instance.save(update_fields=['intentos'])
+        registrar_log_email(
+            destinatario=destinatario_email or "sin-email",
+            asunto=subject,
+            tipo_email=tipo_email_log,
+            exitoso=False,
+            error_msg=motivo_invalido
+        )
+        return False, motivo_invalido
 
     try:
-        # Generar el PDF en memoria (save=False para que solo devuelva el buffer)
+        # 2. Generar el PDF en memoria (save=False para que solo devuelva el buffer)
         pdf_buffer = certificado_instance.generar_pdf(save=False)
         pdf_content = pdf_buffer.getvalue()
-
-        # Determinar asunto, cuerpo y nombre de archivo según el tipo
-        tipo = getattr(certificado_instance, 'tipo_certificado', 'ASISTENCIA')
-        ig_link = "https://www.instagram.com/congresologisticounab?utm_source=ig_web_button_share_sheet&mdxt=ZDNlZDc0MzIxNw=="
-        if tipo == 'DISERTANTE':
-            subject = 'Certificado de Disertante - 2º Congreso de Logística UNAB 2026'
-            body = (
-                'Estimado/a disertante,\n\n'
-                'Adjuntamos su certificado oficial en reconocimiento a su destacada disertación en el 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
-                'Agradecemos profundamente su valioso aporte académico e institucional.\n\n'
-                f'Seguinos en Instagram: {ig_link}\n\n'
-                'Atentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
-            )
-            filename_prefix = 'Certificado_Disertante'
-        elif tipo == 'EMPRESA':
-            subject = 'Certificado de Reconocimiento Empresarial - 2º Congreso de Logística UNAB 2026'
-            body = (
-                'Estimada institución / empresa,\n\n'
-                'Adjuntamos su certificado oficial de reconocimiento por su valioso acompañamiento y auspicio en el 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
-                f'Seguinos en Instagram: {ig_link}\n\n'
-                'Atentamente,\nComisión Organizadora\nUniversidad Nacional Guillermo Brown'
-            )
-            filename_prefix = 'Certificado_Empresarial'
-        else:
-            subject = 'Certificado de Asistencia - 2º Congreso de Logística UNAB 2026'
-            body = (
-                'Estimado/a participante,\n\n'
-                'Adjuntamos tu certificado de asistencia oficial al 2º Congreso de Logística y Transporte UNAB 2026.\n\n'
-                '¡Gracias por formar parte de esta edición!\n\n'
-                f'Seguinos en Instagram: {ig_link}\n\n'
-                'Atentamente,\nUniversidad Nacional Guillermo Brown'
-            )
-            filename_prefix = 'Certificado_Asistencia'
 
         target_name = f"{asistente.first_name}_{asistente.last_name}".strip().replace(" ", "_") or "Participante"
         if tipo == 'EMPRESA' and getattr(asistente, 'empresa_vinculada', None) and asistente.empresa_vinculada.nombre_empresa:
             target_name = asistente.empresa_vinculada.nombre_empresa.replace(" ", "_")
 
-        # Crear el email
+        # 3. Crear el email SOLO hacia el email registrado en la BBDD (sin BCC a CONGRESO_EMAIL)
         email = EmailMultiAlternatives(
             subject=subject,
             body=body,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
-            to=[asistente.email],
-            bcc=[CONGRESO_EMAIL]
+            to=[destinatario_email],
+            bcc=[]
         )
         email.attach(
             f'{filename_prefix}_{target_name}.pdf',
@@ -736,22 +815,36 @@ def send_certificate_email(certificado_instance):
         )
         # Enviar el email
         email.send(fail_silently=False)
-        
+
         # --- Marcar como enviado ---
         certificado_instance.email_enviado = True
         certificado_instance.fecha_envio = timezone.now()
         certificado_instance.intentos += 1
         certificado_instance.save(update_fields=['email_enviado', 'fecha_envio', 'intentos'])
-        
-        print(f"Certificado {tipo} enviado exitosamente a {asistente.email}")
+
+        registrar_log_email(
+            destinatario=destinatario_email,
+            asunto=subject,
+            tipo_email=tipo_email_log,
+            exitoso=True
+        )
+
+        print(f"Certificado {tipo} enviado exitosamente a {destinatario_email}")
         return True
-        
+
     except Exception as e:
         import traceback
         error_msg = f"Fallo en PDF o SMTP: {str(e)}"
         print(f"[ERROR] {error_msg}\n{traceback.format_exc()}")
         certificado_instance.intentos += 1
         certificado_instance.save(update_fields=['intentos'])
+        registrar_log_email(
+            destinatario=destinatario_email or "desconocido",
+            asunto=subject,
+            tipo_email=tipo_email_log,
+            exitoso=False,
+            error_msg=f"{error_msg}\n{traceback.format_exc()}"
+        )
         return False, error_msg
 
 def send_admin_postulation_alert(instance, tipo):
@@ -954,60 +1047,25 @@ def send_broadcast_batch_email(recipient_list, subject, body_html):
 
 def send_admin_email_failure_alert(asistente, error_reason):
     """
-    Envía una auto-alerta por correo electrónico a la casilla oficial del congreso
-    cuando la entrega de email a un participante falla de forma definitiva.
+    Registra la alerta de fallo definitivo de entrega de email en el panel de administración (LogEnvioEmail)
+    SIN enviar un correo a la casilla oficial del congreso (congresologisticaytransporte@unab.edu.ar)
+    para evitar saturar la bandeja de entrada del evento.
     """
     try:
-        subject = f"⚠️ [ALERTA DE CORREO] Fallo de envío a: {asistente.first_name} {asistente.last_name}"
-        
+        destinatario = getattr(asistente, 'email', None) or 'desconocido'
+        nombre_completo = f"{getattr(asistente, 'first_name', '')} {getattr(asistente, 'last_name', '')}".strip()
         dni_val = getattr(asistente, 'dni', None) or 'Sin DNI'
-        profile_display = asistente.get_profile_type_display() if hasattr(asistente, 'get_profile_type_display') else str(asistente.profile_type)
-        
-        html_content = f"""
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            <h2 style="color: #d9534f; margin-top: 0;">⚠️ Alerta de Fallo en Envío de Confirmación</h2>
-            <p>Se ha registrado un participante en el Congreso de Logística 2026, pero el correo automático de confirmación no pudo ser entregado tras agotar los reintentos del servidor.</p>
-            
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                <tr style="background-color: #f8f9fa;">
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Nombre Completo:</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{asistente.first_name} {asistente.last_name}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Email del Participante:</td>
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #0275d8;">{asistente.email}</td>
-                </tr>
-                <tr style="background-color: #f8f9fa;">
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">DNI:</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{dni_val}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Tipo de Perfil:</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{profile_display}</td>
-                </tr>
-                <tr style="background-color: #f8f9fa;">
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Causa / Error:</td>
-                    <td style="padding: 10px; border: 1px solid #ddd; color: #c9302c;">{str(error_reason)}</td>
-                </tr>
-            </table>
+        subject = f"Fallo definitivo de envío a: {nombre_completo} (DNI: {dni_val})"
 
-            <p style="margin-top: 20px; font-size: 13px; color: #666; background-color: #fff3cd; padding: 10px; border-radius: 4px;">
-                ℹ️ <strong>Acción recomendada:</strong> Verifique si la dirección de correo ingresada por el asistente tiene algún error tipográfico o reenvíe su credencial manualmente desde el panel de administración.
-            </p>
-        </div>
-        """
-        text_content = f"Alerta de fallo en envío de confirmación para {asistente.first_name} {asistente.last_name} ({asistente.email}). Error: {str(error_reason)}"
-
-        msg = EmailMultiAlternatives(
-            subject=subject,
-            body=text_content,
-            from_email=f"Sistema Congreso UNAB <{CONGRESO_EMAIL}>",
-            to=[CONGRESO_EMAIL]
+        registrar_log_email(
+            destinatario=destinatario,
+            asunto=subject,
+            tipo_email="alerta_fallo_entrega",
+            exitoso=False,
+            error_msg=f"Participante: {nombre_completo} (DNI: {dni_val}) | Causa: {str(error_reason)}"
         )
-        msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
-        print(f"[ALERTA ADMIN] Auto-email enviado a {CONGRESO_EMAIL} por fallo de entrega a {asistente.email}")
+        print(f"[REGISTRO ADMIN] Fallo de entrega a {destinatario} ({nombre_completo}) registrado en el Admin (sin enviar email a {CONGRESO_EMAIL}).")
         return True
     except Exception as e:
-        print(f"[ERROR] Ocurrió una falla al enviar el auto-email de alerta a la administración: {e}")
+        print(f"[ERROR] Ocurrió una falla al registrar la alerta de fallo en administración: {e}")
         return False

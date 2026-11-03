@@ -576,8 +576,10 @@ def dashboard_api_view(request):
                 unab_q = (
                     models.Q(detalle_estudiante__is_unab_student=True) |
                     models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
+                    models.Q(detalle_docente__institution__icontains='guillermo brown') |
                     models.Q(detalle_docente__institution__icontains='almirante brown')
                 )
                 q_rule = unab_q if valor == 'si' else ~unab_q
@@ -892,16 +894,20 @@ class EsUNaBFilter(admin.SimpleListFilter):
                 return queryset.filter(
                     models.Q(detalle_estudiante__is_unab_student=True) |
                     models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
+                    models.Q(detalle_docente__institution__icontains='guillermo brown') |
                     models.Q(detalle_docente__institution__icontains='almirante brown')
                 ).distinct()
             if val == 'no':
                 return queryset.exclude(
                     models.Q(detalle_estudiante__is_unab_student=True) |
                     models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
+                    models.Q(detalle_docente__institution__icontains='guillermo brown') |
                     models.Q(detalle_docente__institution__icontains='almirante brown')
                 ).distinct()
         return queryset

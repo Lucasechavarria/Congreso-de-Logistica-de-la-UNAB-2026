@@ -1,0 +1,452 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/admin_dark_theme.css' %}">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    body, #content {
+        background: #0f172a !important;
+        color: #f8fafc !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+    .fix-wrapper {
+        max-width: 1280px;
+        margin: 16px auto;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    .fix-card {
+        background: #1e293b;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+    .fix-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+        padding-bottom: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    .fix-header h2 {
+        margin: 0 0 6px 0;
+        font-size: 22px;
+        font-weight: 800;
+        color: #fff;
+    }
+    .fix-header p {
+        margin: 0;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+    .alert-error-box {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #fca5a5;
+        padding: 14px 18px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .alert-info-box {
+        background: rgba(56, 189, 248, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        color: #bae6fd;
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-size: 13px;
+    }
+    .grid-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .field-box {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .field-box label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #93c5fd;
+    }
+    .field-box input, .field-box select {
+        background: #0f172a !important;
+        border: 1px solid rgba(148, 163, 184, 0.3) !important;
+        border-radius: 10px !important;
+        padding: 10px 14px !important;
+        color: #fff !important;
+        font-size: 14px !important;
+        outline: none;
+    }
+    .field-box input:focus, .field-box select:focus {
+        border-color: #60a5fa !important;
+        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+    }
+    .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .checkbox-row input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: #10b981;
+        cursor: pointer;
+    }
+    .checkbox-row label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #d1fae5;
+        cursor: pointer;
+    }
+    .btn-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+    }
+    .btn-primary-send {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff !important;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .btn-primary-send:hover {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+    .btn-secondary-pdf {
+        background: linear-gradient(135deg, #059669, #047857);
+        color: #fff !important;
+        border: none;
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .btn-outline-save {
+        background: rgba(148, 163, 184, 0.15);
+        color: #e2e8f0 !important;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .table-incidencias {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .table-incidencias th {
+        text-align: left;
+        padding: 12px;
+        background: #0f172a;
+        color: #94a3b8;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .table-incidencias td {
+        padding: 12px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        vertical-align: middle;
+    }
+    .badge-pill {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .badge-ok { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35); }
+    .badge-err { background: rgba(239, 68, 68, 0.18); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.35); }
+    .badge-warn { background: rgba(245, 158, 11, 0.18); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .mini-btn {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 7px;
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none !important;
+        margin-right: 4px;
+    }
+    .mini-btn-edit { background: #2563eb; color: #fff !important; }
+    .mini-btn-pdf { background: #0f766e; color: #fff !important; }
+    .mini-btn-wa { background: #15803d; color: #fff !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fix-wrapper">
+
+    <!-- Navegación rápida -->
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="/admin/api/certificado/" class="btn-outline-save">← Ir a Certificados</a>
+            <a href="/admin/api/logenvioemail/" class="btn-outline-save">📋 Ir a Logs de Envíos de Email</a>
+            <a href="/admin/api/asistente/" class="btn-outline-save">👥 Ir a Asistentes</a>
+        </div>
+        <div style="font-size:12px; color:#94a3b8;">
+            🔒 Los certificados se envían <strong>únicamente al correo del participante</strong> (sin copia a congresologisticaytransporte@unab.edu.ar).
+        </div>
+    </div>
+
+    {% if asistente_sel %}
+    <!-- Formulario de Corrección de Datos, Asistencia y Reenvío -->
+    <div class="fix-card">
+        <div class="fix-header">
+            <div>
+                <h2>✏️ Corregir Datos, Confirmar Asistencia y Enviar Certificado</h2>
+                <p>Edite los datos del participante si tienen errores (email mal escrito, nombre o DNI) y reenvíe el certificado directamente.</p>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                {% if asistencia_actual %}
+                    <span class="badge-pill badge-ok">✔ Asistencia Confirmada ({{ edicion_activa.anio }})</span>
+                {% else %}
+                    <span class="badge-pill badge-warn">⏳ Asistencia Pendiente ({{ edicion_activa.anio }})</span>
+                {% endif %}
+                {% if cert_sel and cert_sel.email_enviado %}
+                    <span class="badge-pill badge-ok">📩 Certificado Enviado</span>
+                {% elif cert_sel and cert_sel.intentos > 0 %}
+                    <span class="badge-pill badge-err">✖ Envío Fallido ({{ cert_sel.intentos }} int.)</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if ultimo_error_log %}
+        <div class="alert-error-box">
+            <strong>⚠️ Último error de envío registrado ({{ ultimo_error_log.fecha_envio|date:"d/m/Y H:i" }}):</strong><br>
+            <span>Destinatario intentado: <code>{{ ultimo_error_log.destinatario }}</code></span><br>
+            <span style="color:#fecaca;">{{ ultimo_error_log.error|linebreaksbr }}</span>
+        </div>
+        {% endif %}
+
+        {% if sugerencia_email %}
+        <div class="alert-info-box">
+            💡 <strong>Sugerencia detectada:</strong> {{ sugerencia_email }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="asistente_id" value="{{ asistente_sel.id }}">
+            {% if cert_sel %}
+            <input type="hidden" name="cert_id" value="{{ cert_sel.id }}">
+            {% endif %}
+
+            <div class="grid-form">
+                <div class="field-box">
+                    <label for="id_first_name">Nombre(s) *</label>
+                    <input type="text" id="id_first_name" name="first_name" value="{{ asistente_sel.first_name }}" required>
+                </div>
+                <div class="field-box">
+                    <label for="id_last_name">Apellido(s) *</label>
+                    <input type="text" id="id_last_name" name="last_name" value="{{ asistente_sel.last_name }}" required>
+                </div>
+                <div class="field-box">
+                    <label for="id_dni">DNI / Documento</label>
+                    <input type="text" id="id_dni" name="dni" value="{{ asistente_sel.dni|default:'' }}" placeholder="Ej: 35123456">
+                </div>
+                <div class="field-box">
+                    <label for="id_email">Correo Electrónico (Destinatario) *</label>
+                    <input type="email" id="id_email" name="email" value="{{ email_editable }}" placeholder="nombre@ejemplo.com">
+                </div>
+                <div class="field-box">
+                    <label for="id_phone">Teléfono / WhatsApp</label>
+                    <input type="text" id="id_phone" name="phone" value="{{ asistente_sel.phone|default:'' }}" placeholder="Ej: 1123456789">
+                </div>
+                <div class="field-box">
+                    <label for="id_tipo_certificado">Tipo de Certificado</label>
+                    <select id="id_tipo_certificado" name="tipo_certificado">
+                        <option value="ASISTENCIA" {% if tipo_cert_actual == 'ASISTENCIA' %}selected{% endif %}>Asistencia</option>
+                        <option value="DISERTANTE" {% if tipo_cert_actual == 'DISERTANTE' %}selected{% endif %}>Disertante</option>
+                        <option value="EMPRESA" {% if tipo_cert_actual == 'EMPRESA' %}selected{% endif %}>Empresa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="checkbox-row">
+                <input type="checkbox" id="id_confirmar_asistencia" name="confirmar_asistencia" value="1" checked>
+                <label for="id_confirmar_asistencia">
+                    Confirmar / mantener confirmada la asistencia en la edición activa ({{ edicion_activa }})
+                </label>
+            </div>
+
+            <div class="btn-actions">
+                <button type="submit" name="accion" value="guardar_y_enviar" class="btn-primary-send">
+                    💾 Guardar Datos, Confirmar Asistencia y Enviar Certificado por Email
+                </button>
+                <button type="submit" name="accion" value="guardar_y_descargar" class="btn-secondary-pdf">
+                    📥 Guardar, Confirmar Asistencia y Descargar PDF
+                </button>
+                <button type="submit" name="accion" value="solo_guardar" class="btn-outline-save">
+                    ✔ Solo Guardar Datos y Confirmar Asistencia (Sin enviar email)
+                </button>
+                {% if wa_url %}
+                <a href="{{ wa_url }}" target="_blank" rel="noopener" class="mini-btn mini-btn-wa" style="padding:12px 16px; font-size:13px;">
+                    💬 Contactar por WhatsApp
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Buscador rápido de cualquier asistente por DNI, Nombre o Email -->
+    <div class="fix-card">
+        <div class="fix-header" style="margin-bottom:14px; padding-bottom:10px;">
+            <div>
+                <h2 style="font-size:18px;">🔍 Buscar Participante para Corregir Datos o Confirmar Asistencia</h2>
+                <p>Busque por DNI, nombre, apellido o correo mal escrito para abrir su ficha de corrección rápida.</p>
+            </div>
+        </div>
+        <form method="get" action="" style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="text" name="q" value="{{ search_q }}" placeholder="Ingrese DNI, apellido, nombre o email..." style="flex:1; min-width:240px; background:#0f172a; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px 14px; color:#fff;">
+            <button type="submit" class="btn-primary-send">Buscar Participante</button>
+            {% if search_q or asistente_sel %}
+            <a href="/admin/corregir-asistencia-email/" class="btn-outline-save">Limpiar filtro</a>
+            {% endif %}
+        </form>
+
+        {% if resultados_busqueda %}
+        <div style="margin-top:16px; overflow-x:auto;">
+            <table class="table-incidencias">
+                <thead>
+                    <tr>
+                        <th>Participante</th>
+                        <th>DNI</th>
+                        <th>Email Registrado</th>
+                        <th>Teléfono</th>
+                        <th>Asistencia</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in resultados_busqueda %}
+                    <tr>
+                        <td><strong>{{ item.asistente.first_name }} {{ item.asistente.last_name }}</strong></td>
+                        <td>{{ item.asistente.dni|default:"—" }}</td>
+                        <td><code>{{ item.asistente.email }}</code></td>
+                        <td>{{ item.asistente.phone|default:"—" }}</td>
+                        <td>
+                            {% if item.asistencia_confirmada %}
+                                <span class="badge-pill badge-ok">✔ Confirmada</span>
+                            {% else %}
+                                <span class="badge-pill badge-warn">✘ Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/admin/corregir-asistencia-email/?asistente_id={{ item.asistente.id }}" class="mini-btn mini-btn-edit">
+                                ✏️ Editar / Confirmar y Enviar
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bandeja de Certificados con Fallo de Envío / Pendientes -->
+    <div class="fix-card">
+        <div class="fix-header">
+            <div>
+                <h2 style="font-size:18px;">⚠️ Certificados con Error de Envío o Pendientes ({{ certificados_fallidos|length }})</h2>
+                <p>Participantes cuyo certificado no pudo enviarse por correo (email mal escrito, rebote o pendiente). Haga clic en "Corregir y Reenviar" para solucionarlo.</p>
+            </div>
+        </div>
+
+        {% if certificados_fallidos %}
+        <div style="overflow-x:auto;">
+            <table class="table-incidencias">
+                <thead>
+                    <tr>
+                        <th>Participante</th>
+                        <th>DNI</th>
+                        <th>Email Actual</th>
+                        <th>Tipo</th>
+                        <th>Estado / Intentos</th>
+                        <th>Motivo del Error</th>
+                        <th>Acciones Rápidas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in certificados_fallidos %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.cert.asistente.first_name }} {{ item.cert.asistente.last_name }}</strong>
+                            {% if item.cert.asistente.phone %}
+                            <div style="font-size:11px; color:#94a3b8;">📞 {{ item.cert.asistente.phone }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.cert.asistente.dni|default:"—" }}</td>
+                        <td><code>{{ item.cert.asistente.email }}</code></td>
+                        <td>{{ item.cert.get_tipo_certificado_display }}</td>
+                        <td>
+                            {% if item.cert.intentos > 0 %}
+                                <span class="badge-pill badge-err">✖ Falló ({{ item.cert.intentos }} int.)</span>
+                            {% else %}
+                                <span class="badge-pill badge-warn">⏳ Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width:320px; font-size:12px; color:#fca5a5;">
+                            {{ item.ultimo_error|default:"Pendiente de envío" }}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <a href="/admin/corregir-asistencia-email/?cert_id={{ item.cert.id }}" class="mini-btn mini-btn-edit">
+                                ✏️ Corregir y Reenviar
+                            </a>
+                            <a href="/admin/manual-certificate/?descargar_cert={{ item.cert.id }}" class="mini-btn mini-btn-pdf">
+                                📄 PDF
+                            </a>
+                            {% if item.wa_url %}
+                            <a href="{{ item.wa_url }}" target="_blank" rel="noopener" class="mini-btn mini-btn-wa">
+                                💬 WhatsApp
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding:20px; text-align:center; color:#6ee7b7;">
+            ✔ No hay certificados con errores de envío pendientes en este momento.
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+

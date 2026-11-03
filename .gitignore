@@ -80,6 +80,7 @@ Thumbs.db
 *.user
 
 # --- Archivos Temporales & Basura ---
+scratch/
 tmp/
 temp/
 logs/

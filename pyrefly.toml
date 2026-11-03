@@ -1,0 +1,7 @@
+preset = "basic"
+project-includes = ["backend"]
+search-path = [
+    "backend",
+    "backend/venv/Lib/site-packages",
+]
+

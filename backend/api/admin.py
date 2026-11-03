@@ -78,7 +78,7 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
         if fecha_desde: query = query.filter(fecha_registro__date__gte=fecha_desde)
         # 1. Main Stats: Tendencia por fecha de registro
         stats_query = query.annotate(period=trunc_func('fecha_registro'))
-        
+
         # 2. Distribution Stats: Estado de empresas
         dist_raw = query.values('estado').annotate(value=Count('id'))
         estado_map = dict(Empresa.ESTADO_CHOICES)
@@ -107,13 +107,13 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
 
     if stats_query is not None and not isinstance(stats_query, list):
         main_stats_raw = stats_query.values('period').annotate(count=Count('id')).order_by('period')
-        
+
         running_total = 0
         main_stats = []
         for item in main_stats_raw:
             running_total += item['count']
             main_stats.append({
-                'date': item['period'].strftime('%Y-%m-%d') if hasattr(item['period'], 'strftime') else str(item['period']), 
+                'date': item['period'].strftime('%Y-%m-%d') if hasattr(item['period'], 'strftime') else str(item['period']),
                 'label': item['period'].strftime(date_format) if hasattr(item['period'], 'strftime') else str(item['period']),
                 'count': item['count'],
                 'cumulative': running_total
@@ -151,7 +151,7 @@ def get_stats_data(edicion_id=None, periodo='diario', entidad='inscripciones', f
     # 6. Nuevos KPIs de Velocidad
     hace_24h = timezone.now() - timezone.timedelta(hours=24)
     hace_7dias = timezone.now() - timezone.timedelta(days=7)
-    
+
     registros_24h = (
         Inscripcion.objects.filter(edicion=edicion_actual, fecha_inscripcion__gte=hace_24h).count()
         if entidad == 'inscripciones' else
@@ -192,15 +192,15 @@ def admin_dashboard(request):
         chart_type_dist = request.GET.get('chart_type_dist', 'doughnut')
         fecha_desde = request.GET.get('fecha_desde', '')
         fecha_hasta = request.GET.get('fecha_hasta', '')
-        
+
         stats = get_stats_data(
-            edicion_id=edicion_id, 
-            periodo=periodo, 
-            entidad=entidad, 
-            fecha_desde=fecha_desde if fecha_desde else None, 
+            edicion_id=edicion_id,
+            periodo=periodo,
+            entidad=entidad,
+            fecha_desde=fecha_desde if fecha_desde else None,
             fecha_hasta=fecha_hasta if fecha_hasta else None
         )
-        
+
         context = {
             **admin.site.each_context(request),
             'title': 'Power Dashboard Analysts',
@@ -317,7 +317,7 @@ def broadcast_view(request):
             import traceback
             return HttpResponse(f"Error en Broadcast: {str(e)}<pre>{traceback.format_exc()}</pre>", status=500)
         return HttpResponse(f"Error interno al cargar la vista de comunicaciones: {str(e)}. Consulte los logs del servidor.", status=500)
-    
+
 
 def export_to_excel_action(modeladmin, request, queryset):
     """
@@ -329,24 +329,24 @@ def export_to_excel_action(modeladmin, request, queryset):
     from datetime import datetime
     from django.db import models
     from django.utils import timezone
-    
+
     try:
         model = modeladmin.model
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"export_{model._meta.model_name}_{timestamp}.xlsx"
-        
+
         # Optimizar consulta con select_related dinámico para llaves foráneas
         fk_fields = [f.name for f in model._meta.fields if isinstance(f, (models.ForeignKey, models.OneToOneField))]
         if fk_fields:
             queryset = queryset.select_related(*fk_fields)
-            
+
         data = []
         for obj in queryset:
             row = {}
             for f in model._meta.fields:
                 val = getattr(obj, f.name)
                 header = str(f.verbose_name).capitalize()
-                
+
                 if val is None:
                     row[header] = ''
                 elif isinstance(f, (models.ForeignKey, models.OneToOneField)):
@@ -359,13 +359,13 @@ def export_to_excel_action(modeladmin, request, queryset):
                 else:
                     row[header] = val
             data.append(row)
-            
+
         df = pd.DataFrame(data)
-        
+
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:  # type: ignore
             df.to_excel(writer, sheet_name=model._meta.object_name[:31], index=False)
-            
+
         output.seek(0)
         response = HttpResponse(
             output.getvalue(),
@@ -373,7 +373,7 @@ def export_to_excel_action(modeladmin, request, queryset):
         )
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
-        
+
     except Exception as e:
         logger.error(f"Error en export_to_excel_action: {str(e)}", exc_info=True)
         messages.error(request, f"Error al exportar los datos a Excel: {str(e)}")
@@ -385,52 +385,52 @@ export_to_excel_action.short_description = "📊 Exportar seleccionados a Excel 
 def backup_database_view(request):
     """
     Vista para descargar un backup completo de la base de datos en formato Excel (.xlsx).
-    Exporta cada modelo gestionado de las aplicaciones 'api' y 'bolsa_trabajo' 
+    Exporta cada modelo gestionado de las aplicaciones 'api' y 'bolsa_trabajo'
     en una pestaña individual. Solo accesible para superusers.
     """
     if not request.user.is_superuser:
         return HttpResponse("No autorizado.", status=403)
-        
+
     import io
     import pandas as pd
     from datetime import datetime
     from django.apps import apps
-    
+
     try:
         custom_apps = ['api', 'bolsa_trabajo']
         models_to_export = []
-        
+
         for app_config in apps.get_app_configs():
             if app_config.label in custom_apps:
                 for model in app_config.get_models():
                     if model._meta.managed:
                         models_to_export.append(model)
-                        
+
         if not models_to_export:
             messages.warning(request, "No se encontraron modelos para exportar.")
             return redirect('admin:index')
-            
+
         output = io.BytesIO()
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"backup_congreso_{timestamp}.xlsx"
-        
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:  # type: ignore
             for model in models_to_export:
                 fields = [f.name for f in model._meta.fields]
                 queryset = model.objects.all()
                 data = list(queryset.values(*fields))
-                
+
                 df = pd.DataFrame(data, columns=fields)
-                
+
                 for col in df.columns:
                     if isinstance(df[col].dtype, pd.DatetimeTZDtype):
                         df[col] = df[col].dt.tz_localize(None)
                     elif df[col].dtype == 'object':
                         df[col] = df[col].apply(lambda x: x.replace(tzinfo=None) if hasattr(x, 'tzinfo') and x is not None else x)
-                
+
                 sheet_name = model._meta.object_name[:31]
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
-                
+
         output.seek(0)
         response = HttpResponse(
             output.getvalue(),
@@ -438,7 +438,7 @@ def backup_database_view(request):
         )
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
-        
+
     except Exception as e:
         logger.error(f"Error en backup_database_view (.xlsx): {str(e)}", exc_info=True)
         messages.error(request, f"Error generando backup en Excel: {str(e)}")
@@ -460,11 +460,11 @@ def process_certificate_batch_api(request):
     """
     BATCH_SIZE = 5
     certificados = Certificado.objects.filter(email_enviado=False)[:BATCH_SIZE]
-    
+
     logs = []
     processed = 0
     errors = 0
-    
+
     for cert in certificados:
         try:
             result = send_certificate_email(cert)
@@ -478,9 +478,9 @@ def process_certificate_batch_api(request):
         except Exception as e:
             logs.append(f"Error crítico con {cert.asistente.email}: {str(e)}")
             errors += 1
-            
+
     remaining = Certificado.objects.filter(email_enviado=False).count()
-    
+
     return JsonResponse({
         'status': 'ok',
         'processed': processed,
@@ -493,14 +493,14 @@ def process_certificate_batch_api(request):
 @admin.site.admin_view
 def dashboard_api_view(request):
     """
-    Endpoint JSON para procesar y retornar estadísticas de segmentos analíticos 
+    Endpoint JSON para procesar y retornar estadísticas de segmentos analíticos
     personalizados construidos por el usuario de forma dinámica y segura.
     """
     if not request.user.is_staff:
         return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
-        
+
     import json
-    
+
     try:
         if request.method == 'POST':
             data = json.loads(request.body)
@@ -508,12 +508,12 @@ def dashboard_api_view(request):
             data = json.loads(request.GET.get('data', '{}'))
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'JSON inválido: {str(e)}'}, status=400)
-        
+
     periodo = data.get('periodo', 'diario')
     alineacion = data.get('alineacion', 'campania')
     edicion_sel_id = data.get('edicion')
     segmentos = data.get('segmentos', [])
-    
+
     # Determinar truncado temporal
     if periodo == 'semanal':
         trunc_func = TruncWeek
@@ -521,15 +521,15 @@ def dashboard_api_view(request):
         trunc_func = TruncMonth
     else:
         trunc_func = TruncDate
-        
+
     series_response = []
-    
+
     for seg in segmentos:
         nombre = seg.get('nombre', 'Segmento')
         entidad = seg.get('entidad', 'asistentes')
         combinador = seg.get('combinador', 'AND')
         reglas = seg.get('reglas', [])
-        
+
         # QuerySet Base Optimizado para evitar N+1 en DB
         if entidad == 'empresas':
             qs = Empresa.objects.all().select_related('edicion')
@@ -542,7 +542,7 @@ def dashboard_api_view(request):
                 'detalle_estudiante', 'detalle_docente', 'detalle_profesional', 'detalle_grupo'
             ).prefetch_related('inscripciones')
             date_field = 'fecha_registro'
-            
+
         # Solo filtrar por edición global si el segmento NO define una regla de edición específica
         has_seg_edicion = any(r.get('campo') == 'edicion' for r in reglas)
         if edicion_sel_id and edicion_sel_id != 'todas' and not has_seg_edicion:
@@ -556,29 +556,35 @@ def dashboard_api_view(request):
                     qs = qs.filter(inscripciones__edicion_id=ed_id)
             except ValueError:
                 pass
-                
+
         # Construir consulta dinámica y segura mediante Q-objects
         segment_q = models.Q()
-        
+
         for r in reglas:
             campo = r.get('campo')
             operador = r.get('operador', 'exact')
             valor = r.get('valor')
-            
+
             if not campo or valor is None:
                 continue
-                
+
             q_rule = models.Q()
-            
+
             if campo == 'profile_type':
                 q_rule = models.Q(profile_type=valor)
             elif campo == 'pertenece_unab':
                 unab_q = (
                     models.Q(detalle_estudiante__is_unab_student=True) |
                     models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte. brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
-                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                    models.Q(detalle_docente__institution__icontains='guillermo brown') |
+                    models.Q(detalle_docente__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='alte brown') |
+                    models.Q(detalle_docente__institution__icontains='alte. brown')
                 )
                 q_rule = unab_q if valor == 'si' else ~unab_q
             elif campo == 'asistencia_confirmada':
@@ -630,7 +636,7 @@ def dashboard_api_view(request):
                 q_rule = models.Q(detalle_grupo__group_municipality__icontains=valor) if operador == 'contains' else models.Q(detalle_grupo__group_municipality=valor)
             elif campo == 'tipo_grupo':
                 q_rule = models.Q(detalle_grupo__tipo_grupo__icontains=valor)
-            
+
             # Campos de Empresa
             elif campo == 'estado':
                 q_rule = models.Q(estado=valor)
@@ -648,7 +654,7 @@ def dashboard_api_view(request):
                 q_rule = models.Q(rubro_logistico__icontains=valor) if operador == 'contains' else models.Q(rubro_logistico=valor)
             elif campo == 'tipo_mobiliario':
                 q_rule = models.Q(tipo_mobiliario=valor)
-                
+
             # Campos de PostulacionDisertante
             elif campo == 'modalidad':
                 q_rule = models.Q(modalidad__icontains=valor) if operador == 'contains' else models.Q(modalidad=valor)
@@ -662,7 +668,7 @@ def dashboard_api_view(request):
                 q_rule = models.Q(participacion_tipo__icontains=valor)
             elif campo == 'requiere_equipamiento':
                 q_rule = models.Q(requiere_equipamiento__icontains=valor) if operador == 'contains' else models.Q(requiere_equipamiento=valor)
-                
+
             # Filtro de Edición por Segmento (Comparativas Cruzadas)
             elif campo == 'edicion':
                 try:
@@ -673,7 +679,7 @@ def dashboard_api_view(request):
                         q_rule = models.Q(inscripciones__edicion__anio=anio_val)
                 except ValueError:
                     pass
-                
+
             # Combinar lógica
             if segment_q:
                 if combinador == 'OR':
@@ -682,15 +688,15 @@ def dashboard_api_view(request):
                     segment_q &= q_rule
             else:
                 segment_q = q_rule
-                
+
         if segment_q:
             qs = qs.filter(segment_q).distinct()
-            
+
         # Agrupación y cuenta
         # Evitar errores si no hay registros
         stats_query = qs.annotate(period=trunc_func(date_field))
         raw_data = stats_query.values('period').annotate(count=Count('id', distinct=True)).order_by('period')
-        
+
         points = []
         cumulative = 0
         for item in raw_data:
@@ -703,7 +709,7 @@ def dashboard_api_view(request):
                 'count': item['count'],
                 'cumulative': cumulative
             })
-            
+
         # Alineación temporal avanzada
         if alineacion == 'campania' and points:
             primer_dia = timezone.datetime.strptime(points[0]['date'], '%Y-%m-%d').date()
@@ -724,16 +730,16 @@ def dashboard_api_view(request):
                     fecha_evento = timezone.datetime(ed.anio, 11, 15).date()
                 except Exception:
                     fecha_evento = timezone.now().date()
-                    
+
             for p in points:
                 cur_dia = timezone.datetime.strptime(p['date'], '%Y-%m-%d').date()
                 p['aligned_day'] = (cur_dia - fecha_evento).days
-                
+
         series_response.append({
             'segment_name': nombre,
             'points': points
         })
-        
+
     return JsonResponse({
         'status': 'success',
         'series': series_response
@@ -743,7 +749,7 @@ def dashboard_api_view(request):
 # Inyectar el dashboard en el Admin de Django
 def patch_admin_urls():
     original_get_urls = admin.site.get_urls
-    
+
     def get_urls(*args, **kwargs):
         urls = original_get_urls(*args, **kwargs)
         custom_urls = [
@@ -754,12 +760,13 @@ def patch_admin_urls():
             path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
             path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
             path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
+            path('corregir-asistencia-email/', admin.site.admin_view(corregir_asistencia_email_view), name='admin-corregir-asistencia-email'),
             path('asistentes-search/', admin.site.admin_view(asistentes_search_api), name='admin-asistentes-search'),
         ]
         return custom_urls + urls
-    
+
     admin.site.get_urls = get_urls
-    
+
 patch_admin_urls()
 admin.site.add_action(export_to_excel_action)
 
@@ -770,7 +777,8 @@ admin.site.index_title = format_html(
     '<a href="/admin/api/asistente/import-excel/" style="color: #4ade80; text-decoration: underline; font-weight: bold;">Carga Masiva Excel</a> | '
     '<a href="/admin/backup-db/" style="color: #f87171; text-decoration: underline;">Backup DB</a> | '
     '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a> | '
-    '<a href="/admin/manual-certificate/" style="color: #60a5fa; text-decoration: underline;">Certificado Manual</a>'
+    '<a href="/admin/manual-certificate/" style="color: #60a5fa; text-decoration: underline;">Certificado Manual</a> | '
+    '<a href="/admin/corregir-asistencia-email/" style="color: #fca5a5; text-decoration: underline; font-weight: bold;">⚠️ Incidencias Asistencia / Email</a>'
 )
 admin.site.site_header = "Congreso Logística UNAB 2026 Admin"
 admin.site.site_title = "Panel Administrativo"
@@ -792,8 +800,9 @@ class DNIFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             if len(valores) > 1:
                 return queryset
             val = valores[0]
@@ -810,22 +819,23 @@ class InstitucionFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         from .models import DetalleEstudiante, DetalleDocente, DetalleGrupo
-        
+
         inst_estudiantes = DetalleEstudiante.objects.exclude(institution='').exclude(institution__isnull=True).values_list('institution', flat=True).distinct()
         inst_docentes = DetalleDocente.objects.exclude(institution='').exclude(institution__isnull=True).values_list('institution', flat=True).distinct()
         inst_grupos = DetalleGrupo.objects.exclude(institution_or_workplace='').exclude(institution_or_workplace__isnull=True).values_list('institution_or_workplace', flat=True).distinct()
-        
+
         todas = set()
         for inst in list(inst_estudiantes) + list(inst_docentes) + list(inst_grupos):
             clean_inst = inst.strip()
             if clean_inst:
                 todas.add(clean_inst)
-                
+
         return sorted([(i, i) for i in todas], key=lambda x: x[1].lower())
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             q_obj = models.Q()
             for val in valores:
                 q_obj |= (
@@ -843,22 +853,23 @@ class CarreraFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional
-        
+
         carreras_est = DetalleEstudiante.objects.exclude(career='').exclude(career__isnull=True).values_list('career', flat=True).distinct()
         carreras_doc = DetalleDocente.objects.exclude(career_taught='').exclude(career_taught__isnull=True).values_list('career_taught', flat=True).distinct()
         cargos_prof = DetalleProfesional.objects.exclude(occupation='').exclude(occupation__isnull=True).values_list('occupation', flat=True).distinct()
-        
+
         todas = set()
         for carr in list(carreras_est) + list(carreras_doc) + list(cargos_prof):
             clean_carr = carr.strip()
             if clean_carr:
                 todas.add(clean_carr)
-                
+
         return sorted([(c, c) for c in todas], key=lambda x: x[1].lower())
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             q_obj = models.Q()
             for val in valores:
                 q_obj |= (
@@ -881,8 +892,9 @@ class EsUNaBFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             if len(valores) > 1:
                 return queryset
             val = valores[0]
@@ -890,17 +902,29 @@ class EsUNaBFilter(admin.SimpleListFilter):
                 return queryset.filter(
                     models.Q(detalle_estudiante__is_unab_student=True) |
                     models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte. brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
-                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                    models.Q(detalle_docente__institution__icontains='guillermo brown') |
+                    models.Q(detalle_docente__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='alte brown') |
+                    models.Q(detalle_docente__institution__icontains='alte. brown')
                 ).distinct()
             if val == 'no':
                 return queryset.exclude(
                     models.Q(detalle_estudiante__is_unab_student=True) |
                     models.Q(detalle_estudiante__institution__icontains='unab') |
+                    models.Q(detalle_estudiante__institution__icontains='guillermo brown') |
                     models.Q(detalle_estudiante__institution__icontains='almirante brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte brown') |
+                    models.Q(detalle_estudiante__institution__icontains='alte. brown') |
                     models.Q(detalle_docente__institution__icontains='unab') |
-                    models.Q(detalle_docente__institution__icontains='almirante brown')
+                    models.Q(detalle_docente__institution__icontains='guillermo brown') |
+                    models.Q(detalle_docente__institution__icontains='almirante brown') |
+                    models.Q(detalle_docente__institution__icontains='alte brown') |
+                    models.Q(detalle_docente__institution__icontains='alte. brown')
                 ).distinct()
         return queryset
 
@@ -920,9 +944,10 @@ class AsistenciaEdicionActivaFilter(admin.SimpleListFilter):
         edicion_activa = Edicion.objects.filter(activa=True).first()
         if not edicion_activa:
             return queryset
-            
-        if self.value():
-            valores = self.value().split(',')
+
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             if len(valores) > 1:
                 return queryset
             val = valores[0]
@@ -947,7 +972,7 @@ def asistentes_search_api(request):
     """
     if not request.user.is_staff:
         return JsonResponse({'error': 'No autorizado'}, status=403)
-        
+
     q = request.GET.get('q', '').strip()
     if len(q) < 2:
         return JsonResponse({'results': []})
@@ -1108,7 +1133,7 @@ def manual_certificate_view(request):
         nombre = request.GET.get('nombre', 'PARTICIPANTE').strip() or 'PARTICIPANTE'
         tipo = request.GET.get('tipo', 'ASISTENCIA')
         is_download = request.GET.get('download') == '1'
-        
+
         if tipo == 'EMPRESA':
             emp_mock = Empresa(nombre_empresa=nombre)
             asistente_mock = Asistente(first_name=nombre, last_name='', email='preview@unab.edu.ar', empresa_vinculada=emp_mock)
@@ -1119,7 +1144,7 @@ def manual_certificate_view(request):
         else:
             parts = nombre.split(' ')
             asistente_mock = Asistente(first_name=parts[0], last_name=' '.join(parts[1:]) or '—', email='preview@unab.edu.ar')
-            
+
         cert_mock = Certificado(asistente=asistente_mock, tipo_certificado=tipo)
         pdf_buffer = cert_mock.generar_pdf(save=False)
         response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
@@ -1326,6 +1351,247 @@ def manual_certificate_view(request):
     }
     return render(request, 'admin/manual_certificate.html', context)
 
+
+def _build_whatsapp_url(phone: str, nombre: str, tipo_display: str = "Asistencia") -> str:
+    """Construye un link directo a WhatsApp si el participante tiene teléfono o genérico si no."""
+    from urllib.parse import quote
+    texto = (
+        f"¡Hola {nombre}! Te escribimos desde la organización del 2º Congreso de Logística y Transporte UNaB 2026 "
+        f"para enviarte tu Certificado Oficial de {tipo_display}."
+    )
+    digits = re.sub(r'\D', '', phone or '')
+    if digits:
+        if not digits.startswith('54'):
+            digits = f"549{digits.lstrip('0')}"
+        return f"https://wa.me/{digits}?text={quote(texto)}"
+    return f"https://api.whatsapp.com/send?text={quote(texto)}"
+
+
+def corregir_asistencia_email_view(request):
+    """
+    Vista administrativa integral para corregir datos de un participante (Email, Nombre, Apellido, DNI, Teléfono),
+    confirmar su asistencia en la edición activa y reenviar o descargar su certificado oficial sin saturar
+    la casilla del congreso.
+    """
+    if not request.user.is_staff:
+        return HttpResponse("No autorizado.", status=403)
+
+    from django.utils.text import slugify
+    from .email import DOMINIOS_TYPO_COMUNES, DOMINIOS_PLACEHOLDER, send_certificate_email
+
+    edicion_activa = Edicion.objects.filter(activa=True).first() or Edicion.objects.order_by('-anio').first()
+    if not edicion_activa:
+        edicion_activa, _ = Edicion.objects.get_or_create(
+            anio=2026,
+            defaults={'nombre': '2º Congreso de Logística 2026', 'activa': True}
+        )
+
+    asistente_id = request.POST.get('asistente_id') or request.GET.get('asistente_id')
+    cert_id = request.POST.get('cert_id') or request.GET.get('cert_id')
+    log_id = request.GET.get('log_id')
+    email_param = request.GET.get('email')
+
+    cert_sel = None
+    asistente_sel = None
+
+    if cert_id and str(cert_id).isdigit():
+        cert_sel = Certificado.objects.select_related('asistente').filter(id=int(cert_id)).first()
+        if cert_sel:
+            asistente_sel = cert_sel.asistente
+
+    if not asistente_sel and asistente_id and str(asistente_id).isdigit():
+        asistente_sel = Asistente.objects.filter(id=int(asistente_id)).first()
+
+    if not asistente_sel and log_id and str(log_id).isdigit():
+        log_obj = LogEnvioEmail.objects.filter(id=int(log_id)).first()
+        if log_obj and log_obj.destinatario:
+            asistente_sel = Asistente.objects.filter(email__iexact=log_obj.destinatario).first()
+
+    if not asistente_sel and email_param:
+        asistente_sel = Asistente.objects.filter(email__iexact=email_param.strip()).first()
+
+    if asistente_sel and not cert_sel:
+        cert_sel = Certificado.objects.filter(asistente=asistente_sel, edicion=edicion_activa).first() or Certificado.objects.filter(asistente=asistente_sel).order_by('-id').first()
+
+    # Procesar guardado / confirmación / reenvío
+    if request.method == 'POST' and asistente_sel:
+        first_name = " ".join((request.POST.get('first_name') or '').strip().split())
+        last_name = " ".join((request.POST.get('last_name') or '').strip().split())
+        dni_raw = (request.POST.get('dni') or '').strip()
+        dni_clean = re.sub(r'\D', '', dni_raw) if dni_raw else ''
+        email_raw = (request.POST.get('email') or '').strip().lower()
+        email_clean = (
+            email_raw.replace("ñ", "n")
+            .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+        )
+        phone_clean = (request.POST.get('phone') or '').strip()
+        tipo_cert = (request.POST.get('tipo_certificado') or 'ASISTENCIA').strip().upper()
+        confirmar_asist = bool(request.POST.get('confirmar_asistencia'))
+        accion = request.POST.get('accion', 'guardar_y_enviar')
+
+        # Validar duplicados en otro asistente
+        error_validacion = None
+        if not first_name:
+            error_validacion = "El nombre del participante es obligatorio."
+        elif email_clean and Asistente.objects.filter(email__iexact=email_clean).exclude(id=asistente_sel.id).exists():
+            otro = Asistente.objects.filter(email__iexact=email_clean).exclude(id=asistente_sel.id).first()
+            error_validacion = f"El correo '{email_clean}' ya está registrado en otro participante ({otro.nombre_completo}, DNI: {otro.dni or 'S/D'})."
+        elif dni_clean and Asistente.objects.filter(dni=dni_clean).exclude(id=asistente_sel.id).exists():
+            otro = Asistente.objects.filter(dni=dni_clean).exclude(id=asistente_sel.id).first()
+            error_validacion = f"El DNI '{dni_clean}' ya pertenece a otro participante ({otro.nombre_completo}, Email: {otro.email})."
+
+        if error_validacion:
+            messages.error(request, error_validacion)
+        else:
+            with transaction.atomic():
+                asistente_sel.first_name = first_name
+                asistente_sel.last_name = last_name or '—'
+                if dni_clean:
+                    asistente_sel.dni = dni_clean
+                if email_clean:
+                    asistente_sel.email = email_clean
+                asistente_sel.phone = phone_clean
+                asistente_sel.save()
+
+                if confirmar_asist:
+                    insc, _ = Inscripcion.objects.get_or_create(asistente=asistente_sel, edicion=edicion_activa)
+                    insc.asistencia_confirmada = True
+                    if not insc.fecha_confirmacion:
+                        insc.fecha_confirmacion = timezone.now()
+                    insc.save()
+
+                if cert_sel:
+                    cert_sel.tipo_certificado = tipo_cert
+                    if not cert_sel.edicion:
+                        cert_sel.edicion = edicion_activa
+                    cert_sel.save(update_fields=['tipo_certificado', 'edicion'])
+                else:
+                    cert_sel, _ = Certificado.objects.get_or_create(
+                        asistente=asistente_sel,
+                        edicion=edicion_activa,
+                        tipo_certificado=tipo_cert
+                    )
+
+                pdf_buffer = cert_sel.generar_pdf(save=True)
+
+            if accion == 'guardar_y_descargar':
+                safe_filename = f"certificado_{tipo_cert.lower()}_{slugify(asistente_sel.nombre_completo) or 'participante'}.pdf"
+                response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+                return response
+            elif accion == 'solo_guardar':
+                messages.success(request, f"✔ Datos actualizados y asistencia confirmada para {asistente_sel.nombre_completo}.")
+            else:
+                result = send_certificate_email(cert_sel)
+                success = result[0] if isinstance(result, tuple) else bool(result)
+                err_msg = result[1] if isinstance(result, tuple) and len(result) > 1 else "Error desconocido en el servidor SMTP."
+                if success:
+                    # Limpiar logs fallidos previos de este destinatario para mantener limpia la vista de errores si se desea,
+                    # aunque el nuevo log exitoso ya queda primero por fecha.
+                    messages.success(
+                        request,
+                        f"✅ Datos guardados, asistencia confirmada y Certificado de {cert_sel.get_tipo_certificado_display()} enviado con éxito a {asistente_sel.email}."
+                    )
+                else:
+                    messages.error(
+                        request,
+                        f"⚠️ Se guardaron los datos y la asistencia de {asistente_sel.nombre_completo}, pero el envío del email a '{asistente_sel.email}' falló: {err_msg}"
+                    )
+
+    # Preparar datos del asistente seleccionado para la plantilla
+    asistencia_actual = False
+    ultimo_error_log = None
+    sugerencia_email = None
+    email_editable = ""
+    tipo_cert_actual = cert_sel.tipo_certificado if cert_sel else 'ASISTENCIA'
+    wa_url = None
+
+    if asistente_sel:
+        insc_act = Inscripcion.objects.filter(asistente=asistente_sel, edicion=edicion_activa).first()
+        asistencia_actual = bool(insc_act and insc_act.asistencia_confirmada)
+        email_actual = (asistente_sel.email or '').strip()
+        es_placeholder = email_actual.startswith('sin-email-') or any(email_actual.endswith(f"@{d}") for d in DOMINIOS_PLACEHOLDER)
+        email_editable = "" if es_placeholder else email_actual
+
+        if '@' in email_editable:
+            dom = email_editable.rsplit('@', 1)[1].lower()
+            if dom in DOMINIOS_TYPO_COMUNES:
+                sug_dom = DOMINIOS_TYPO_COMUNES[dom]
+                usuario_part = email_editable.rsplit('@', 1)[0]
+                sugerencia_email = f"El dominio '@{dom}' suele ser un error de tipeo. ¿Quiso escribir '{usuario_part}@{sug_dom}'?"
+
+        ultimo_error_log = LogEnvioEmail.objects.filter(
+            destinatario__iexact=email_actual,
+            exitoso=False
+        ).order_by('-fecha_envio').first()
+
+        wa_url = _build_whatsapp_url(
+            asistente_sel.phone,
+            asistente_sel.nombre_completo,
+            cert_sel.get_tipo_certificado_display() if cert_sel else "Asistencia"
+        )
+
+    # Búsqueda manual por query ?q=
+    search_q = (request.GET.get('q') or '').strip()
+    resultados_busqueda = []
+    if search_q:
+        qs_asist = Asistente.objects.filter(
+            models.Q(first_name__icontains=search_q) |
+            models.Q(last_name__icontains=search_q) |
+            models.Q(dni__icontains=search_q) |
+            models.Q(email__icontains=search_q)
+        ).distinct()[:25]
+        confirmados_ids = set(
+            Inscripcion.objects.filter(
+                edicion=edicion_activa,
+                asistente__in=qs_asist,
+                asistencia_confirmada=True
+            ).values_list('asistente_id', flat=True)
+        )
+        for a in qs_asist:
+            resultados_busqueda.append({
+                'asistente': a,
+                'asistencia_confirmada': a.id in confirmados_ids,
+            })
+
+    # Listado de certificados no enviados / fallidos
+    certs_no_enviados = Certificado.objects.filter(
+        email_enviado=False
+    ).select_related('asistente').order_by('-intentos', '-fecha_generacion')[:100]
+
+    certificados_fallidos = []
+    for c in certs_no_enviados:
+        err_log = LogEnvioEmail.objects.filter(
+            destinatario__iexact=c.asistente.email,
+            exitoso=False
+        ).order_by('-fecha_envio').first()
+        err_texto = None
+        if err_log and err_log.error:
+            err_texto = err_log.error.splitlines()[0][:160]
+        certificados_fallidos.append({
+            'cert': c,
+            'ultimo_error': err_texto,
+            'wa_url': _build_whatsapp_url(c.asistente.phone, c.asistente.nombre_completo, c.get_tipo_certificado_display()),
+        })
+
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Corregir Datos, Confirmar Asistencia y Reenviar Certificado',
+        'edicion_activa': edicion_activa,
+        'asistente_sel': asistente_sel,
+        'cert_sel': cert_sel,
+        'asistencia_actual': asistencia_actual,
+        'ultimo_error_log': ultimo_error_log,
+        'sugerencia_email': sugerencia_email,
+        'email_editable': email_editable,
+        'tipo_cert_actual': tipo_cert_actual,
+        'wa_url': wa_url,
+        'search_q': search_q,
+        'resultados_busqueda': resultados_busqueda,
+        'certificados_fallidos': certificados_fallidos,
+    }
+    return render(request, 'admin/corregir_asistencia_email.html', context)
+
 class InscripcionAdmin(SimpleHistoryAdmin):
     list_display = ('asistente', 'empresa', 'fecha_inscripcion_detalle', 'edicion')
     list_filter = ('edicion', 'fecha_inscripcion')
@@ -1393,9 +1659,9 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                         fallidos += 1
             except Exception as e:
                 fallidos += 1
-        
+
         self.message_user(
-            request, 
+            request,
             f"Proceso de re-envío finalizado: {enviados} correos enviados exitosamente, {fallidos} fallidos.",
             level=messages.SUCCESS if fallidos == 0 else messages.WARNING
         )
@@ -1417,7 +1683,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
 
     def import_excel_view(self, request):
         results = None
-        
+
         # Validación de dependencia (Lazy Loading)
         try:
             import pandas as pd
@@ -1509,7 +1775,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                         if comision_excel:
                             asistente.comision = comision_excel
                             asistente.save()
-                        
+
                         if institucion or carrera_cargo:
                             from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional
                             if profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO]:
@@ -1525,7 +1791,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                         if send_emails:
                             try:
                                 from .tasks import task_enviar_confirmacion_individual
-                                task_enviar_confirmacion_individual.delay(asistente.id)
+                                getattr(task_enviar_confirmacion_individual, 'delay')(asistente.id)
                                 email_status = "queued"
                             except Exception as task_err:
                                 try:
@@ -1557,16 +1823,16 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                     df = pd.read_csv(excel_file)
                 else:
                     df = pd.read_excel(excel_file)
-                
+
                 df.columns = [str(c).lower().strip() for c in df.columns]
-                
+
                 # Columnas requeridas
                 required = ['nombre', 'apellido', 'email', 'dni']
                 missing = [c for c in required if c not in df.columns]
-                
+
                 if missing:
                     return JsonResponse({'status': 'error', 'message': f"Faltan columnas obligatorias: {', '.join(missing)}"})
-                
+
                 edicion_activa = Edicion.objects.filter(activa=True).first()
                 if not edicion_activa:
                     return JsonResponse({'status': 'error', 'message': "No hay una edición activa configurada."})
@@ -1602,7 +1868,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                     if pd.isna(row.get('comision')) and pd.isna(row.get('comisión')) and pd.isna(row.get('curso')): comision_val = ''
 
                     rows.append({
-                        'index': index + 2,
+                        'index': int(index) + 2,
                         'dni': dni_val,
                         'email': email_val,
                         'nombre': nombre_val,
@@ -1621,18 +1887,18 @@ class AsistenteAdmin(SimpleHistoryAdmin):
         if request.method == 'POST' and request.FILES.get('excel_file'):
             excel_file = request.FILES['excel_file']
             send_emails = request.POST.get('send_emails') == 'yes'
-            
+
             try:
                 if excel_file.name.endswith('.csv'):
                     df = pd.read_csv(excel_file)
                 else:
                     df = pd.read_excel(excel_file)
-                
+
                 df.columns = [str(c).lower().strip() for c in df.columns]
-                
+
                 required = ['nombre', 'apellido', 'email', 'dni']
                 missing = [c for c in required if c not in df.columns]
-                
+
                 if missing:
                     messages.error(request, f"Faltan columnas obligatorias: {', '.join(missing)}")
                 else:
@@ -1641,12 +1907,12 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                         messages.error(request, "No hay una edición activa configurada en el sistema. Por favor, active una edición en el panel administrativo antes de realizar la importación masiva.")
                     else:
                         stats = {'total': 0, 'created': 0, 'updated': 0, 'errors': 0, 'error_details': []}
-                        
+
                         for index, row in df.iterrows():
                             # Ignorar vacías
                             if pd.isna(row.get('nombre')) and pd.isna(row.get('apellido')) and pd.isna(row.get('dni')) and pd.isna(row.get('email')):
                                 continue
-                            
+
                             stats['total'] += 1
                             try:
                                 with transaction.atomic():
@@ -1657,7 +1923,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                                     email = str(row.get('email')).strip().lower()
                                     nombre = str(row.get('nombre', '')).strip()
                                     apellido = str(row.get('apellido', '')).strip()
-                                    
+
                                     if not dni or not email or not nombre or not apellido:
                                         missing_fields = []
                                         if not dni: missing_fields.append("DNI")
@@ -1707,7 +1973,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                                     if comision_excel:
                                         asistente.comision = comision_excel
                                         asistente.save()
-                                    
+
                                     if institucion or carrera_cargo:
                                         from .models import DetalleEstudiante, DetalleDocente, DetalleProfesional
                                         if profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO]:
@@ -1723,12 +1989,12 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                                             from .email import send_individual_confirmation_email
                                             send_individual_confirmation_email(asistente)
                                         except Exception as e:
-                                            stats['error_details'].append({'row': index + 2, 'msg': f"Registro OK, pero email falló: {str(e)}"})
-                            
+                                            stats['error_details'].append({'row': int(index) + 2, 'msg': f"Registro OK, pero email falló: {str(e)}"})
+
                             except Exception as e:
                                 stats['errors'] += 1
-                                stats['error_details'].append({'row': index + 2, 'msg': str(e)})
-                        
+                                stats['error_details'].append({'row': int(index) + 2, 'msg': str(e)})
+
                         results = stats
                         messages.success(request, f"Procesamiento masivo completado. {stats['created']} nuevos registros.")
 
@@ -1741,7 +2007,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
             'results': results,
         }
         return render(request, 'admin/import_asistentes.html', context)
-    
+
     def get_queryset(self, request):
         """
         Por defecto, muestra solo los registrados en la edición activa.
@@ -1753,7 +2019,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
             'comision': 'comision__in',
             'inscripciones__edicion__id__exact': 'inscripciones__edicion__id__in',
         }
-        
+
         custom_filters = {}
         for get_key, filter_lookup in comma_fields.items():
             val = get_copy.get(get_key)
@@ -1776,7 +2042,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
             edicion_activa = Edicion.objects.filter(activa=True).first()
             if edicion_activa:
                 qs = qs.filter(inscripciones__edicion=edicion_activa).distinct()
-        
+
         return qs
 
     def get_ediciones(self, obj):
@@ -1784,18 +2050,35 @@ class AsistenteAdmin(SimpleHistoryAdmin):
         return ", ".join(map(str, ediciones)) if ediciones else "-"
     def get_asistencia_actual(self, obj):
         edicion_activa = Edicion.objects.filter(activa=True).first()
-        if not edicion_activa: return "—"
+        if not edicion_activa:
+            return "—"
         insc = obj.inscripciones.filter(edicion=edicion_activa).first()
+        cert = Certificado.objects.filter(asistente=obj, edicion=edicion_activa).first() or Certificado.objects.filter(asistente=obj).order_by('-id').first()
+        fix_url = f"/admin/corregir-asistencia-email/?asistente_id={obj.id}"
+
         if insc and insc.asistencia_confirmada:
-            return format_html('<span style="color: green;">✔ Confirmada</span>')
-        return format_html('<span style="color: red;">✘ Pendiente</span>')
+            if cert and cert.email_enviado:
+                estado_html = '<span style="color: #4ade80; font-weight: 600;">✔ Confirmada · 📩 Enviado</span>'
+            elif cert and cert.intentos > 0:
+                estado_html = '<span style="color: #f87171; font-weight: 600;">✔ Confirmada · ⚠️ Error Email</span>'
+            else:
+                estado_html = '<span style="color: #4ade80; font-weight: 600;">✔ Confirmada</span>'
+        else:
+            estado_html = '<span style="color: #f87171;">✘ Pendiente</span>'
+
+        return format_html(
+            '{} <a href="{}" style="margin-left:6px; padding:2px 7px; border-radius:6px; background:#2563eb; color:#fff; font-size:11px; text-decoration:none; white-space:nowrap;">✏️ Datos / Email</a>',
+            format_html(estado_html),
+            fix_url
+        )
     get_asistencia_actual.short_description = 'Asistencia 2026'
     actions = [
-        'confirmar_asistencia', 
-        'enviar_certificados', 
-        'enviar_solicitud_actualizacion_dni', 
-        'enviar_certificados_lote_40', 
-        'exportar_no_estudiantes_xls', 
+        'confirmar_asistencia_y_enviar_certificado',
+        'confirmar_asistencia',
+        'enviar_certificados',
+        'enviar_solicitud_actualizacion_dni',
+        'enviar_certificados_lote_40',
+        'exportar_no_estudiantes_xls',
         'exportar_asistentes_xls',
         'set_perfil_estudiante',
         'set_perfil_docente',
@@ -1831,7 +2114,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
         for row, asistente in enumerate(asistentes, start=1):
             # Obtener inscripción para la edición activa
             insc = asistente.inscripciones.filter(edicion=edicion_activa).first() if edicion_activa else None
-            
+
             for col, campo in enumerate(campos):
                 if campo == 'asistencia_confirmada':
                     valor = insc.asistencia_confirmada if insc else False
@@ -1839,7 +2122,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                     valor = insc.fecha_confirmacion if insc else ''
                 else:
                     valor = getattr(asistente, campo, '')
-                
+
                 ws.write(row, col, str(valor) if valor is not None else '')
 
         response = HttpResponse(content_type='application/vnd.ms-excel')
@@ -1951,7 +2234,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
         """
         Envía email a los asistentes seleccionados que no tienen DNI válido,
         con un enlace para que actualicen su DNI.
-        
+
         LÍMITE: Máximo 50 correos por ejecución para evitar timeouts.
         Solo envía a quienes NO han recibido el correo previamente.
         """
@@ -1960,77 +2243,77 @@ class AsistenteAdmin(SimpleHistoryAdmin):
             models.Q(dni__isnull=True) | models.Q(dni=''),
             dni_email_sent=False  # Solo quienes NO han recibido el correo
         )
-        
+
         if not asistentes_sin_dni.exists():
             # Verificar si hay asistentes que ya recibieron el correo
             ya_enviados = queryset.filter(
                 models.Q(dni__isnull=True) | models.Q(dni=''),
                 dni_email_sent=True
             ).count()
-            
+
             if ya_enviados > 0:
                 self.message_user(
-                    request, 
+                    request,
                     f"✅ Los {ya_enviados} asistentes seleccionados ya recibieron el correo de solicitud de DNI.",
                     level='info'
                 )
             else:
                 self.message_user(request, "Los asistentes seleccionados ya tienen DNI válido.", level='warning')
             return
-        
+
         # LIMITAR a 50 para evitar timeout de Gunicorn
         MAX_EMAILS = 50
         total_sin_dni = asistentes_sin_dni.count()
         asistentes_lote = asistentes_sin_dni[:MAX_EMAILS]
-        
+
         if total_sin_dni > MAX_EMAILS:
             self.message_user(
-                request, 
+                request,
                 f"⚠️ Hay {total_sin_dni} asistentes sin DNI que no han recibido el correo. "
                 f"Solo se enviarán {MAX_EMAILS} correos en este lote. "
                 f"Ejecuta la acción nuevamente para enviar los siguientes.",
                 level='warning'
             )
-        
+
         enviados = 0
         errores = 0
         sin_token = 0
-        
+
         for asistente in asistentes_lote:
             if not asistente.dni_update_token:
                 sin_token += 1
                 continue
-            
+
             try:
                 # Construir el enlace
                 base_url = getattr(settings, 'FRONTEND_URL', 'https://congresologistica.unab.edu.ar')
                 enlace = f"{base_url}/actualizar-dni?token={asistente.dni_update_token}"
-                
+
                 # Renderizar el template
                 html_content = render_to_string('email/dni_update.html', {
                     'nombre': asistente.first_name,
                     'enlace': enlace
                 })
-                
+
                 # Crear y enviar el email
                 subject = 'Actualización de DNI - Congreso de Logística UNaB 2025'
                 from_email = settings.DEFAULT_FROM_EMAIL
                 to_email = asistente.email
-                
+
                 email = EmailMultiAlternatives(subject, '', from_email, [to_email])
                 email.attach_alternative(html_content, "text/html")
                 email.send()
-                
+
                 # MARCAR como enviado
                 asistente.dni_email_sent = True
                 asistente.dni_email_sent_date = timezone.now()
                 asistente.save(update_fields=['dni_email_sent', 'dni_email_sent_date'])
-                
+
                 enviados += 1
             except Exception as e:
                 errores += 1
                 print(f"[ERROR] Error enviando email a {asistente.email}: {e}")
-        
+
         # Mensaje final con resumen
         mensaje = f"✅ {enviados} emails enviados correctamente."
         if errores > 0:
@@ -2040,10 +2323,49 @@ class AsistenteAdmin(SimpleHistoryAdmin):
         if total_sin_dni > MAX_EMAILS:
             pendientes = total_sin_dni - MAX_EMAILS
             mensaje += f" 📬 Quedan {pendientes} pendientes de enviar."
-        
+
         self.message_user(request, mensaje)
-    
+
     enviar_solicitud_actualizacion_dni.short_description = "Enviar solicitud de actualización de DNI (máx. 50)"  # type: ignore
+
+    def confirmar_asistencia_y_enviar_certificado(self, request, queryset):
+        """
+        Confirma la asistencia en la edición activa y envía inmediatamente el certificado
+        al correo registrado del participante (sin copia al correo del evento).
+        """
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+        if not edicion_activa:
+            self.message_user(request, "No hay una edición activa configurada.", level='error')
+            return
+
+        enviados = 0
+        fallidos = 0
+        for asistente in queryset:
+            insc, _ = Inscripcion.objects.get_or_create(asistente=asistente, edicion=edicion_activa)
+            if not insc.asistencia_confirmada:
+                insc.asistencia_confirmada = True
+                insc.fecha_confirmacion = timezone.now()
+                insc.save()
+
+            cert, _ = Certificado.objects.get_or_create(
+                asistente=asistente,
+                edicion=edicion_activa,
+                tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
+            )
+            result = send_certificate_email(cert)
+            success = result[0] if isinstance(result, tuple) else bool(result)
+            if success:
+                enviados += 1
+            else:
+                fallidos += 1
+
+        msg = f"✅ {enviados} asistencias confirmadas y certificados enviados por email."
+        if fallidos > 0:
+            msg += f" ⚠️ {fallidos} envíos fallaron (revíselos en 'Incidencias Asistencia / Email' o 'Logs de Envíos de Email' para corregir el correo)."
+            self.message_user(request, msg, level='warning')
+        else:
+            self.message_user(request, msg)
+    confirmar_asistencia_y_enviar_certificado.short_description = "📩 Confirmar asistencia y enviar certificado por email AHORA"  # type: ignore
 
     def confirmar_asistencia(self, request, queryset):
         edicion_activa = Edicion.objects.filter(activa=True).first()
@@ -2058,14 +2380,15 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                 insc.asistencia_confirmada = True
                 insc.fecha_confirmacion = timezone.now()
                 insc.save()
-                
+
                 # Crear certificado de asistencia
                 Certificado.objects.get_or_create(
                     asistente=asistente,
+                    edicion=edicion_activa,
                     tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
                 )
                 updated_count += 1
-        
+
         self.message_user(request, f"{updated_count} asistencias confirmadas para {edicion_activa}. Los certificados están en cola.")
     confirmar_asistencia.short_description = "Confirmar asistencia edición activa (Cola certificados)"  # type: ignore
 
@@ -2081,7 +2404,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                 )
                 if created or not obj.email_enviado:
                     queued_count += 1
-        
+
         self.message_user(request, f"{queued_count} certificados listos en la cola para ser procesados.")
     enviar_certificados.short_description = "Añadir certificados de seleccionados a la cola"  # type: ignore
 
@@ -2122,15 +2445,95 @@ class AsistenteAdmin(SimpleHistoryAdmin):
         self.message_user(request, f'✅ {updated} asistentes actualizados a perfil Profesional.')
     set_perfil_profesional.short_description = '⚙️ Cambiar perfil de seleccionados a Profesional'
 
+class EstadoEnvioCertificadoFilter(admin.SimpleListFilter):
+    title = 'Estado de Envío Email'
+    parameter_name = 'estado_envio'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('enviados', '✔ Enviados con éxito'),
+            ('fallidos', '❌ Con error de envío (Intentos > 0)'),
+            ('pendientes', '⏳ Pendientes en cola (0 intentos)'),
+        ]
+
+    def queryset(self, request, queryset):
+        val = self.value()
+        if val == 'enviados':
+            return queryset.filter(email_enviado=True)
+        if val == 'fallidos':
+            return queryset.filter(email_enviado=False, intentos__gt=0)
+        if val == 'pendientes':
+            return queryset.filter(email_enviado=False, intentos=0)
+        return queryset
+
+
 class CertificadoAdmin(admin.ModelAdmin):
     class Media:
         js = ('admin/js/multiselect_filters.js',)
 
-    list_display = ('asistente', 'tipo_certificado', 'email_enviado', 'fecha_envio', 'intentos', 'fecha_generacion')
-    list_filter = ('tipo_certificado', 'email_enviado', 'fecha_generacion')
-    search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email')
+    list_display = (
+        'asistente_info',
+        'email_participante',
+        'tipo_certificado',
+        'estado_envio_badge',
+        'intentos',
+        'fecha_envio',
+        'acciones_certificado',
+    )
+    list_filter = (EstadoEnvioCertificadoFilter, 'tipo_certificado', 'email_enviado', 'fecha_generacion')
+    search_fields = ('asistente__first_name', 'asistente__last_name', 'asistente__email', 'asistente__dni')
     readonly_fields = ('fecha_generacion', 'fecha_envio', 'intentos')
-    actions = ['enviar_por_email_accion_masiva']
+    actions = ['enviar_por_email_accion', 'enviar_por_email_accion_masiva']
+
+    def asistente_info(self, obj):
+        dni_str = f" (DNI: {obj.asistente.dni})" if getattr(obj.asistente, 'dni', None) else ""
+        return f"{obj.asistente.first_name} {obj.asistente.last_name}{dni_str}"
+    asistente_info.short_description = 'Participante'
+    asistente_info.admin_order_field = 'asistente__last_name'
+
+    def email_participante(self, obj):
+        mail = getattr(obj.asistente, 'email', '') or '—'
+        if mail.startswith('sin-email-') or '@congresounab.ar' in mail or '@sin-email.' in mail:
+            return format_html('<span style="color:#fbbf24; font-weight:600;">⚠️ Sin email real ({})</span>', mail)
+        return mail
+    email_participante.short_description = 'Email Registrado'
+    email_participante.admin_order_field = 'asistente__email'
+
+    def estado_envio_badge(self, obj):
+        if obj.email_enviado:
+            return format_html('<span style="color:#4ade80; font-weight:700;">✔ Enviado</span>')
+        if obj.intentos > 0:
+            err_log = LogEnvioEmail.objects.filter(
+                destinatario__iexact=obj.asistente.email,
+                exitoso=False
+            ).order_by('-fecha_envio').first()
+            detalle = err_log.error.splitlines()[0][:95] if (err_log and err_log.error) else "Error en envío SMTP / email inválido"
+            return format_html(
+                '<span style="color:#f87171; font-weight:700;">✖ Falló ({} int.)</span><br>'
+                '<span style="font-size:11px; color:#fca5a5;">{}</span>',
+                obj.intentos,
+                detalle
+            )
+        return format_html('<span style="color:#fbbf24; font-weight:600;">⏳ En cola</span>')
+    estado_envio_badge.short_description = 'Estado Email'
+
+    def acciones_certificado(self, obj):
+        fix_url = f"/admin/corregir-asistencia-email/?cert_id={obj.id}"
+        pdf_url = f"/admin/manual-certificate/?descargar_cert={obj.id}"
+        wa_url = _build_whatsapp_url(
+            getattr(obj.asistente, 'phone', ''),
+            obj.asistente.nombre_completo,
+            obj.get_tipo_certificado_display()
+        )
+        return format_html(
+            '<a href="{}" style="padding:4px 8px; border-radius:6px; background:#2563eb; color:#fff; font-size:11px; font-weight:600; text-decoration:none; margin-right:4px;">✏️ Corregir / Enviar</a>'
+            '<a href="{}" style="padding:4px 8px; border-radius:6px; background:#0f766e; color:#fff; font-size:11px; font-weight:600; text-decoration:none; margin-right:4px;">📄 PDF</a>'
+            '<a href="{}" target="_blank" rel="noopener" style="padding:4px 8px; border-radius:6px; background:#15803d; color:#fff; font-size:11px; font-weight:600; text-decoration:none;">💬 WA</a>',
+            fix_url,
+            pdf_url,
+            wa_url
+        )
+    acciones_certificado.short_description = 'Acciones Rápidas'
 
     def get_queryset(self, request):
         get_copy = request.GET.copy()
@@ -2144,20 +2547,20 @@ class CertificadoAdmin(admin.ModelAdmin):
             if val and ',' in val:
                 custom_filters[filter_lookup] = val.split(',')
                 del get_copy[get_key]
-                
+
         original_GET = request.GET
         request.GET = get_copy
         try:
             qs = super().get_queryset(request)
         finally:
             request.GET = original_GET
-            
+
         if custom_filters:
             qs = qs.filter(**custom_filters).distinct()
-        return qs
+        return qs.select_related('asistente')
 
     def enviar_por_email_accion_masiva(self, request, queryset):
-        # Redirigir a la nueva interfaz de procesamiento por lotes si es necesario, 
+        # Redirigir a la nueva interfaz de procesamiento por lotes si es necesario,
         # o simplemente marcar para re-intento.
         queryset.update(email_enviado=False, intentos=0)
         self.message_user(request, f"{queryset.count()} certificados reiniciados para re-envío en la cola.")
@@ -2168,18 +2571,22 @@ class CertificadoAdmin(admin.ModelAdmin):
         errores = 0
         for certificado in queryset:
             try:
-                send_certificate_email(certificado)
-                sent_count += 1
+                result = send_certificate_email(certificado)
+                success = result[0] if isinstance(result, tuple) else bool(result)
+                if success:
+                    sent_count += 1
+                else:
+                    errores += 1
             except Exception:
                 errores += 1
-        
-        msg = f"{sent_count} certificados enviados."
+
+        msg = f"{sent_count} certificados enviados exitosamente."
         if errores:
-            msg += f" {errores} errores detectados."
+            msg += f" {errores} envíos fallaron (use '✏️ Corregir / Enviar' para revisar el email del participante)."
             self.message_user(request, msg, level='warning')
         else:
             self.message_user(request, msg)
-    enviar_por_email_accion.short_description = "Re-enviar certificados seleccionados por Email" # type: ignore
+    enviar_por_email_accion.short_description = "📩 Re-enviar certificados seleccionados por Email ahora" # type: ignore
 
 class ProgramaAdmin(admin.ModelAdmin):
     change_list_template = "admin/api/programa/change_list.html"
@@ -2342,14 +2749,14 @@ class ProgramaAdmin(admin.ModelAdmin):
             if val and ',' in val:
                 custom_filters[filter_lookup] = val.split(',')
                 del get_copy[get_key]
-                
+
         original_GET = request.GET
         request.GET = get_copy
         try:
             qs = super().get_queryset(request)
         finally:
             request.GET = original_GET
-            
+
         if custom_filters:
             qs = qs.filter(**custom_filters).distinct()
         return qs
@@ -2368,7 +2775,7 @@ class ProgramaAdmin(admin.ModelAdmin):
         except Exception as e:
             admin_logger.error(f"[ProgramaAdmin] Error al guardar relaciones M2M (disertantes) para Programa ID {form.instance.pk}: {e}", exc_info=True)
             raise
-    
+
     actions = ['aprobar_y_publicar', 'marcar_borrador', 'exportar_excel', 'descargar_plantilla_modelo', 'set_logistica', 'set_tecnologia']
 
     def aprobar_y_publicar(self, request, queryset):
@@ -2647,14 +3054,14 @@ class EmpresaAdmin(SimpleHistoryAdmin):
             if val and ',' in val:
                 custom_filters[filter_lookup] = val.split(',')
                 del get_copy[get_key]
-                
+
         original_GET = request.GET
         request.GET = get_copy
         try:
             qs = super().get_queryset(request)
         finally:
             request.GET = original_GET
-            
+
         if custom_filters:
             qs = qs.filter(**custom_filters).distinct()
         return qs
@@ -2679,8 +3086,9 @@ class EjeTematicoFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             q_obj = models.Q()
             for val in valores:
                 if val == "E-COMMERCE":
@@ -2821,14 +3229,14 @@ class PostulacionDisertanteAdmin(SimpleHistoryAdmin):
             if val and ',' in val:
                 custom_filters[filter_lookup] = val.split(',')
                 del get_copy[get_key]
-                
+
         original_GET = request.GET
         request.GET = get_copy
         try:
             qs = super().get_queryset(request)
         finally:
             request.GET = original_GET
-            
+
         if custom_filters:
             qs = qs.filter(**custom_filters).distinct()
         return qs
@@ -2855,14 +3263,14 @@ class InscripcionPrensaAdmin(admin.ModelAdmin):
             if val and ',' in val:
                 custom_filters[filter_lookup] = val.split(',')
                 del get_copy[get_key]
-                
+
         original_GET = request.GET
         request.GET = get_copy
         try:
             qs = super().get_queryset(request)
         finally:
             request.GET = original_GET
-            
+
         if custom_filters:
             qs = qs.filter(**custom_filters).distinct()
         return qs
@@ -2933,7 +3341,16 @@ class MiembroGrupoAdmin(admin.ModelAdmin):
 
 @admin.register(LogEnvioEmail)
 class LogEnvioEmailAdmin(admin.ModelAdmin):
-    list_display = ('asunto', 'destinatario', 'tipo_email', 'exitoso_display', 'fecha_envio_format')
+    list_display = (
+        'exitoso_display',
+        'tipo_email',
+        'destinatario',
+        'participante_info',
+        'asunto',
+        'error_resumen',
+        'fecha_envio_format',
+        'acciones_log',
+    )
     list_filter = ('exitoso', 'tipo_email', 'fecha_envio')
     search_fields = ('destinatario', 'asunto', 'error')
     readonly_fields = ('destinatario', 'asunto', 'tipo_email', 'exitoso', 'error', 'fecha_envio')
@@ -2941,10 +3358,44 @@ class LogEnvioEmailAdmin(admin.ModelAdmin):
 
     def exitoso_display(self, obj):
         if obj.exitoso:
-            return format_html('<span style="color: green; font-weight: bold;">✔ ÉXITO</span>')
-        return format_html('<span style="color: red; font-weight: bold;">✖ FALLÓ</span>')
+            return format_html('<span style="color: #4ade80; font-weight: bold;">✔ ÉXITO</span>')
+        return format_html('<span style="color: #f87171; font-weight: bold;">✖ FALLÓ</span>')
     exitoso_display.short_description = 'Estado'
+
+    def participante_info(self, obj):
+        if not obj.destinatario:
+            return "—"
+        asist = Asistente.objects.filter(email__iexact=obj.destinatario).first()
+        if asist:
+            dni_str = f" (DNI: {asist.dni})" if asist.dni else ""
+            return f"{asist.first_name} {asist.last_name}{dni_str}"
+        return "—"
+    participante_info.short_description = 'Participante'
+
+    def error_resumen(self, obj):
+        if obj.exitoso or not obj.error:
+            return "—"
+        primera_linea = obj.error.strip().splitlines()[0][:110]
+        return format_html('<span style="color:#fca5a5; font-size:12px;">{}</span>', primera_linea)
+    error_resumen.short_description = 'Motivo / Detalle'
+
+    def acciones_log(self, obj):
+        asist = Asistente.objects.filter(email__iexact=obj.destinatario).first() if obj.destinatario else None
+        if asist:
+            fix_url = f"/admin/corregir-asistencia-email/?asistente_id={asist.id}"
+            return format_html(
+                '<a href="{}" style="padding:4px 8px; border-radius:6px; background:#2563eb; color:#fff; font-size:11px; font-weight:600; text-decoration:none; white-space:nowrap;">✏️ Corregir Datos y Reenviar</a>',
+                fix_url
+            )
+        if not obj.exitoso:
+            fix_url = f"/admin/corregir-asistencia-email/?log_id={obj.id}"
+            return format_html(
+                '<a href="{}" style="padding:4px 8px; border-radius:6px; background:#475569; color:#fff; font-size:11px; font-weight:600; text-decoration:none; white-space:nowrap;">🔍 Buscar Participante</a>',
+                fix_url
+            )
+        return "—"
+    acciones_log.short_description = 'Acción'
 
     def fecha_envio_format(self, obj):
         return obj.fecha_envio.strftime("%d/%m/%Y %H:%M:%S")
-    fecha_envio_format.short_description = 'Fecha de Envío'
+    fecha_envio_format.short_description = 'Fecha de Envío'

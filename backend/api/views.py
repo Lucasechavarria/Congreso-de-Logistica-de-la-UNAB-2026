@@ -537,7 +537,8 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
             )
             
             # Enviar el certificado por email
-            email_success = send_certificate_email(certificado)
+            result = send_certificate_email(certificado)
+            email_success = result[0] if isinstance(result, tuple) else bool(result)
             
             headers = self.get_success_headers(serializer.data)
             msg = 'Registro completado. Asistencia confirmada y certificado enviado por email.' if email_success else 'Registro completado y asistencia confirmada, pero no se pudo enviar el certificado por email (sistema de correos no configurado).'

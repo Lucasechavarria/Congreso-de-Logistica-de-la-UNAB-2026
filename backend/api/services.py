@@ -25,9 +25,20 @@ def confirm_asistencia(inscripcion: Inscripcion) -> Tuple[Certificado, bool]:
             tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
         )
         
-        # Encolar la generación y el envío del certificado asíncronamente (Celery)
+        # Encolar la generación y el envío del certificado asíncronamente (Celery) con fallback seguro
         from .tasks import task_generar_y_enviar_certificado
-        transaction.on_commit(lambda: task_generar_y_enviar_certificado.delay(certificado.id))
+        def _safe_dispatch_certificado(cert_id: int = certificado.id) -> None:
+            try:
+                task_generar_y_enviar_certificado.delay(cert_id)
+            except Exception as e:
+                logger.warning(f"[Celery] Error encolando certificado ({e}). Ejecutando fallback síncrono...")
+                try:
+                    c = Certificado.objects.get(id=cert_id)
+                    send_certificate_email(c)
+                except Exception as sync_err:
+                    logger.error(f"[Fallback Sync] Error enviando certificado directo: {sync_err}")
+
+        transaction.on_commit(_safe_dispatch_certificado)
         email_success = True
 
         return certificado, email_success

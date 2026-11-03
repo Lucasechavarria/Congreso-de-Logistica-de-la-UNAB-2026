@@ -409,8 +409,8 @@ def analizar_y_procesar_excel_programa(
     }
 
 
-def exportar_excel_programa(edicion=None) -> HttpResponse:
-    """Genera y descarga un archivo Excel (.xlsx) con el programa actual cargado en la base de datos."""
+def exportar_excel_programa(edicion=None, queryset=None) -> HttpResponse:
+    """Genera y descarga un archivo Excel (.xlsx) con el programa actual cargado en la base de datos o el queryset provisto."""
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
@@ -447,9 +447,12 @@ def exportar_excel_programa(edicion=None) -> HttpResponse:
         cell.alignment = center_align
 
     # Consultar charlas
-    qs = Programa.objects.all()
-    if edicion:
-        qs = qs.filter(edicion=edicion)
+    if queryset is not None:
+        qs = queryset
+    else:
+        qs = Programa.objects.all()
+        if edicion:
+            qs = qs.filter(edicion=edicion)
     qs = qs.order_by('aula', 'hora_inicio')
 
     for prog in qs:
@@ -490,6 +493,80 @@ def exportar_excel_programa(edicion=None) -> HttpResponse:
     nombre_edicion = edicion.nombre.replace(" ", "_") if edicion else "2026"
     filename = f"Programa_Exportado_{nombre_edicion}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response
+
+
+# Alias para compatibilidad con llamadas en admin.py y views.py
+exportar_programa_excel = exportar_excel_programa
+
+
+def generar_plantilla_excel_programa() -> HttpResponse:
+    """Genera y descarga la plantilla oficial de Excel (.xlsx) para la carga masiva del programa."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Plantilla Programa"
+    ws.views.sheetView[0].showGridLines = True
+
+    headers = [
+        "Título", "Hora Inicio", "Hora Fin", "Día", "Aula", "Categoría", "Estado", "Disertantes", "Empresas", "Descripción"
+    ]
+    ws.append(headers)
+
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+    center_align = Alignment(horizontal="center", vertical="center")
+    left_align = Alignment(horizontal="left", vertical="center")
+
+    thin_border = Border(
+        left=Side(style='thin', color='E2E8F0'),
+        right=Side(style='thin', color='E2E8F0'),
+        top=Side(style='thin', color='E2E8F0'),
+        bottom=Side(style='thin', color='E2E8F0')
+    )
+
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+
+    # Fila de ejemplo ilustrativa
+    ejemplo = [
+        "Inteligencia Artificial aplicada a la Cadena de Suministro",
+        "10:00",
+        "11:30",
+        "2026-11-07",
+        "Aula Magna",
+        "TECNOLOGIA",
+        "PUBLICADO",
+        "Juan Pérez; María Gómez",
+        "TechLog Solutions; UNAB",
+        "Presentación sobre optimización de inventarios con machine learning."
+    ]
+    ws.append(ejemplo)
+
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=len(headers)):
+        for cell in row:
+            cell.border = thin_border
+            if cell.column in (2, 3, 4, 5, 6, 7):
+                cell.alignment = center_align
+            else:
+                cell.alignment = left_align
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 14)
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="Plantilla_Oficial_Programa.xlsx"'
     wb.save(response)
     return response
 

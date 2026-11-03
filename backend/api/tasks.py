@@ -62,19 +62,44 @@ def task_enviar_confirmacion_grupal(self, representante_id):
             return False
         self.retry(exc=exc)
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=120)
+@shared_task(bind=True, max_retries=1, default_retry_delay=120)
 def task_generar_y_enviar_certificado(self, certificado_id):
     """
     Genera el PDF del certificado (proceso pesado de Pillow en CPU) y lo envía
     vía correo electrónico de forma asíncrona no-bloqueante.
+    Evita reintentos múltiples cuando el correo del participante es inválido
+    para no generar rebotes (bounces) en la casilla del evento.
     """
     try:
         certificado = Certificado.objects.get(id=certificado_id)
-        success = send_certificate_email(certificado)
+        result = send_certificate_email(certificado)
+        success = result[0] if isinstance(result, tuple) else bool(result)
+        error_detail = result[1] if isinstance(result, tuple) and len(result) > 1 else "Fallo en la generación o el envío SMTP del certificado."
+
         if not success:
-            raise Exception("Fallo en la generación o el envío SMTP del certificado.")
+            # Si el fallo es por correo inválido, typo de dominio, placeholder o rechazo permanente 550/553, no reintentar
+            err_lower = str(error_detail).lower()
+            errores_permanentes = (
+                "formato del correo",
+                "error de tipeo",
+                "marcador interno",
+                "no tiene un correo",
+                "550",
+                "553",
+                "invalid",
+                "user unknown",
+                "address not found",
+            )
+            if any(token in err_lower for token in errores_permanentes):
+                logger.warning(f"[NO-RETRY] Certificado {certificado_id} con error permanente de destinatario: {error_detail}")
+                return False
+            raise Exception(error_detail)
+
         logger.info(f"[SUCCESS] Certificado {certificado_id} procesado y enviado al asistente.")
         return True
     except Exception as exc:
-        logger.error(f"[ERROR] Falló el procesamiento del certificado {certificado_id}: {exc}. Reintentando...")
+        logger.error(f"[ERROR] Falló el procesamiento del certificado {certificado_id}: {exc}.")
+        is_eager = getattr(self.request, 'is_eager', False)
+        if self.request.retries >= self.max_retries or is_eager:
+            return False
         self.retry(exc=exc)

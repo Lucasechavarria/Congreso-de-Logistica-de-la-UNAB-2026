@@ -389,4 +389,129 @@ class MultiCategoryCertificateAdminTests(TestCase):
         self.assertIn('attachment;', res['Content-Disposition'])
         self.assertIn('certificado_disertante_prueba-preview.pdf', res['Content-Disposition'])
 
+    def test_certificate_email_no_bcc_to_congreso_and_logs_in_admin(self):
+        """
+        Valida que el envío del certificado de asistencia se envíe ÚNICAMENTE al email
+        registrado del asistente, SIN copia oculta (BCC) a congresologisticaytransporte@unab.edu.ar,
+        y que deje registro en LogEnvioEmail.
+        """
+        from django.core import mail
+        from api.email import CONGRESO_EMAIL
+        from api.models import LogEnvioEmail
+
+        mail.outbox = []
+        cert = Certificado.objects.create(
+            asistente=self.asistente,
+            edicion=self.edicion,
+            tipo_certificado='ASISTENCIA'
+        )
+        result = send_certificate_email(cert)
+        self.assertTrue(result)
+        self.assertEqual(len(mail.outbox), 1)
+        sent_msg = mail.outbox[0]
+        self.assertEqual(sent_msg.to, [self.asistente.email])
+        self.assertNotIn(CONGRESO_EMAIL, sent_msg.bcc)
+        self.assertEqual(sent_msg.bcc, [])
+
+        log_entry = LogEnvioEmail.objects.filter(destinatario=self.asistente.email, tipo_email='certificado_asistencia').first()
+        self.assertIsNotNone(log_entry)
+        self.assertTrue(log_entry.exitoso)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_certificate_email_blocks_typo_domains_and_logs_error_in_admin(self, mock_send):
+        """
+        Valida que un email mal escrito (ej. @gmial.com) no se dispare por SMTP (evitando rebotes en la casilla del evento)
+        y quede registrado como fallo en LogEnvioEmail para su corrección desde el Admin.
+        """
+        from api.models import LogEnvioEmail
+
+        asist_typo = Asistente.objects.create(
+            first_name="Pedro",
+            last_name="Typo",
+            email="pedro.typo@gmial.com",
+            dni="40999888",
+            profile_type=Asistente.ProfileType.VISITOR,
+            terminos_aceptados=True
+        )
+        cert = Certificado.objects.create(
+            asistente=asist_typo,
+            edicion=self.edicion,
+            tipo_certificado='ASISTENCIA'
+        )
+
+        result = send_certificate_email(cert)
+        self.assertIsInstance(result, tuple)
+        self.assertFalse(result[0])
+        self.assertIn("gmail.com", result[1])
+        self.assertFalse(mock_send.called)
+
+        cert.refresh_from_db()
+        self.assertFalse(cert.email_enviado)
+        self.assertEqual(cert.intentos, 1)
+
+        log_err = LogEnvioEmail.objects.filter(destinatario="pedro.typo@gmial.com", exitoso=False).first()
+        self.assertIsNotNone(log_err)
+        self.assertIn("error de tipeo", log_err.error)
+
+    def test_admin_corregir_asistencia_email_view_fixes_data_and_resends(self):
+        """
+        Valida que desde /admin/corregir-asistencia-email/ el administrador pueda corregir el email,
+        nombre y DNI de un participante cuyo envío había fallado, confirmar su asistencia y reenviar el certificado.
+        """
+        from django.core import mail
+        from api.models import Inscripcion, LogEnvioEmail
+        from api.email import CONGRESO_EMAIL
+
+        mail.outbox = []
+        asist_err = Asistente.objects.create(
+            first_name="Lucia",
+            last_name="MalEscrito",
+            email="lucia@gmial.com",
+            dni="38777666",
+            profile_type=Asistente.ProfileType.VISITOR,
+            terminos_aceptados=True
+        )
+        cert_err = Certificado.objects.create(
+            asistente=asist_err,
+            edicion=self.edicion,
+            tipo_certificado='ASISTENCIA',
+            email_enviado=False,
+            intentos=1
+        )
+
+        # Enviar corrección desde la vista de admin
+        res = self.client.post('/admin/corregir-asistencia-email/', {
+            'asistente_id': str(asist_err.id),
+            'cert_id': str(cert_err.id),
+            'first_name': 'Lucía María',
+            'last_name': 'Gómez',
+            'dni': '38777665',
+            'email': 'lucia.gomez@gmail.com',
+            'phone': '1144556677',
+            'tipo_certificado': 'ASISTENCIA',
+            'confirmar_asistencia': '1',
+            'accion': 'guardar_y_enviar',
+        }, follow=True)
+        self.assertEqual(res.status_code, 200)
+
+        asist_err.refresh_from_db()
+        cert_err.refresh_from_db()
+        self.assertEqual(asist_err.first_name, 'Lucía María')
+        self.assertEqual(asist_err.last_name, 'Gómez')
+        self.assertEqual(asist_err.dni, '38777665')
+        self.assertEqual(asist_err.email, 'lucia.gomez@gmail.com')
+        self.assertTrue(cert_err.email_enviado)
+
+        insc = Inscripcion.objects.filter(asistente=asist_err, edicion=self.edicion).first()
+        self.assertIsNotNone(insc)
+        self.assertTrue(insc.asistencia_confirmada)
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['lucia.gomez@gmail.com'])
+        self.assertNotIn(CONGRESO_EMAIL, mail.outbox[0].bcc)
+
+        log_ok = LogEnvioEmail.objects.filter(destinatario='lucia.gomez@gmail.com', exitoso=True).first()
+        self.assertIsNotNone(log_ok)
+
+
 

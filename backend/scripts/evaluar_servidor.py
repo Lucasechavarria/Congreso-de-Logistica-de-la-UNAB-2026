@@ -80,7 +80,7 @@ def run_evaluation(target_email: str = REPORT_EMAIL_DEFAULT):
 
     # 4. Evaluación de RAM del Sistema
     try:
-        import psutil
+        import psutil  # type: ignore
         mem = psutil.virtual_memory()
         used_mb = mem.used // (1024 * 1024)
         total_mb = mem.total // (1024 * 1024)

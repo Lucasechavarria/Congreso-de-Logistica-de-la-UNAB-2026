@@ -1,8 +1,14 @@
 
+from unittest.mock import patch
+from rest_framework import status
+from .models import Asistente, Inscripcion, Edicion, Certificado
+from .tests import BaseCongressTest
+
+
 class RecurrenciaTests(BaseCongressTest):
     def test_recurrencia_asistente(self):
         """Un asistente de una edición anterior puede inscribirse en la nueva."""
-        edicion_2025 = Edicion.objects.create(anio=2025, nombre="2025", activa=False)
+        edicion_2025, _ = Edicion.objects.get_or_create(anio=2025, defaults={'nombre': "2025", 'activa': False})
         asistente = Asistente.objects.create(
             first_name="Recurrente", last_name="User", dni="11221122",
             email="recurrente@test.com", profile_type="VISITOR"

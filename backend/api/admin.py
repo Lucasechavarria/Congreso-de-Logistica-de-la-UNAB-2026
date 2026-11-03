@@ -363,7 +363,7 @@ def export_to_excel_action(modeladmin, request, queryset):
         df = pd.DataFrame(data)
 
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:  # type: ignore
             df.to_excel(writer, sheet_name=model._meta.object_name[:31], index=False)
 
         output.seek(0)
@@ -414,7 +414,7 @@ def backup_database_view(request):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"backup_congreso_{timestamp}.xlsx"
 
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:  # type: ignore
             for model in models_to_export:
                 fields = [f.name for f in model._meta.fields]
                 queryset = model.objects.all()
@@ -800,8 +800,9 @@ class DNIFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             if len(valores) > 1:
                 return queryset
             val = valores[0]
@@ -832,8 +833,9 @@ class InstitucionFilter(admin.SimpleListFilter):
         return sorted([(i, i) for i in todas], key=lambda x: x[1].lower())
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             q_obj = models.Q()
             for val in valores:
                 q_obj |= (
@@ -865,8 +867,9 @@ class CarreraFilter(admin.SimpleListFilter):
         return sorted([(c, c) for c in todas], key=lambda x: x[1].lower())
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             q_obj = models.Q()
             for val in valores:
                 q_obj |= (
@@ -889,8 +892,9 @@ class EsUNaBFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             if len(valores) > 1:
                 return queryset
             val = valores[0]
@@ -941,8 +945,9 @@ class AsistenciaEdicionActivaFilter(admin.SimpleListFilter):
         if not edicion_activa:
             return queryset
 
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             if len(valores) > 1:
                 return queryset
             val = valores[0]
@@ -1786,7 +1791,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                         if send_emails:
                             try:
                                 from .tasks import task_enviar_confirmacion_individual
-                                task_enviar_confirmacion_individual.delay(asistente.id)
+                                getattr(task_enviar_confirmacion_individual, 'delay')(asistente.id)
                                 email_status = "queued"
                             except Exception as task_err:
                                 try:
@@ -1863,7 +1868,7 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                     if pd.isna(row.get('comision')) and pd.isna(row.get('comisión')) and pd.isna(row.get('curso')): comision_val = ''
 
                     rows.append({
-                        'index': index + 2,
+                        'index': int(index) + 2,
                         'dni': dni_val,
                         'email': email_val,
                         'nombre': nombre_val,
@@ -1984,11 +1989,11 @@ class AsistenteAdmin(SimpleHistoryAdmin):
                                             from .email import send_individual_confirmation_email
                                             send_individual_confirmation_email(asistente)
                                         except Exception as e:
-                                            stats['error_details'].append({'row': index + 2, 'msg': f"Registro OK, pero email falló: {str(e)}"})
+                                            stats['error_details'].append({'row': int(index) + 2, 'msg': f"Registro OK, pero email falló: {str(e)}"})
 
                             except Exception as e:
                                 stats['errors'] += 1
-                                stats['error_details'].append({'row': index + 2, 'msg': str(e)})
+                                stats['error_details'].append({'row': int(index) + 2, 'msg': str(e)})
 
                         results = stats
                         messages.success(request, f"Procesamiento masivo completado. {stats['created']} nuevos registros.")
@@ -3081,8 +3086,9 @@ class EjeTematicoFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        if self.value():
-            valores = self.value().split(',')
+        val_str = self.value()
+        if val_str:
+            valores = val_str.split(',')
             q_obj = models.Q()
             for val in valores:
                 if val == "E-COMMERCE":

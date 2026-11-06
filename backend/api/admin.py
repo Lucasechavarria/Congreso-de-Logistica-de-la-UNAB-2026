@@ -828,16 +828,34 @@ def gdrive_backup_view(request):
 
         if accion == 'probar_y_subir':
             res = ejecutar_backup_completo()
-            if res.get('status') == 'ok':
-                messages.success(request, f"¡Respaldo dual generado exitosamente! Archivo: {res.get('archivo')}")
+            if res.get('drive_personal') and res.get('drive_institucional'):
+                messages.success(request, f"¡Respaldo dual completado con éxito! Subido a Drive Personal e Institucional. Archivo: {res.get('archivo')}")
+            elif res.get('drive_personal') or res.get('drive_institucional'):
+                destino = "Personal" if res.get('drive_personal') else "Institucional"
+                messages.warning(request, f"✓ Respaldo subido a Drive {destino}. Revisá el reporte para el otro destino.")
+            elif not config.service_account_json:
+                messages.warning(request, f"✓ Archivo ZIP generado localmente ({res.get('archivo')}), pero NO se subió a Google Drive porque falta el JSON de la Cuenta de Servicio.")
             else:
-                messages.warning(request, f"Respaldo finalizado con observaciones: {res.get('message', '')}")
+                messages.error(request, f"Se generó el ZIP local ({res.get('archivo')}) pero falló la conexión con Google Drive. Revisá el reporte abajo.")
         else:
             messages.success(request, "Configuración de Google Drive guardada exitosamente.")
 
         return redirect('admin:admin-gdrive-backup')
 
-    return render(request, 'admin/gdrive_backup_admin.html', {'config': config})
+    service_account_email = None
+    if config.service_account_json and config.service_account_json.strip():
+        try:
+            creds = json.loads(config.service_account_json.strip())
+            service_account_email = creds.get('client_email')
+        except Exception:
+            service_account_email = 'JSON inválido (verificá el formato)'
+
+    context = {
+        'config': config,
+        'service_account_email': service_account_email,
+    }
+    return render(request, 'admin/gdrive_backup_admin.html', context)
+
 
 
 def patch_admin_urls():

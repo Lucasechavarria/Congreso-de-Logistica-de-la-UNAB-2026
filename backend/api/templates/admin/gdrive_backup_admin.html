@@ -8,23 +8,23 @@
 
 <style>
     :root {
-        --bg: var(--dark-bg);
-        --card: var(--dark-card);
-        --p: var(--color-primary);
-        --b: var(--border-soft);
-        --txt: var(--text-primary);
-        --neon-cyan: var(--color-secondary);
-        --neon-green: #10b981;
+        --dark-bg: #070310;
+        --dark-card: rgba(18, 8, 38, 0.85);
+        --color-primary: #a78bfa;
+        --color-secondary: #06b6d4;
+        --border-soft: rgba(167, 139, 250, 0.2);
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
     }
 
     body {
-        background: var(--bg) !important;
-        color: var(--txt) !important;
+        background: var(--dark-bg) !important;
+        color: var(--text-primary) !important;
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
 
     #content {
-        background: var(--bg) !important;
+        background: var(--dark-bg) !important;
         padding: 25px !important;
     }
 
@@ -32,21 +32,21 @@
         max-width: 950px;
         margin: 20px auto;
         padding: 35px;
-        background: var(--card);
+        background: var(--dark-card);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border-radius: 16px;
-        border: 1px solid var(--b);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border-soft);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
 
     .backup-header {
         text-align: center;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
     }
 
     .backup-header h2 {
-        color: #fff;
+        color: #ffffff !important;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 1.5px;
@@ -59,11 +59,12 @@
         margin: 0;
     }
 
+    /* Horarios Celery Beat */
     .schedule-card {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid var(--b);
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid var(--border-soft);
         border-radius: 12px;
-        padding: 20px;
+        padding: 18px 20px;
         margin-bottom: 25px;
     }
 
@@ -72,7 +73,7 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1px;
-        color: var(--neon-cyan);
+        color: var(--color-secondary);
         margin-bottom: 12px;
         display: flex;
         align-items: center;
@@ -81,15 +82,15 @@
 
     .schedule-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
     }
 
     .schedule-badge {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 8px;
-        padding: 10px 14px;
+        padding: 10px 12px;
         text-align: center;
     }
 
@@ -109,6 +110,105 @@
         margin-top: 2px;
     }
 
+    /* Guía explicativa Service Account */
+    .guide-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+
+    .guide-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #38bdf8;
+        margin-bottom: 10px;
+    }
+
+    .guide-desc {
+        font-size: 13px;
+        color: #cbd5e1;
+        line-height: 1.5;
+        margin: 0 0 14px 0;
+    }
+
+    .guide-steps {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+        .guide-steps {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .guide-step {
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 10px 14px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 12px;
+        color: #e2e8f0;
+        line-height: 1.4;
+    }
+
+    .step-num {
+        background: #38bdf8;
+        color: #0f172a;
+        font-weight: 800;
+        font-size: 11px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .guide-step a {
+        color: #38bdf8;
+        text-decoration: underline;
+        font-weight: 600;
+    }
+
+    /* Badges de Estado de Credenciales */
+    .status-badge {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        font-weight: 600;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .status-badge-ok {
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        color: #34d399;
+    }
+
+    .status-badge-warn {
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        color: #fbbf24;
+    }
+
+    /* Formularios */
     .form-group {
         margin-bottom: 22px;
     }
@@ -117,7 +217,7 @@
         display: block;
         font-size: 13px;
         font-weight: 700;
-        color: #e2e8f0;
+        color: #f1f5f9;
         margin-bottom: 8px;
         letter-spacing: 0.3px;
     }
@@ -125,7 +225,7 @@
     .form-help {
         font-size: 12px;
         color: var(--text-secondary);
-        margin-top: 5px;
+        margin-top: 6px;
         display: block;
         line-height: 1.4;
     }
@@ -133,26 +233,26 @@
     .form-input, .form-textarea {
         width: 100%;
         background: #090d16;
-        border: 1px solid var(--b);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 8px;
         color: #f1f5f9;
         padding: 12px 14px;
         font-size: 13px;
         box-sizing: border-box;
         outline: none;
-        transition: border-color 0.2s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     .form-textarea {
         font-family: 'Fira Code', monospace;
         font-size: 12px;
-        min-height: 140px;
+        min-height: 130px;
         resize: vertical;
     }
 
     .form-input:focus, .form-textarea:focus {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 10px rgba(167, 139, 250, 0.2);
+        border-color: #a78bfa;
+        box-shadow: 0 0 10px rgba(167, 139, 250, 0.3);
     }
 
     .form-switch {
@@ -165,67 +265,86 @@
     .form-switch input {
         width: 18px;
         height: 18px;
-        accent-color: var(--color-primary);
+        accent-color: #a78bfa;
         cursor: pointer;
     }
 
+    /* Botones de Acción (Vívidos y Altamente Contrastantes) */
     .btn-actions {
         display: flex;
-        gap: 15px;
+        gap: 16px;
         margin-top: 30px;
         flex-wrap: wrap;
     }
 
     .btn-primary {
         flex: 1;
-        min-width: 200px;
-        background: linear-gradient(135deg, var(--color-primary), #818cf8);
-        color: #0f0724;
-        border: none;
-        padding: 14px 20px;
+        min-width: 220px;
+        background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        padding: 15px 22px;
         border-radius: 8px;
-        font-weight: 800;
+        font-weight: 800 !important;
         font-size: 14px;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.8px;
         cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
     .btn-primary:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+        background: linear-gradient(135deg, #7c3aed, #6366f1) !important;
+        box-shadow: 0 6px 22px rgba(124, 58, 237, 0.55);
     }
 
     .btn-test {
-        background: rgba(16, 185, 129, 0.15);
-        border: 1px solid rgba(16, 185, 129, 0.4);
-        color: #34d399;
-        padding: 14px 24px;
+        flex: 1;
+        min-width: 260px;
+        background: linear-gradient(135deg, #059669, #10b981) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        padding: 15px 22px;
         border-radius: 8px;
-        font-weight: 800;
+        font-weight: 800 !important;
         font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
     .btn-test:hover {
-        background: rgba(16, 185, 129, 0.25);
-        box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        transform: translateY(-2px);
+        background: linear-gradient(135deg, #10b981, #34d399) !important;
+        box-shadow: 0 6px 22px rgba(16, 185, 129, 0.55);
     }
 
+    /* Terminal de Salida */
     .terminal-box {
-        margin-top: 25px;
+        margin-top: 15px;
         background: #090d16;
-        border: 1px solid var(--b);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 10px;
         padding: 16px 20px;
         font-family: 'Fira Code', monospace;
         font-size: 12px;
         color: #cbd5e1;
-        max-height: 200px;
+        max-height: 220px;
         overflow-y: auto;
         white-space: pre-wrap;
+        line-height: 1.5;
     }
 </style>
 {% endblock %}
@@ -266,6 +385,57 @@
         </div>
     </div>
 
+    <!-- Guía Didáctica: Por qué se necesita la Cuenta de Servicio -->
+    <div class="guide-card">
+        <div class="guide-header">
+            <span>💡</span>
+            <span>¿Por qué se necesita el JSON de Google Service Account?</span>
+        </div>
+        <p class="guide-desc">
+            Aunque compartas una carpeta con <em>"Cualquier persona con el enlace puede editar"</em>, la API de Google Drive <strong>no permite subidas anónimas desde un servidor</strong>. Para subir archivos por código se requiere una <strong>Cuenta de Servicio (Service Account)</strong> de Google Cloud, que actúa como un robot autorizado.
+        </p>
+        <div class="guide-steps">
+            <div class="guide-step">
+                <span class="step-num">1</span>
+                <div>Entrá a <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a> y creá un proyecto gratis (ej: <code>Congreso-UNaB</code>).</div>
+            </div>
+            <div class="guide-step">
+                <span class="step-num">2</span>
+                <div>En <em>APIs y Servicios &gt; Biblioteca</em>, buscá <strong>Google Drive API</strong> y dale clic a <strong>Habilitar</strong>.</div>
+            </div>
+            <div class="guide-step">
+                <span class="step-num">3</span>
+                <div>En <em>IAM y Administración &gt; Cuentas de Servicio</em>, creá una cuenta (ej: <code>bot-backup</code>), creale una clave tipo <strong>JSON</strong>, descargala y pegá su contenido abajo.</div>
+            </div>
+            <div class="guide-step">
+                <span class="step-num">4</span>
+                <div>En Google Drive, abrí tus 2 carpetas y <strong>compartilas con el email de esa Service Account</strong> (aparece en el JSON) con permiso de <strong>Editor</strong>.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Indicador de Estado de Conexión -->
+    {% if service_account_email and service_account_email != 'JSON inválido (verificá el formato)' %}
+    <div class="status-badge status-badge-ok">
+        <div>
+            🟢 <strong>Cuenta de Servicio Configurada:</strong> <code>{{ service_account_email }}</code>
+        </div>
+        <div style="font-size: 11px; opacity: 0.9;">
+            Recordá compartir tus carpetas de Drive con este correo exacto como <strong>Editor</strong>.
+        </div>
+    </div>
+    {% else %}
+    <div class="status-badge status-badge-warn">
+        <div>
+            ⚠️ <strong>Credenciales pendientes:</strong> Aún no pegaste el JSON de la Service Account.
+        </div>
+        <div style="font-size: 11px; opacity: 0.9;">
+            Los respaldos se generan de forma segura en local, pero no podrán subirse a Google Drive hasta completar el paso 1.
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Formulario de Configuración -->
     <form method="post" action="">
         {% csrf_token %}
 
@@ -278,20 +448,20 @@
 
         <div class="form-group">
             <label for="id_service_account_json">1. Google Service Account JSON:</label>
-            <textarea id="id_service_account_json" name="service_account_json" class="form-textarea" placeholder='{"type": "service_account", "project_id": "...", ...}'>{{ config.service_account_json }}</textarea>
-            <span class="form-help">Pegá aquí el contenido completo del archivo JSON descargado de Google Cloud Console (Service Account Keys).</span>
+            <textarea id="id_service_account_json" name="service_account_json" class="form-textarea" placeholder='{"type": "service_account", "project_id": "...", "private_key": "...", "client_email": "...", ...}'>{{ config.service_account_json }}</textarea>
+            <span class="form-help">Pegá aquí el texto completo del archivo .json descargado desde Google Cloud Console.</span>
         </div>
 
         <div class="form-group">
             <label for="id_carpeta_personal">2. Carpeta Google Drive Personal:</label>
-            <input type="text" id="id_carpeta_personal" name="carpeta_personal_id" class="form-input" value="{{ config.carpeta_personal_id }}" placeholder="ID o URL completa de la carpeta compartida en Drive personal" />
-            <span class="form-help">Podés pegar el ID directo o el enlace web completo (ej: https://drive.google.com/drive/folders/1AbCdEf...). Recordá compartir la carpeta con el email de tu Service Account con permiso de <strong>Editor</strong>.</span>
+            <input type="text" id="id_carpeta_personal" name="carpeta_personal_id" class="form-input" value="{{ config.carpeta_personal_id }}" placeholder="ID o URL completa de la carpeta compartida en Drive personal (ej: https://drive.google.com/drive/folders/1AbCdEf...)" />
+            <span class="form-help">Podés pegar la URL completa o solo el ID. Recordá haber compartido la carpeta con el email de la Service Account.</span>
         </div>
 
         <div class="form-group">
             <label for="id_carpeta_institucional">3. Carpeta Google Drive Institucional (UNaB):</label>
-            <input type="text" id="id_carpeta_institucional" name="carpeta_institucional_id" class="form-input" value="{{ config.carpeta_institucional_id }}" placeholder="ID o URL completa de la carpeta compartida en Drive institucional" />
-            <span class="form-help">Podés pegar el ID directo o el enlace web completo de la carpeta del Drive oficial UNaB compartida con el bot.</span>
+            <input type="text" id="id_carpeta_institucional" name="carpeta_institucional_id" class="form-input" value="{{ config.carpeta_institucional_id }}" placeholder="ID o URL completa de la carpeta compartida en Drive institucional (ej: https://drive.google.com/drive/folders/1XyZ...)" />
+            <span class="form-help">Podés pegar la URL completa o solo el ID. Recordá haber compartido la carpeta con el email de la Service Account.</span>
         </div>
 
         <div class="btn-actions">
@@ -316,4 +486,3 @@
     {% endif %}
 </div>
 {% endblock %}
-

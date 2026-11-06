@@ -132,6 +132,32 @@ def get_logo_path():
     return resource_path
 
 
+def get_logo_congreso_negro_path():
+    """Retorna la ruta al logo del congreso con letras negras."""
+    candidates = [
+        os.path.join(settings.BASE_DIR, '..', 'public', 'images', 'logo-congreso-2026-negro.png'),
+        os.path.join(settings.BASE_DIR, 'public', 'images', 'logo-congreso-2026-negro.png'),
+        os.path.join(settings.BASE_DIR, 'api', 'resources', 'logo', 'logo-congreso.png'),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return get_logo_path()
+
+
+def get_unab_logo_path():
+    """Retorna la ruta absoluta al logo oficial de la UNaB."""
+    candidates = [
+        os.path.join(settings.BASE_DIR, '..', 'public', 'images', 'LogoUnab.png'),
+        os.path.join(settings.BASE_DIR, 'public', 'images', 'LogoUnab.png'),
+        os.path.join(settings.BASE_DIR, 'api', 'resources', 'logo', 'LogoUnab.png'),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return candidates[0]
+
+
 
 def get_tyc_path(pdf_type='asistente'):
     filename = 'Bases_Asistentes_2026.pdf'
@@ -329,6 +355,119 @@ def send_confirmation_email(inscripcion_instance):
         return True
     except Exception as e:
         print(f"[ERROR] Error enviando email de confirmación a {asistente.email}: {e}")
+        return False
+
+
+def send_attendance_confirmation_email(asistente, inscripcion=None) -> bool:
+    """
+    Envía de inmediato el email institucional de Confirmación de Asistencia al participante
+    tras acreditarse mediante QR o verificación de DNI en recepción.
+    Informa que el certificado oficial de asistencia se emitirá y enviará por correo
+    después de las 18:00 hs (hora Argentina, GMT-3).
+    """
+    destinatario_email = (getattr(asistente, 'email', '') or '').strip()
+    asunto = '¡Bienvenido/a! Asistencia Confirmada - 2º Congreso de Logística UNAB 2026'
+
+    es_valido, motivo = validar_email_destinatario(destinatario_email)
+    if not es_valido:
+        print(f"[WARNING] Email inválido descartado para confirmación de asistencia: {destinatario_email} ({motivo})")
+        registrar_log_email(
+            destinatario=destinatario_email or 'sin-email',
+            asunto=asunto,
+            tipo_email='confirmacion_asistencia',
+            exitoso=False,
+            error_msg=motivo
+        )
+        return False
+
+    from django.utils import timezone
+    fecha_dt = getattr(inscripcion, 'fecha_confirmacion', None) or timezone.now()
+    fecha_local = timezone.localtime(fecha_dt)
+    hora_str = fecha_local.strftime("%H:%M")
+    
+    # Formateo de fecha en español
+    meses = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    }
+    fecha_str = f"{fecha_local.day} de {meses.get(fecha_local.month, 'Noviembre')} de {fecha_local.year}"
+
+    # Resolver nombre legible del perfil
+    perfil = getattr(asistente, 'profile_type', 'VISITOR')
+    perfil_map = {
+        'STUDENT': 'Estudiante',
+        'TEACHER': 'Docente',
+        'PROFESSIONAL': 'Profesional',
+        'GRADUADO': 'Graduado/a',
+        'VISITOR': 'Asistente General / Visitante',
+        'SPEAKER': 'Disertante',
+        'COMPANY': 'Representante de Empresa',
+        'PRESS': 'Prensa',
+    }
+    perfil_display = perfil_map.get(perfil, 'Asistente')
+
+    context = {
+        'asistente_nombre': f"{asistente.first_name} {asistente.last_name}".strip(),
+        'evento_nombre': '2º Congreso de Logística y Transporte UNAB 2026',
+        'evento_fecha': fecha_str,
+        'hora_acreditacion': hora_str,
+        'evento_ubicacion': 'Campus UNAB, Blas Parera 132, Burzaco, Buenos Aires',
+        'perfil_display': perfil_display,
+        'programa_url': 'https://www.congresologistica.unab.edu.ar/programa',
+        'instagram_url': 'https://www.instagram.com/congresologisticounab?utm_source=ig_web_button_share_sheet&mdxt=ZDNlZDc0MzIxNw==',
+        'year': fecha_local.year,
+    }
+
+    html_content = render_to_string('api/email/confirmacion_asistencia.html', context)
+    text_content = strip_tags(html_content)
+
+    logo_congreso_path = get_logo_congreso_negro_path()
+    logo_unab_path = get_unab_logo_path()
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=asunto,
+            body=text_content,
+            from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
+            to=[destinatario_email],
+        )
+        email.attach_alternative(html_content, "text/html")
+
+        # Adjuntar logo congreso (negro) inline
+        if os.path.exists(logo_congreso_path):
+            with open(logo_congreso_path, 'rb') as f:
+                img_c = MIMEImage(f.read(), _subtype="png")
+                img_c.add_header('Content-ID', '<logo_congreso>')
+                img_c.add_header('Content-Disposition', 'inline', filename='logo-congreso.png')
+                email.attach(img_c)
+
+        # Adjuntar logo UNaB inline
+        if os.path.exists(logo_unab_path):
+            with open(logo_unab_path, 'rb') as f:
+                img_u = MIMEImage(f.read(), _subtype="png")
+                img_u.add_header('Content-ID', '<logo_unab>')
+                img_u.add_header('Content-Disposition', 'inline', filename='logo-unab.png')
+                email.attach(img_u)
+
+        email.send()
+        registrar_log_email(
+            destinatario=destinatario_email,
+            asunto=asunto,
+            tipo_email='confirmacion_asistencia',
+            exitoso=True
+        )
+        print(f"[SUCCESS] Email de confirmación de asistencia enviado a {destinatario_email}")
+        return True
+    except Exception as exc:
+        print(f"[ERROR] Falló el envío de confirmación de asistencia a {destinatario_email}: {exc}")
+        registrar_log_email(
+            destinatario=destinatario_email,
+            asunto=asunto,
+            tipo_email='confirmacion_asistencia',
+            exitoso=False,
+            error_msg=str(exc)
+        )
         return False
 
 def send_individual_confirmation_email(asistente):
@@ -795,6 +934,8 @@ def send_certificate_email(certificado_instance):
         # 2. Generar el PDF en memoria (save=False para que solo devuelva el buffer)
         pdf_buffer = certificado_instance.generar_pdf(save=False)
         pdf_content = pdf_buffer.getvalue()
+        pdf_buffer.close()
+        del pdf_buffer
 
         target_name = f"{asistente.first_name}_{asistente.last_name}".strip().replace(" ", "_") or "Participante"
         if tipo == 'EMPRESA' and getattr(asistente, 'empresa_vinculada', None) and asistente.empresa_vinculada.nombre_empresa:

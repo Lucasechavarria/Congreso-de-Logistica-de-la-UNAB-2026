@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirmación de Asistencia - Congreso de Logística UNAB</title>
+    <style>
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #333333;
+        background-color: #f4f6f9;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 25px auto;
+        background: #ffffff;
+        padding: 35px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border-top: 5px solid #6b21a8;
+      }
+      .header-logos {
+        text-align: center;
+        padding-bottom: 24px;
+        border-bottom: 1px solid #eef0f3;
+        margin-bottom: 25px;
+      }
+      .logo-img {
+        display: inline-block;
+        vertical-align: middle;
+        max-height: 55px;
+        max-width: 220px;
+        margin: 0 12px;
+      }
+      .badge-success {
+        display: inline-block;
+        background-color: #e9d5ff;
+        color: #6b21a8;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        padding: 6px 14px;
+        border-radius: 20px;
+        margin-bottom: 15px;
+      }
+      .title {
+        color: #1e1b4b;
+        font-size: 24px;
+        font-weight: 800;
+        margin: 0 0 15px 0;
+        line-height: 1.3;
+      }
+      .content {
+        padding: 5px 0 20px 0;
+      }
+      .content p {
+        margin: 0 0 16px 0;
+        font-size: 15px;
+        color: #4b5563;
+      }
+      .evento-box {
+        background: #f8fafc;
+        border-left: 4px solid #6b21a8;
+        border-radius: 6px;
+        padding: 16px 20px;
+        margin: 20px 0;
+        font-size: 14px;
+        color: #334155;
+      }
+      .evento-box div {
+        margin-bottom: 8px;
+      }
+      .evento-box div:last-child {
+        margin-bottom: 0;
+      }
+      .certificate-alert {
+        background: #fdf4ff;
+        border: 1px solid #f0abfc;
+        border-radius: 8px;
+        padding: 18px;
+        margin: 24px 0;
+      }
+      .certificate-alert-title {
+        color: #86198f;
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+      .certificate-alert-text {
+        color: #701a75;
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 0;
+      }
+      .cta-wrapper {
+        text-align: center;
+        margin: 30px 0 25px 0;
+      }
+      .btn {
+        display: inline-block;
+        background-color: #6b21a8;
+        color: #ffffff !important;
+        text-decoration: none;
+        padding: 14px 28px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        box-shadow: 0 4px 10px rgba(107, 33, 168, 0.25);
+      }
+      .btn:hover {
+        background-color: #581c87;
+      }
+      .social-link {
+        color: #6b21a8;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .footer {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 30px;
+        text-align: center;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 20px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Logos Oficiales -->
+      <div class="header-logos">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td align="center">
+              <img src="cid:logo_congreso" alt="Logo Congreso de Logística UNAB" class="logo-img" />
+              <img src="cid:logo_unab" alt="Universidad Nacional Guillermo Brown" class="logo-img" />
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Contenido Principal -->
+      <div class="content">
+        <div style="text-align: center;">
+          <span class="badge-success">✓ Acreditación Confirmada</span>
+          <h1 class="title">¡Bienvenido/a al Congreso, {{ asistente_nombre }}!</h1>
+        </div>
+
+        <p>Tu asistencia al <strong>{{ evento_nombre }}</strong> ha sido registrada y confirmada con éxito en la recepción del evento.</p>
+
+        <!-- Detalle de Acreditación -->
+        <div class="evento-box">
+          <div><strong>📅 Fecha:</strong> {{ evento_fecha }}</div>
+          <div><strong>⏰ Hora de Acreditación:</strong> {{ hora_acreditacion }} hs (GMT-3)</div>
+          <div><strong>📍 Sede:</strong> {{ evento_ubicacion }}</div>
+          <div><strong>👤 Perfil:</strong> {{ perfil_display }}</div>
+        </div>
+
+        <!-- Aviso Destacado de Certificado -->
+        <div class="certificate-alert">
+          <div class="certificate-alert-title">🎓 Entrega de Certificado Oficial Digital</div>
+          <p class="certificate-alert-text">
+            Tu <strong>Certificado Oficial de Asistencia</strong> se generará y enviará adjunto a esta misma casilla de correo electrónico hoy <strong>después de las 18:00 hs (hora oficial Argentina)</strong>, al concluir las actividades de la jornada.
+          </p>
+        </div>
+
+        <!-- Botón al Programa Oficial -->
+        <div class="cta-wrapper">
+          <a href="{{ programa_url }}" class="btn" target="_blank">
+            Ver Programa de Charlas y Actividades
+          </a>
+        </div>
+
+        <p style="font-size: 14px; text-align: center; color: #64748b; margin-top: 20px;">
+          Podés seguir el minuto a minuto del evento y anuncios en nuestro Instagram: 
+          <a href="{{ instagram_url }}" class="social-link" target="_blank">@congresologisticounab</a>
+        </p>
+      </div>
+
+      <!-- Footer Institucional -->
+      <div class="footer">
+        &copy; {{ year }} {{ evento_nombre }}<br>
+        Universidad Nacional Guillermo Brown (UNaB)<br>
+        Este es un comprobante de acreditación emitido automáticamente. No respondas a este correo.
+      </div>
+    </div>
+  </body>
+</html>

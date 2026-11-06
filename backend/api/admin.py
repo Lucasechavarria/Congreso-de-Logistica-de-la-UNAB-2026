@@ -833,14 +833,13 @@ def gdrive_backup_view(request):
         if accion == 'probar_y_subir':
             res = ejecutar_backup_completo()
             partes_ok = []
-            if res.get('drive_personal') and res.get('drive_institucional'):
-                partes_ok.append("Google Drive (Personal e Institucional)")
-            elif res.get('drive_personal') or res.get('drive_institucional'):
-                dest = "Drive Personal" if res.get('drive_personal') else "Drive Institucional"
-                partes_ok.append(dest)
+            if res.get('drive_personal'):
+                partes_ok.append("Google Drive Personal")
+            elif res.get('drive_institucional'):
+                partes_ok.append("Google Drive Institucional")
 
             if res.get('emails_enviados'):
-                partes_ok.append(f"Email a {len(res.get('emails_enviados'))} casilla(s)")
+                partes_ok.append(f"Email a {', '.join(res.get('emails_enviados'))}")
 
             if partes_ok:
                 messages.success(request, f"¡Respaldo generado y entregado exitosamente vía {', '.join(partes_ok)}! Archivo: {res.get('archivo')}")

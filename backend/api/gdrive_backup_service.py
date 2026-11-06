@@ -208,7 +208,7 @@ def subir_archivo_a_gdrive(file_path: str, folder_id: str, service_account_info:
 
 def subir_via_apps_script(zip_path: str, webhook_url: str, carpeta_personal_id: str = "", carpeta_institucional_id: str = "") -> dict:
     """
-    Sube el archivo ZIP directamente a las carpetas de Google Drive utilizando una aplicación web
+    Sube el archivo ZIP directamente a la carpeta de Google Drive Personal utilizando una aplicación web
     de Google Apps Script (Webhook). Esto no requiere Cuenta de Servicio de Google Cloud ni claves JSON.
     """
     import base64
@@ -219,11 +219,17 @@ def subir_via_apps_script(zip_path: str, webhook_url: str, carpeta_personal_id: 
         with open(zip_path, 'rb') as f:
             b64_content = base64.b64encode(f.read()).decode('utf-8')
 
+        # Limpieza defensiva de ID de carpeta si viene con URL completa
+        folder_clean = (carpeta_personal_id or '').strip()
+        if "/folders/" in folder_clean:
+            parts = folder_clean.split("/folders/")
+            if len(parts) > 1:
+                folder_clean = parts[1].split("?")[0].split("/")[0].strip()
+
         payload = {
             'filename': file_name,
             'base64': b64_content,
-            'carpeta_personal_id': carpeta_personal_id,
-            'carpeta_institucional_id': carpeta_institucional_id
+            'carpeta_personal_id': folder_clean,
         }
 
         logger.info(f"[APPS SCRIPT] Enviando {file_name} a webhook: {webhook_url[:45]}...")
@@ -235,7 +241,7 @@ def subir_via_apps_script(zip_path: str, webhook_url: str, carpeta_personal_id: 
                 if data.get('status') == 'ok':
                     return {
                         'success': True,
-                        'message': data.get('mensaje', 'Subido correctamente a Google Drive vía Apps Script.')
+                        'message': data.get('mensaje', 'Subido correctamente a Google Drive Personal vía Apps Script.')
                     }
                 else:
                     return {
@@ -257,6 +263,7 @@ def subir_via_apps_script(zip_path: str, webhook_url: str, carpeta_personal_id: 
             'success': False,
             'error': f"Excepción conectando con Apps Script: {str(exc)}"
         }
+
 
 
 def enviar_backup_por_email(zip_path: str, zip_name: str, emails: list[str]) -> list[str]:
@@ -357,18 +364,16 @@ def ejecutar_backup_completo() -> dict:
     upload_personal_ok = False
     upload_institucional_ok = False
 
-    # 2. Vía 1: Google Apps Script Webhook (Método directo sin Google Cloud Console)
+    # 2. Vía 1: Google Apps Script Webhook (Personal)
     if config.apps_script_url and config.apps_script_url.strip():
         logger.info("[BACKUP GDRIVE] Ejecutando subida mediante Google Apps Script...")
         res_apps = subir_via_apps_script(
             zip_path,
             config.apps_script_url.strip(),
-            config.carpeta_personal_id,
-            config.carpeta_institucional_id
+            config.carpeta_personal_id
         )
         if res_apps.get('success'):
             upload_personal_ok = True
-            upload_institucional_ok = True
             logs_resultado.append(f"✓ Google Apps Script: {res_apps.get('message')}")
         else:
             logs_resultado.append(f"✗ Error Google Apps Script: {res_apps.get('error')}")
@@ -396,21 +401,19 @@ def ejecutar_backup_completo() -> dict:
                 res_inst = subir_archivo_a_gdrive(zip_path, config.carpeta_institucional_id, service_account_info)
                 if res_inst.get('success'):
                     upload_institucional_ok = True
-                    logs_resultado.append(f"✓ Subido con éxito a Drive Institucional UNaB (ID: {res_inst.get('file_id')})")
+                    logs_resultado.append(f"✓ Subido con éxito a Drive Institucional (ID: {res_inst.get('file_id')})")
                 else:
                     logs_resultado.append(f"✗ Error subiendo a Drive Institucional: {res_inst.get('error')}")
-            else:
-                logs_resultado.append("ℹ️ Carpeta de Drive Institucional no configurada (omitido).")
     else:
         logs_resultado.append("ℹ️ Subida directa a Drive pendiente (configurá la URL de Apps Script o el JSON de Service Account).")
 
-    # 4. Vía 3: Envío por correo electrónico con el ZIP adjunto (Redundancia garantizada)
+    # 4. Vía 3: Envío por correo electrónico con el ZIP adjunto (Personal)
     email_destinos = []
     if config.enviar_por_email:
-        if config.email_personal:
-            email_destinos.append(config.email_personal)
-        if config.email_institucional:
-            email_destinos.append(config.email_institucional)
+        if config.email_personal and config.email_personal.strip():
+            email_destinos.append(config.email_personal.strip())
+        if config.email_institucional and config.email_institucional.strip():
+            email_destinos.append(config.email_institucional.strip())
 
         if email_destinos:
             logs_email = enviar_backup_por_email(zip_path, zip_name, email_destinos)

@@ -768,9 +768,10 @@ class ConfiguracionBackupDrive(models.Model):
     )
     email_institucional = models.EmailField(
         blank=True,
-        default="congresologisticaytransporte@unab.edu.ar",
-        verbose_name="Email Institucional para Respaldo"
+        default="",
+        verbose_name="Email Institucional para Respaldo (Opcional)"
     )
+
     
     ultimo_respaldo_fecha = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Último Respaldo")
 

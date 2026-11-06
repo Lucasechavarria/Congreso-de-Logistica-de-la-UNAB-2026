@@ -154,13 +154,13 @@
         background: rgba(0, 0, 0, 0.4);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 8px;
-        padding: 10px 14px;
+        padding: 11px 14px;
         display: flex;
         align-items: flex-start;
         gap: 12px;
         font-size: 12.5px;
         color: #e2e8f0;
-        line-height: 1.4;
+        line-height: 1.45;
     }
 
     .step-num {
@@ -194,8 +194,8 @@
         color: #e0f2fe;
         overflow-x: auto;
         white-space: pre-wrap;
-        line-height: 1.4;
-        max-height: 180px;
+        line-height: 1.45;
+        max-height: 200px;
     }
 
     .btn-copy {
@@ -279,18 +279,6 @@
         box-shadow: 0 0 10px rgba(167, 139, 250, 0.3);
     }
 
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 15px;
-    }
-
-    @media (max-width: 768px) {
-        .form-row {
-            grid-template-columns: 1fr;
-        }
-    }
-
     .form-switch {
         display: flex;
         align-items: center;
@@ -309,7 +297,7 @@
         cursor: pointer;
     }
 
-    /* Botones de Acción (Vívidos y Altamente Contrastantes) */
+    /* Botones de Acción */
     .btn-actions {
         display: flex;
         gap: 16px;
@@ -392,8 +380,8 @@
 {% block content %}
 <div class="backup-container dark-theme-container">
     <div class="backup-header">
-        <h2>☁️ Respaldo Dual Automático</h2>
-        <p>Configuración del respaldo programado a Google Drive (Personal e Institucional) y entrega por correo.</p>
+        <h2>☁️ Respaldo Automático en Google Drive Personal</h2>
+        <p>Configuración del respaldo programado a tu Google Drive (Personal) y entrega por correo.</p>
     </div>
 
     <!-- Horarios Programados Celery Beat -->
@@ -428,86 +416,71 @@
     <!-- Guía Paso a Paso Google Apps Script -->
     <div class="guide-card">
         <div class="guide-header">
-            <h3>⚡ Paso a Paso: Subir a Google Drive con Apps Script (Sin Google Cloud)</h3>
-            <span style="font-size: 12px; color: #34d399; font-weight: 600;">✓ Solo 2 minutos</span>
+            <h3>⚡ Paso a Paso: Subir a Google Drive Personal con Apps Script</h3>
+            <span style="font-size: 12px; color: #34d399; font-weight: 600;">✓ Sin bloqueos 401</span>
         </div>
         <p class="guide-desc">
-            Como Google no permite subidas anónimas con el simple enlace de carpeta, este script en tu cuenta actúa como receptor autorizado y deposita el archivo ZIP en ambas carpetas automáticamente:
+            Para evitar el error <strong>401 (bloqueo de permisos institucionales del dominio de la universidad)</strong>, este script se ejecuta <strong>100% bajo tu cuenta personal de Gmail</strong> y guarda los archivos ZIP directamente en tu Drive Personal:
         </p>
         <div class="guide-steps">
             <div class="guide-step">
                 <span class="step-num">1</span>
-                <div>En tu navegador (con tu cuenta <code>echavarrialucas1986@gmail.com</code>), entrá a <a href="https://script.google.com/home/start" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline;">script.google.com</a> y hacé clic en <strong>"Nuevo proyecto"</strong>.</div>
+                <div>En una ventana de incógnito o navegador logueado <strong>únicamente en tu cuenta personal (<code>echavarrialucas1986@gmail.com</code>)</strong>, entrá a <a href="https://script.google.com/home/start" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline;">script.google.com</a> y hacé clic en <strong>"Nuevo proyecto"</strong>.</div>
             </div>
             <div class="guide-step">
                 <span class="step-num">2</span>
-                <div>Borrá el código que aparece, <strong>copiá y pegá el código de abajo</strong>, y hacé clic en el ícono de <strong>Guardar (💾)</strong>.</div>
+                <div>Borrá el código que aparece, <strong>copiá y pegá el código simplificado de abajo</strong>, y hacé clic en <strong>Guardar (💾)</strong>.</div>
             </div>
             <div class="guide-step">
                 <span class="step-num">3</span>
                 <div>Arriba a la derecha hacé clic en <strong>Implementar &gt; Nueva implementación</strong>. Seleccioná tipo: <strong>Aplicación web</strong>.<br>
-                - En <em>"Ejecutar como"</em>: <strong>Yo (tu cuenta)</strong>.<br>
-                - En <em>"Quién tiene acceso"</em>: <strong>Cualquier usuario</strong> (Anyone).</div>
+                - <em>"Ejecutar como"</em>: <strong>Yo (echavarrialucas1986@gmail.com)</strong>.<br>
+                - <em>"Quién tiene acceso"</em>: <strong>Cualquier usuario</strong> (Anyone).</div>
             </div>
             <div class="guide-step">
                 <span class="step-num">4</span>
-                <div>Hacé clic en <strong>Implementar</strong>, autorizá los permisos y <strong>copiá la URL de la aplicación web</strong> (termina en <code>/exec</code>). Pegala en el campo <em>"URL de Google Apps Script"</em> abajo.</div>
+                <div>Hacé clic en <strong>Implementar</strong>, autorizá los permisos (en el aviso hacé clic en <em>Avanzado &gt; Ir a proyecto (no seguro) &gt; Permitir</em>) y <strong>copiá la URL de la aplicación web</strong> (termina en <code>/exec</code>). Pegala en el campo de abajo.</div>
             </div>
         </div>
 
         <div class="code-container">
-            <button type="button" class="btn-copy" onclick="copiarCodigoAppsScript()">📋 Copiar Código</button>
-            <pre id="codigo-apps-script">// Google Apps Script para recibir el respaldo y guardarlo en ambas carpetas de Drive
+            <button type="button" class="btn-copy" onclick="copiarCodigoAppsScript()">📋 Copiar Código Personal</button>
+            <pre id="codigo-apps-script">// Google Apps Script para guardar el respaldo en tu Google Drive Personal (Sin 401)
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var filename = data.filename || ("backup_congreso_" + Utilities.formatDate(new Date(), "GMT-3", "yyyyMMdd_HHmmss") + ".zip");
     var base64Data = data.base64;
     var carpetaPersonalId = data.carpeta_personal_id;
-    var carpetaInstitucionalId = data.carpeta_institucional_id;
     
     var decoded = Utilities.base64Decode(base64Data);
     var blob = Utilities.newBlob(decoded, "application/zip", filename);
     
-    var resultados = [];
-    
-    // 1. Guardar en Carpeta Personal
-    if (carpetaPersonalId) {
-      try {
-        var folderPers = DriveApp.getFolderById(carpetaPersonalId);
-        var filePers = folderPers.createFile(blob);
-        resultados.push("✓ Guardado en Drive Personal (" + filePers.getName() + ")");
-      } catch (errPers) {
-        resultados.push("✗ Error en Drive Personal: " + errPers.toString());
-      }
+    // Obtener la carpeta especificada o guardar en la raíz de tu Drive
+    var folder;
+    if (carpetaPersonalId && carpetaPersonalId.trim() !== "") {
+      folder = DriveApp.getFolderById(carpetaPersonalId.trim());
+    } else {
+      folder = DriveApp.getRootFolder();
     }
     
-    // 2. Guardar en Carpeta Institucional
-    if (carpetaInstitucionalId) {
-      try {
-        var folderInst = DriveApp.getFolderById(carpetaInstitucionalId);
-        var fileInst = folderInst.createFile(blob);
-        resultados.push("✓ Guardado en Drive Institucional (" + fileInst.getName() + ")");
-      } catch (errInst) {
-        resultados.push("✗ Error en Drive Institucional: " + errInst.toString());
-      }
-    }
+    var file = folder.createFile(blob);
     
     return ContentService.createTextOutput(JSON.stringify({
       status: "ok",
-      mensaje: resultados.join("\n")
+      mensaje: "✓ Guardado con éxito en tu Google Drive Personal (" + file.getName() + ")"
     })).setMimeType(ContentService.MimeType.JSON);
     
-  } catch (errGlobal) {
+  } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({
       status: "error",
-      mensaje: errGlobal.toString()
+      mensaje: err.toString()
     })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 function doGet(e) {
-  return ContentService.createTextOutput("Webhook de Respaldo Congreso UNAB activo.");
+  return ContentService.createTextOutput("Webhook de Respaldo Personal UNAB activo.");
 }</pre>
         </div>
     </div>
@@ -523,29 +496,21 @@ function doGet(e) {
             </label>
         </div>
 
-        <!-- SECCIÓN 1: GOOGLE DRIVE (VÍA APPS SCRIPT) -->
+        <!-- SECCIÓN 1: GOOGLE DRIVE PERSONAL -->
         <div class="section-title">
-            <span>📁 1. Configuración de Google Drive (Apps Script Webhook)</span>
+            <span>📁 1. Configuración de Google Drive Personal (Apps Script Webhook)</span>
         </div>
 
         <div class="form-group">
             <label for="id_apps_script_url">URL de Google Apps Script (Webhook):</label>
             <input type="url" id="id_apps_script_url" name="apps_script_url" class="form-input" value="{{ config.apps_script_url }}" placeholder="https://script.google.com/macros/s/AKfycb.../exec" />
-            <span class="form-help">Pegá aquí la URL que te dio Apps Script al implementar la aplicación web (debe terminar en <code>/exec</code>).</span>
+            <span class="form-help">Pegá aquí la URL generada al implementar la aplicación web desde tu cuenta personal (debe terminar en <code>/exec</code>).</span>
         </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label for="id_carpeta_personal">ID o Link de Carpeta Drive Personal:</label>
-                <input type="text" id="id_carpeta_personal" name="carpeta_personal_id" class="form-input" value="{{ config.carpeta_personal_id }}" placeholder="https://drive.google.com/drive/folders/1AbCdEf..." />
-                <span class="form-help">Link de tu carpeta en <code>echavarrialucas1986@gmail.com</code>.</span>
-            </div>
-
-            <div class="form-group">
-                <label for="id_carpeta_institucional">ID o Link de Carpeta Drive Institucional:</label>
-                <input type="text" id="id_carpeta_institucional" name="carpeta_institucional_id" class="form-input" value="{{ config.carpeta_institucional_id }}" placeholder="https://drive.google.com/drive/folders/1XyZ..." />
-                <span class="form-help">Link de la carpeta compartida de <code>congresologisticaytransporte@unab.edu.ar</code>.</span>
-            </div>
+        <div class="form-group">
+            <label for="id_carpeta_personal">ID o Link de Carpeta en tu Drive Personal:</label>
+            <input type="text" id="id_carpeta_personal" name="carpeta_personal_id" class="form-input" value="{{ config.carpeta_personal_id }}" placeholder="https://drive.google.com/drive/folders/1AbCdEf..." />
+            <span class="form-help">Link o ID de la carpeta en <code>echavarrialucas1986@gmail.com</code> (opcional, si lo dejás vacío se guarda en la raíz de tu Drive).</span>
         </div>
 
         <!-- SECCIÓN 2: RESPALDO POR EMAIL ADJUNTO -->
@@ -556,33 +521,35 @@ function doGet(e) {
         <div class="form-group">
             <label class="form-switch">
                 <input type="checkbox" name="enviar_por_email" {% if config.enviar_por_email %}checked{% endif %}>
-                <span>¿Enviar también copia del paquete ZIP adjunto a los correos en cada corte?</span>
+                <span>¿Enviar también copia del paquete ZIP adjunto a tu correo personal en cada corte?</span>
             </label>
         </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label for="id_email_personal">Email Personal:</label>
-                <input type="email" id="id_email_personal" name="email_personal" class="form-input" value="{{ config.email_personal|default:'echavarrialucas1986@gmail.com' }}" />
-                <span class="form-help">Recibe el ZIP adjunto (podés guardarlo en Drive con un clic en Gmail).</span>
-            </div>
-
-            <div class="form-group">
-                <label for="id_email_institucional">Email Institucional UNaB:</label>
-                <input type="email" id="id_email_institucional" name="email_institucional" class="form-input" value="{{ config.email_institucional|default:'congresologisticaytransporte@unab.edu.ar' }}" />
-                <span class="form-help">Recibe copia del ZIP adjunto para auditoría institucional.</span>
-            </div>
+        <div class="form-group">
+            <label for="id_email_personal">Email Personal de Respaldo:</label>
+            <input type="email" id="id_email_personal" name="email_personal" class="form-input" value="{{ config.email_personal|default:'echavarrialucas1986@gmail.com' }}" />
+            <span class="form-help">Recibe el ZIP adjunto (podés guardarlo en Drive con un solo clic desde Gmail).</span>
         </div>
 
-        <!-- SECCIÓN 3: ALTERNATIVA GOOGLE CLOUD SERVICE ACCOUNT (OPCIONAL) -->
+        <!-- SECCIÓN 3: OPCIONES AVANZADAS (OPCIONAL) -->
         <details style="margin-top: 15px; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 12px 16px; border: 1px solid rgba(255,255,255,0.06);">
             <summary style="font-size: 12px; color: var(--text-secondary); cursor: pointer; font-weight: 700;">
-                ⚙️ Opcional: Usar Google Cloud Service Account JSON en lugar de Apps Script
+                ⚙️ Opciones Institucionales / Service Account (Opcional)
             </summary>
-            <div class="form-group" style="margin-top: 15px;">
-                <label for="id_service_account_json">Google Service Account JSON:</label>
+            <div style="margin-top: 12px; font-size: 12px; color: #94a3b8;">
+                Si en el futuro tu institución habilita permisos externos en Workspace, podés configurar aquí la carpeta institucional o la cuenta de servicio de Google Cloud:
+            </div>
+            <div class="form-group" style="margin-top: 12px;">
+                <label for="id_carpeta_institucional">ID o Link Carpeta Institucional (Opcional):</label>
+                <input type="text" id="id_carpeta_institucional" name="carpeta_institucional_id" class="form-input" value="{{ config.carpeta_institucional_id }}" placeholder="https://drive.google.com/drive/folders/..." />
+            </div>
+            <div class="form-group">
+                <label for="id_email_institucional">Email Institucional de Respaldo (Opcional):</label>
+                <input type="email" id="id_email_institucional" name="email_institucional" class="form-input" value="{{ config.email_institucional }}" placeholder="congresologisticaytransporte@unab.edu.ar" />
+            </div>
+            <div class="form-group">
+                <label for="id_service_account_json">Google Service Account JSON (Opcional):</label>
                 <textarea id="id_service_account_json" name="service_account_json" class="form-textarea" placeholder='{"type": "service_account", ...}'>{{ config.service_account_json }}</textarea>
-                <span class="form-help">Solo necesario si preferís usar una cuenta de servicio de Google Cloud en vez del webhook de Apps Script.</span>
             </div>
         </details>
 

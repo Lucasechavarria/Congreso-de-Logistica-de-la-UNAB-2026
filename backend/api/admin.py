@@ -821,23 +821,49 @@ def gdrive_backup_view(request):
     if request.method == 'POST':
         accion = request.POST.get('accion')
         config.activo = 'activo' in request.POST
-        config.service_account_json = request.POST.get('service_account_json', '').strip()
+        config.apps_script_url = request.POST.get('apps_script_url', '').strip()
         config.carpeta_personal_id = request.POST.get('carpeta_personal_id', '').strip()
         config.carpeta_institucional_id = request.POST.get('carpeta_institucional_id', '').strip()
+        config.enviar_por_email = 'enviar_por_email' in request.POST
+        config.email_personal = request.POST.get('email_personal', '').strip()
+        config.email_institucional = request.POST.get('email_institucional', '').strip()
+        config.service_account_json = request.POST.get('service_account_json', '').strip()
         config.save()
 
         if accion == 'probar_y_subir':
             res = ejecutar_backup_completo()
-            if res.get('status') == 'ok':
-                messages.success(request, f"¡Respaldo dual generado exitosamente! Archivo: {res.get('archivo')}")
+            partes_ok = []
+            if res.get('drive_personal'):
+                partes_ok.append("Google Drive Personal")
+            elif res.get('drive_institucional'):
+                partes_ok.append("Google Drive Institucional")
+
+            if res.get('emails_enviados'):
+                partes_ok.append(f"Email a {', '.join(res.get('emails_enviados'))}")
+
+            if partes_ok:
+                messages.success(request, f"¡Respaldo generado y entregado exitosamente vía {', '.join(partes_ok)}! Archivo: {res.get('archivo')}")
             else:
-                messages.warning(request, f"Respaldo finalizado con observaciones: {res.get('message', '')}")
+                messages.warning(request, f"✓ Archivo ZIP generado localmente ({res.get('archivo')}), pero no se envió a ningún destino remoto. Revisá la configuración abajo.")
         else:
-            messages.success(request, "Configuración de Google Drive guardada exitosamente.")
+            messages.success(request, "Configuración guardada exitosamente.")
 
         return redirect('admin:admin-gdrive-backup')
 
-    return render(request, 'admin/gdrive_backup_admin.html', {'config': config})
+    service_account_email = None
+    if config.service_account_json and config.service_account_json.strip():
+        try:
+            creds = json.loads(config.service_account_json.strip())
+            service_account_email = creds.get('client_email')
+        except Exception:
+            service_account_email = 'JSON inválido (verificá el formato)'
+
+    context = {
+        'config': config,
+        'service_account_email': service_account_email,
+    }
+    return render(request, 'admin/gdrive_backup_admin.html', context)
+
 
 
 def patch_admin_urls():

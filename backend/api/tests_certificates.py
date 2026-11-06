@@ -728,6 +728,64 @@ class GDriveBackupAndShieldingTests(TestCase):
         self.assertIn(6, cron_s6.hour)
         self.assertIn(7, cron_s6.day_of_month)
 
+    @patch('requests.post')
+    def test_subir_via_apps_script_mocked(self, mock_post):
+        """
+        Valida que subir_via_apps_script convierta el zip a base64 y haga POST al webhook de Apps Script.
+        """
+        import os
+        from django.conf import settings
+        from api.gdrive_backup_service import subir_via_apps_script
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            'status': 'ok',
+            'mensaje': '✓ Guardado en Drive Personal y Drive Institucional'
+        }
+        mock_post.return_value = mock_resp
+
+        temp_file = os.path.join(settings.BASE_DIR, 'test_dummy_appsscript.zip')
+        with open(temp_file, 'wb') as f:
+            f.write(b"PK\x05\x06" + b"\x00" * 18)
+
+        try:
+            res = subir_via_apps_script(
+                temp_file,
+                "https://script.google.com/macros/s/fake/exec",
+                "folder_pers_123",
+                "folder_inst_456"
+            )
+            self.assertTrue(res.get('success'))
+            self.assertTrue(mock_post.called)
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_enviar_backup_por_email_mocked(self, mock_send):
+        """
+        Valida que enviar_backup_por_email adjunte el zip y envíe el correo a ambas casillas.
+        """
+        import os
+        from django.conf import settings
+        from api.gdrive_backup_service import enviar_backup_por_email
+
+        mock_send.return_value = True
+        temp_file = os.path.join(settings.BASE_DIR, 'test_dummy_email.zip')
+        with open(temp_file, 'wb') as f:
+            f.write(b"PK\x05\x06" + b"\x00" * 18)
+
+        try:
+            destinos = ['echavarrialucas1986@gmail.com', 'congresologisticaytransporte@unab.edu.ar']
+            logs = enviar_backup_por_email(temp_file, 'test_dummy_email.zip', destinos)
+            self.assertEqual(len(logs), 2)
+            self.assertEqual(mock_send.call_count, 2)
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+
+
 
 
 

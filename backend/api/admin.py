@@ -821,24 +821,33 @@ def gdrive_backup_view(request):
     if request.method == 'POST':
         accion = request.POST.get('accion')
         config.activo = 'activo' in request.POST
-        config.service_account_json = request.POST.get('service_account_json', '').strip()
+        config.apps_script_url = request.POST.get('apps_script_url', '').strip()
         config.carpeta_personal_id = request.POST.get('carpeta_personal_id', '').strip()
         config.carpeta_institucional_id = request.POST.get('carpeta_institucional_id', '').strip()
+        config.enviar_por_email = 'enviar_por_email' in request.POST
+        config.email_personal = request.POST.get('email_personal', '').strip()
+        config.email_institucional = request.POST.get('email_institucional', '').strip()
+        config.service_account_json = request.POST.get('service_account_json', '').strip()
         config.save()
 
         if accion == 'probar_y_subir':
             res = ejecutar_backup_completo()
+            partes_ok = []
             if res.get('drive_personal') and res.get('drive_institucional'):
-                messages.success(request, f"¡Respaldo dual completado con éxito! Subido a Drive Personal e Institucional. Archivo: {res.get('archivo')}")
+                partes_ok.append("Google Drive (Personal e Institucional)")
             elif res.get('drive_personal') or res.get('drive_institucional'):
-                destino = "Personal" if res.get('drive_personal') else "Institucional"
-                messages.warning(request, f"✓ Respaldo subido a Drive {destino}. Revisá el reporte para el otro destino.")
-            elif not config.service_account_json:
-                messages.warning(request, f"✓ Archivo ZIP generado localmente ({res.get('archivo')}), pero NO se subió a Google Drive porque falta el JSON de la Cuenta de Servicio.")
+                dest = "Drive Personal" if res.get('drive_personal') else "Drive Institucional"
+                partes_ok.append(dest)
+
+            if res.get('emails_enviados'):
+                partes_ok.append(f"Email a {len(res.get('emails_enviados'))} casilla(s)")
+
+            if partes_ok:
+                messages.success(request, f"¡Respaldo generado y entregado exitosamente vía {', '.join(partes_ok)}! Archivo: {res.get('archivo')}")
             else:
-                messages.error(request, f"Se generó el ZIP local ({res.get('archivo')}) pero falló la conexión con Google Drive. Revisá el reporte abajo.")
+                messages.warning(request, f"✓ Archivo ZIP generado localmente ({res.get('archivo')}), pero no se envió a ningún destino remoto. Revisá la configuración abajo.")
         else:
-            messages.success(request, "Configuración de Google Drive guardada exitosamente.")
+            messages.success(request, "Configuración guardada exitosamente.")
 
         return redirect('admin:admin-gdrive-backup')
 

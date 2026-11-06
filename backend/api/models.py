@@ -746,7 +746,34 @@ class ConfiguracionBackupDrive(models.Model):
         help_text="ID o enlace de la carpeta compartida en tu Google Drive institucional."
     )
     
+    # Método alternativo sin Google Cloud: Webhook directo de Google Apps Script
+    apps_script_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        verbose_name="URL de Google Apps Script (Webhook)",
+        help_text="URL de la aplicación web de Google Apps Script (termina en /exec)."
+    )
+
+    # Respaldo redundante directo por Correo Electrónico
+    enviar_por_email = models.BooleanField(
+        default=True,
+        verbose_name="¿Enviar copia del archivo ZIP por email?",
+        help_text="Envía el archivo .zip comprimido directamente a las casillas personal e institucional en cada corte."
+    )
+    email_personal = models.EmailField(
+        blank=True,
+        default="echavarrialucas1986@gmail.com",
+        verbose_name="Email Personal para Respaldo"
+    )
+    email_institucional = models.EmailField(
+        blank=True,
+        default="congresologisticaytransporte@unab.edu.ar",
+        verbose_name="Email Institucional para Respaldo"
+    )
+    
     ultimo_respaldo_fecha = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Último Respaldo")
+
     ultimo_respaldo_archivo = models.CharField(max_length=255, blank=True, default="", verbose_name="Archivo del Último Respaldo")
     ultimo_respaldo_estado = models.TextField(blank=True, default="", verbose_name="Reporte / Estado del Último Respaldo")
 

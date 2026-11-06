@@ -191,4 +191,21 @@ def task_procesar_cola_certificados_lote(self, batch_size=10, forzar=False, dela
     }
 
 
+@shared_task(bind=True)
+def task_ejecutar_backup_dual_gdrive(self):
+    """
+    Tarea programada por Celery Beat para generar el respaldo dual y subirlo
+    a los Google Drive Personal e Institucional en los horarios estipulados.
+    """
+    from .gdrive_backup_service import ejecutar_backup_completo
+    try:
+        resultado = ejecutar_backup_completo()
+        logger.info(f"[BACKUP GDRIVE TASK] Ejecución finalizada: {resultado.get('status')} - {resultado.get('archivo')}")
+        return resultado
+    except Exception as exc:
+        logger.error(f"[BACKUP GDRIVE TASK] Error crítico ejecutando backup: {exc}")
+        return {'status': 'error', 'error': str(exc)}
+
+
+
 

@@ -271,35 +271,37 @@ except Exception:
 
 from celery.schedules import crontab
 
-# =================== RESPALDOS PROGRAMADOS GOOGLE DRIVE (CELERY BEAT) ===================
+# =================== RESPALDOS PROGRAMADOS DEL SISTEMA (CELERY BEAT) ===================
 # Zona horaria oficial del evento: America/Argentina/Buenos_Aires (GMT-3)
+# Envía el paquete .zip completo (Excel + JSON + SQL) por email a las casillas personal e institucional:
 # 1. Viernes 6 de Noviembre a las 23:59 hs
 # 2. Sábado 7 de Noviembre a las 06:00 hs
 # 3. Sábado 7 de Noviembre a las 10:00 hs
 # 4. Sábado 7 de Noviembre a las 14:00 hs
 # 5. Sábado 7 de Noviembre a las 18:00 hs
 CELERY_BEAT_SCHEDULE = {
-    'gdrive-backup-viernes-2359': {
-        'task': 'api.tasks.task_ejecutar_backup_dual_gdrive',
+    'respaldo-sistema-viernes-2359': {
+        'task': 'api.tasks.task_ejecutar_respaldo_programado',
         'schedule': crontab(minute=59, hour=23, day_of_month=6, month_of_year=11),
     },
-    'gdrive-backup-sabado-0600': {
-        'task': 'api.tasks.task_ejecutar_backup_dual_gdrive',
+    'respaldo-sistema-sabado-0600': {
+        'task': 'api.tasks.task_ejecutar_respaldo_programado',
         'schedule': crontab(minute=0, hour=6, day_of_month=7, month_of_year=11),
     },
-    'gdrive-backup-sabado-1000': {
-        'task': 'api.tasks.task_ejecutar_backup_dual_gdrive',
+    'respaldo-sistema-sabado-1000': {
+        'task': 'api.tasks.task_ejecutar_respaldo_programado',
         'schedule': crontab(minute=0, hour=10, day_of_month=7, month_of_year=11),
     },
-    'gdrive-backup-sabado-1400': {
-        'task': 'api.tasks.task_ejecutar_backup_dual_gdrive',
+    'respaldo-sistema-sabado-1400': {
+        'task': 'api.tasks.task_ejecutar_respaldo_programado',
         'schedule': crontab(minute=0, hour=14, day_of_month=7, month_of_year=11),
     },
-    'gdrive-backup-sabado-1800': {
-        'task': 'api.tasks.task_ejecutar_backup_dual_gdrive',
+    'respaldo-sistema-sabado-1800': {
+        'task': 'api.tasks.task_ejecutar_respaldo_programado',
         'schedule': crontab(minute=0, hour=18, day_of_month=7, month_of_year=11),
     },
 }
+
 
 
 # CORS settings

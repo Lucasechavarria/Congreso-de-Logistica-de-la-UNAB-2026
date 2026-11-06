@@ -13,7 +13,7 @@ import time
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail, ConfiguracionBackupDrive
+from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail, ConfiguracionRespaldo
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
@@ -383,66 +383,9 @@ export_to_excel_action.short_description = "📊 Exportar seleccionados a Excel 
 
 
 def backup_database_view(request):
-    """
-    Vista para descargar un backup completo de la base de datos en formato Excel (.xlsx).
-    Exporta cada modelo gestionado de las aplicaciones 'api' y 'bolsa_trabajo'
-    en una pestaña individual. Solo accesible para superusers.
-    """
-    if not request.user.is_superuser:
-        return HttpResponse("No autorizado.", status=403)
+    """Redirecciona al panel unificado de respaldos."""
+    return redirect('admin:admin-respaldos')
 
-    import io
-    import pandas as pd
-    from datetime import datetime
-    from django.apps import apps
-
-    try:
-        custom_apps = ['api', 'bolsa_trabajo']
-        models_to_export = []
-
-        for app_config in apps.get_app_configs():
-            if app_config.label in custom_apps:
-                for model in app_config.get_models():
-                    if model._meta.managed:
-                        models_to_export.append(model)
-
-        if not models_to_export:
-            messages.warning(request, "No se encontraron modelos para exportar.")
-            return redirect('admin:index')
-
-        output = io.BytesIO()
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"backup_congreso_{timestamp}.xlsx"
-
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:  # type: ignore
-            for model in models_to_export:
-                fields = [f.name for f in model._meta.fields]
-                queryset = model.objects.all()
-                data = list(queryset.values(*fields))
-
-                df = pd.DataFrame(data, columns=fields)
-
-                for col in df.columns:
-                    if isinstance(df[col].dtype, pd.DatetimeTZDtype):
-                        df[col] = df[col].dt.tz_localize(None)
-                    elif df[col].dtype == 'object':
-                        df[col] = df[col].apply(lambda x: x.replace(tzinfo=None) if hasattr(x, 'tzinfo') and x is not None else x)
-
-                sheet_name = model._meta.object_name[:31]
-                df.to_excel(writer, sheet_name=sheet_name, index=False)
-
-        output.seek(0)
-        response = HttpResponse(
-            output.getvalue(),
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
-
-    except Exception as e:
-        logger.error(f"Error en backup_database_view (.xlsx): {str(e)}", exc_info=True)
-        messages.error(request, f"Error generando backup en Excel: {str(e)}")
-        return redirect('admin:index')
 
 
 @admin.site.admin_view
@@ -804,66 +747,63 @@ def dashboard_api_view(request):
     })
 
 
-# Inyectar el dashboard en el Admin de Django
-def gdrive_backup_view(request):
+# Inyectar el dashboard y centro de respaldos en el Admin de Django
+def respaldos_admin_view(request):
     """
-    Vista de administración para configurar y probar los respaldos duales en Google Drive.
-    Solo accesible para administradores (staff / superuser).
+    Panel unificado para gestión de respaldos del sistema.
+    Permite:
+    1. Descargar al instante el paquete .zip completo (Excel + JSON + SQL).
+    2. Enviar de inmediato el respaldo por correo a las casillas personal e institucional.
+    3. Configurar las casillas de correo y habilitar/deshabilitar la programación en Celery Beat.
     """
     if not request.user.is_staff:
         raise PermissionDenied
 
-    from .models import ConfiguracionBackupDrive
-    from .gdrive_backup_service import ejecutar_backup_completo
+    from .models import ConfiguracionRespaldo
+    from .backup_service import generar_paquete_backup, ejecutar_respaldo_programado
 
-    config = ConfiguracionBackupDrive.get_solo()
+    config = ConfiguracionRespaldo.get_solo()
 
+    # 1. Descarga directa del ZIP al navegador
+    if request.GET.get('descargar') == 'zip':
+        try:
+            zip_path, zip_name, _ = generar_paquete_backup()
+            with open(zip_path, 'rb') as f:
+                content = f.read()
+            response = HttpResponse(content, content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{zip_name}"'
+            return response
+        except Exception as e:
+            logger.error(f"[RESPALDO] Error generando descarga directa: {e}")
+            messages.error(request, f"Error generando paquete de descarga: {e}")
+            return redirect('admin:admin-respaldos')
+
+    # 2. Acciones del formulario POST
     if request.method == 'POST':
         accion = request.POST.get('accion')
         config.activo = 'activo' in request.POST
-        config.apps_script_url = request.POST.get('apps_script_url', '').strip()
-        config.carpeta_personal_id = request.POST.get('carpeta_personal_id', '').strip()
-        config.carpeta_institucional_id = request.POST.get('carpeta_institucional_id', '').strip()
         config.enviar_por_email = 'enviar_por_email' in request.POST
         config.email_personal = request.POST.get('email_personal', '').strip()
         config.email_institucional = request.POST.get('email_institucional', '').strip()
-        config.service_account_json = request.POST.get('service_account_json', '').strip()
         config.save()
 
-        if accion == 'probar_y_subir':
-            res = ejecutar_backup_completo()
-            partes_ok = []
-            if res.get('drive_personal'):
-                partes_ok.append("Google Drive Personal")
-            elif res.get('drive_institucional'):
-                partes_ok.append("Google Drive Institucional")
-
+        if accion == 'enviar_ahora':
+            res = ejecutar_respaldo_programado()
             if res.get('emails_enviados'):
-                partes_ok.append(f"Email a {', '.join(res.get('emails_enviados'))}")
-
-            if partes_ok:
-                messages.success(request, f"¡Respaldo generado y entregado exitosamente vía {', '.join(partes_ok)}! Archivo: {res.get('archivo')}")
+                messages.success(request, f"¡Respaldo enviado exitosamente por email a: {', '.join(res.get('emails_enviados'))}! Archivo: {res.get('archivo')}")
             else:
-                messages.warning(request, f"✓ Archivo ZIP generado localmente ({res.get('archivo')}), pero no se envió a ningún destino remoto. Revisá la configuración abajo.")
+                messages.warning(request, f"✓ Archivo ZIP generado localmente ({res.get('archivo')}), pero no se envió ningún email. Revisá las casillas configuradas.")
         else:
-            messages.success(request, "Configuración guardada exitosamente.")
+            messages.success(request, "Configuración de respaldos guardada exitosamente.")
 
-        return redirect('admin:admin-gdrive-backup')
+        return redirect('admin:admin-respaldos')
 
-    service_account_email = None
-    if config.service_account_json and config.service_account_json.strip():
-        try:
-            creds = json.loads(config.service_account_json.strip())
-            service_account_email = creds.get('client_email')
-        except Exception:
-            service_account_email = 'JSON inválido (verificá el formato)'
+    return render(request, 'admin/respaldos_admin.html', {'config': config})
 
-    context = {
-        'config': config,
-        'service_account_email': service_account_email,
-    }
-    return render(request, 'admin/gdrive_backup_admin.html', context)
 
+def gdrive_backup_view(request):
+    """Redirecciona al panel unificado de respaldos."""
+    return redirect('admin:admin-respaldos')
 
 
 def patch_admin_urls():
@@ -875,6 +815,7 @@ def patch_admin_urls():
             path('dashboard/', admin.site.admin_view(admin_dashboard), name='admin-dashboard'),
             path('dashboard-api/', admin.site.admin_view(dashboard_api_view), name='admin-dashboard-api'),
             path('broadcast/', admin.site.admin_view(broadcast_view), name='admin-broadcast'),
+            path('respaldos/', admin.site.admin_view(respaldos_admin_view), name='admin-respaldos'),
             path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
             path('gdrive-backup/', admin.site.admin_view(gdrive_backup_view), name='admin-gdrive-backup'),
             path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
@@ -895,8 +836,7 @@ admin.site.index_title = format_html(
     'Admin Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Dashboard</a> | '
     '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a> | '
     '<a href="/admin/api/asistente/import-excel/" style="color: #4ade80; text-decoration: underline; font-weight: bold;">Carga Masiva Excel</a> | '
-    '<a href="/admin/backup-db/" style="color: #f87171; text-decoration: underline;">Backup DB</a> | '
-    '<a href="/admin/gdrive-backup/" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">☁️ Respaldo Drive</a> | '
+    '<a href="/admin/respaldos/" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">📦 Respaldos del Sistema</a> | '
     '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a> | '
     '<a href="/admin/manual-certificate/" style="color: #60a5fa; text-decoration: underline;">Certificado Manual</a> | '
     '<a href="/admin/corregir-asistencia-email/" style="color: #fca5a5; text-decoration: underline; font-weight: bold;">⚠️ Incidencias Asistencia / Email</a>'
@@ -905,15 +845,16 @@ admin.site.site_header = "Congreso Logística UNAB 2026 Admin"
 admin.site.site_title = "Panel Administrativo"
 
 
-@admin.register(ConfiguracionBackupDrive)
-class ConfiguracionBackupDriveAdmin(admin.ModelAdmin):
-    list_display = ('nombre_configuracion', 'activo', 'ultimo_respaldo_fecha', 'ultimo_respaldo_archivo')
+@admin.register(ConfiguracionRespaldo)
+class ConfiguracionRespaldoAdmin(admin.ModelAdmin):
+    list_display = ('nombre_configuracion', 'activo', 'email_personal', 'email_institucional', 'ultimo_respaldo_fecha', 'ultimo_respaldo_archivo')
 
     def changelist_view(self, request, extra_context=None):
-        return redirect('admin:admin-gdrive-backup')
+        return redirect('admin:admin-respaldos')
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        return redirect('admin:admin-gdrive-backup')
+        return redirect('admin:admin-respaldos')
+
 
 
 

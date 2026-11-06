@@ -628,7 +628,7 @@ class GDriveBackupAndShieldingTests(TestCase):
         """
         import zipfile
         import os
-        from api.gdrive_backup_service import generar_paquete_backup
+        from api.backup_service import generar_paquete_backup
 
         zip_path, zip_name, size_bytes = generar_paquete_backup()
         self.assertTrue(os.path.exists(zip_path))
@@ -646,55 +646,6 @@ class GDriveBackupAndShieldingTests(TestCase):
         if os.path.exists(zip_path):
             os.remove(zip_path)
 
-    @patch('googleapiclient.discovery.build')
-    def test_subir_archivo_a_gdrive_mocked(self, mock_build):
-        """
-        Valida que subir_archivo_a_gdrive llame correctamente a la API de Drive v3
-        pasando el parent folder ID y retorne el id del archivo subido.
-        """
-        import os
-        from django.conf import settings
-        from api.gdrive_backup_service import subir_archivo_a_gdrive
-
-        mock_service = MagicMock()
-        mock_files = MagicMock()
-        mock_create = MagicMock()
-        mock_create.execute.return_value = {
-            'id': 'file_id_drive_12345',
-            'webViewLink': 'https://drive.google.com/file/d/file_id_drive_12345'
-        }
-        mock_files.create.return_value = mock_create
-        mock_service.files.return_value = mock_files
-        mock_build.return_value = mock_service
-
-        fake_creds = {
-            "type": "service_account",
-            "project_id": "test-project",
-            "private_key_id": "fake_key_id",
-            "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0fake...\n-----END RSA PRIVATE KEY-----\n",
-            "client_email": "backup-bot@test.iam.gserviceaccount.com",
-            "token_uri": "https://oauth2.googleapis.com/token"
-        }
-
-        # Crear archivo temporal
-        temp_file = os.path.join(settings.BASE_DIR, 'test_dummy_backup.zip')
-        with open(temp_file, 'wb') as f:
-            f.write(b"PK\x05\x06" + b"\x00" * 18)
-
-        try:
-            with patch('google.oauth2.service_account.Credentials.from_service_account_info'):
-                resultado = subir_archivo_a_gdrive(temp_file, 'carpeta_personal_abc', fake_creds)
-                self.assertTrue(resultado.get('success'))
-                self.assertEqual(resultado.get('file_id'), 'file_id_drive_12345')
-        finally:
-            import gc
-            gc.collect()
-            try:
-                if os.path.exists(temp_file):
-                    os.remove(temp_file)
-            except Exception:
-                pass
-
     def test_celery_beat_schedule_five_slots_configured(self):
         """
         Valida que settings.CELERY_BEAT_SCHEDULE tenga registrados los 5 horarios exactos
@@ -706,61 +657,27 @@ class GDriveBackupAndShieldingTests(TestCase):
         sched = settings.CELERY_BEAT_SCHEDULE
 
         claves_esperadas = [
-            'gdrive-backup-viernes-2359',
-            'gdrive-backup-sabado-0600',
-            'gdrive-backup-sabado-1000',
-            'gdrive-backup-sabado-1400',
-            'gdrive-backup-sabado-1800',
+            'respaldo-sistema-viernes-2359',
+            'respaldo-sistema-sabado-0600',
+            'respaldo-sistema-sabado-1000',
+            'respaldo-sistema-sabado-1400',
+            'respaldo-sistema-sabado-1800',
         ]
         for k in claves_esperadas:
             self.assertIn(k, sched, f"Falta clave de cronograma {k} en CELERY_BEAT_SCHEDULE")
-            self.assertEqual(sched[k]['task'], 'api.tasks.task_ejecutar_backup_dual_gdrive')
+            self.assertEqual(sched[k]['task'], 'api.tasks.task_ejecutar_respaldo_programado')
 
         # Validar crontab específico de viernes 23:59
-        cron_v = sched['gdrive-backup-viernes-2359']['schedule']
+        cron_v = sched['respaldo-sistema-viernes-2359']['schedule']
         self.assertIn(59, cron_v.minute)
         self.assertIn(23, cron_v.hour)
         self.assertIn(6, cron_v.day_of_month)
 
         # Validar crontab de sábado 06:00
-        cron_s6 = sched['gdrive-backup-sabado-0600']['schedule']
+        cron_s6 = sched['respaldo-sistema-sabado-0600']['schedule']
         self.assertIn(0, cron_s6.minute)
         self.assertIn(6, cron_s6.hour)
         self.assertIn(7, cron_s6.day_of_month)
-
-    @patch('requests.post')
-    def test_subir_via_apps_script_mocked(self, mock_post):
-        """
-        Valida que subir_via_apps_script convierta el zip a base64 y haga POST al webhook de Apps Script.
-        """
-        import os
-        from django.conf import settings
-        from api.gdrive_backup_service import subir_via_apps_script
-
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            'status': 'ok',
-            'mensaje': '✓ Guardado en Drive Personal y Drive Institucional'
-        }
-        mock_post.return_value = mock_resp
-
-        temp_file = os.path.join(settings.BASE_DIR, 'test_dummy_appsscript.zip')
-        with open(temp_file, 'wb') as f:
-            f.write(b"PK\x05\x06" + b"\x00" * 18)
-
-        try:
-            res = subir_via_apps_script(
-                temp_file,
-                "https://script.google.com/macros/s/fake/exec",
-                "folder_pers_123",
-                "folder_inst_456"
-            )
-            self.assertTrue(res.get('success'))
-            self.assertTrue(mock_post.called)
-        finally:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
 
     @patch('django.core.mail.EmailMultiAlternatives.send')
     def test_enviar_backup_por_email_mocked(self, mock_send):
@@ -769,7 +686,7 @@ class GDriveBackupAndShieldingTests(TestCase):
         """
         import os
         from django.conf import settings
-        from api.gdrive_backup_service import enviar_backup_por_email
+        from api.backup_service import enviar_backup_por_email
 
         mock_send.return_value = True
         temp_file = os.path.join(settings.BASE_DIR, 'test_dummy_email.zip')
@@ -784,6 +701,47 @@ class GDriveBackupAndShieldingTests(TestCase):
         finally:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_ejecutar_respaldo_programado_actualiza_auditoria(self, mock_send):
+        """
+        Valida que ejecutar_respaldo_programado genere el zip, envíe email y actualice ConfiguracionRespaldo.
+        """
+        from api.models import ConfiguracionRespaldo
+        from api.backup_service import ejecutar_respaldo_programado
+
+        mock_send.return_value = True
+        config = ConfiguracionRespaldo.get_solo()
+        config.activo = True
+        config.enviar_por_email = True
+        config.email_personal = 'echavarrialucas1986@gmail.com'
+        config.email_institucional = 'congresologisticaytransporte@unab.edu.ar'
+        config.save()
+
+        resultado = ejecutar_respaldo_programado()
+        self.assertEqual(resultado.get('status'), 'ok')
+        self.assertTrue(resultado.get('ok'))
+        self.assertTrue(resultado.get('archivo').endswith('.zip'))
+
+        config.refresh_from_db()
+        self.assertIsNotNone(config.ultimo_respaldo_fecha)
+        self.assertEqual(config.ultimo_respaldo_archivo, resultado.get('archivo'))
+        self.assertIn("✓ Archivo local generado", config.ultimo_respaldo_estado)
+
+    def test_admin_respaldos_descarga_directa_zip(self):
+        """
+        Valida que el endpoint de admin /admin/respaldos/?descargar=zip retorne
+        el stream del archivo ZIP con los headers HTTP correctos.
+        """
+        from django.contrib.auth.models import User
+        admin_user, _ = User.objects.get_or_create(username='admin_respaldo_test', is_staff=True, is_superuser=True)
+        self.client.force_login(admin_user)
+
+        response = self.client.get('/admin/respaldos/?descargar=zip')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/zip')
+        self.assertIn('attachment; filename="backup_congreso_', response['Content-Disposition'])
+
 
 
 

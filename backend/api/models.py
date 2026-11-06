@@ -722,77 +722,28 @@ class LogEnvioEmail(models.Model):
         verbose_name_plural = "Logs de Envíos de Email"
 
 
-class ConfiguracionBackupDrive(models.Model):
-    nombre_configuracion = models.CharField(max_length=100, default="Respaldo Automático Google Drive", verbose_name="Nombre de Configuración")
+class ConfiguracionRespaldo(models.Model):
+    nombre_configuracion = models.CharField(max_length=100, default="Respaldos Automáticos del Sistema", verbose_name="Nombre de Configuración")
     activo = models.BooleanField(default=True, verbose_name="¿Respaldo Automático Activo?")
-    service_account_json = models.TextField(
-        blank=True,
-        default="",
-        verbose_name="JSON de Cuenta de Servicio (Google Service Account)",
-        help_text="Pegá aquí el contenido completo del archivo JSON de tu Service Account de Google Cloud."
-    )
-    carpeta_personal_id = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        verbose_name="ID o URL de Carpeta (Drive Personal)",
-        help_text="ID o enlace de la carpeta compartida en tu Google Drive personal."
-    )
-    carpeta_institucional_id = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        verbose_name="ID o URL de Carpeta (Drive Institucional UNaB)",
-        help_text="ID o enlace de la carpeta compartida en tu Google Drive institucional."
-    )
-    
-    # Método alternativo sin Google Cloud: Webhook directo de Google Apps Script
-    apps_script_url = models.URLField(
-        max_length=500,
-        blank=True,
-        default="",
-        verbose_name="URL de Google Apps Script (Webhook)",
-        help_text="URL de la aplicación web de Google Apps Script (termina en /exec)."
-    )
-
-    # Respaldo redundante directo por Correo Electrónico
-    enviar_por_email = models.BooleanField(
-        default=True,
-        verbose_name="¿Enviar copia del archivo ZIP por email?",
-        help_text="Envía el archivo .zip comprimido directamente a las casillas personal e institucional en cada corte."
-    )
     email_personal = models.EmailField(
-        blank=True,
         default="echavarrialucas1986@gmail.com",
         verbose_name="Email Personal para Respaldo"
     )
     email_institucional = models.EmailField(
-        blank=True,
-        default="",
-        verbose_name="Email Institucional para Respaldo (Opcional)"
+        default="congresologisticaytransporte@unab.edu.ar",
+        verbose_name="Email Institucional para Respaldo"
     )
+    enviar_por_email = models.BooleanField(
+        default=True,
+        verbose_name="¿Enviar respaldo (.zip) por email en cada corte?"
+    )
+    incluir_excel = models.BooleanField(default=True, verbose_name="Incluir Excel (.xlsx)")
+    incluir_json = models.BooleanField(default=True, verbose_name="Incluir Dump JSON (.json)")
+    incluir_sql = models.BooleanField(default=True, verbose_name="Incluir Snapshot SQL (.sql)")
 
-    
     ultimo_respaldo_fecha = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Último Respaldo")
-
     ultimo_respaldo_archivo = models.CharField(max_length=255, blank=True, default="", verbose_name="Archivo del Último Respaldo")
     ultimo_respaldo_estado = models.TextField(blank=True, default="", verbose_name="Reporte / Estado del Último Respaldo")
-
-    def clean_folder_id(self, val: str) -> str:
-        """Extrae el ID limpio si el usuario pegó la URL de Drive."""
-        if not val:
-            return ""
-        val = val.strip()
-        if "/folders/" in val:
-            parts = val.split("/folders/")
-            if len(parts) > 1:
-                return parts[1].split("?")[0].split("/")[0].strip()
-        return val
-
-    def save(self, *args, **kwargs):
-        self.carpeta_personal_id = self.clean_folder_id(self.carpeta_personal_id)
-        self.carpeta_institucional_id = self.clean_folder_id(self.carpeta_institucional_id)
-        super().save(*args, **kwargs)
 
     @classmethod
     def get_solo(cls):
@@ -804,8 +755,13 @@ class ConfiguracionBackupDrive(models.Model):
         return f"{self.nombre_configuracion} ({'Activo' if self.activo else 'Inactivo'})"
 
     class Meta:
-        verbose_name = "Configuración de Respaldo Google Drive"
-        verbose_name_plural = "☁️ Configuración de Respaldo Google Drive"
+        verbose_name = "Configuración de Respaldos del Sistema"
+        verbose_name_plural = "📦 Configuración de Respaldos del Sistema"
+
+
+# Alias de compatibilidad hacia atrás
+ConfiguracionBackupDrive = ConfiguracionRespaldo
+
 
 
 

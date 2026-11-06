@@ -722,4 +722,62 @@ class LogEnvioEmail(models.Model):
         verbose_name_plural = "Logs de Envíos de Email"
 
 
+class ConfiguracionBackupDrive(models.Model):
+    nombre_configuracion = models.CharField(max_length=100, default="Respaldo Automático Google Drive", verbose_name="Nombre de Configuración")
+    activo = models.BooleanField(default=True, verbose_name="¿Respaldo Automático Activo?")
+    service_account_json = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="JSON de Cuenta de Servicio (Google Service Account)",
+        help_text="Pegá aquí el contenido completo del archivo JSON de tu Service Account de Google Cloud."
+    )
+    carpeta_personal_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="ID o URL de Carpeta (Drive Personal)",
+        help_text="ID o enlace de la carpeta compartida en tu Google Drive personal."
+    )
+    carpeta_institucional_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="ID o URL de Carpeta (Drive Institucional UNaB)",
+        help_text="ID o enlace de la carpeta compartida en tu Google Drive institucional."
+    )
+    
+    ultimo_respaldo_fecha = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Último Respaldo")
+    ultimo_respaldo_archivo = models.CharField(max_length=255, blank=True, default="", verbose_name="Archivo del Último Respaldo")
+    ultimo_respaldo_estado = models.TextField(blank=True, default="", verbose_name="Reporte / Estado del Último Respaldo")
+
+    def clean_folder_id(self, val: str) -> str:
+        """Extrae el ID limpio si el usuario pegó la URL de Drive."""
+        if not val:
+            return ""
+        val = val.strip()
+        if "/folders/" in val:
+            parts = val.split("/folders/")
+            if len(parts) > 1:
+                return parts[1].split("?")[0].split("/")[0].strip()
+        return val
+
+    def save(self, *args, **kwargs):
+        self.carpeta_personal_id = self.clean_folder_id(self.carpeta_personal_id)
+        self.carpeta_institucional_id = self.clean_folder_id(self.carpeta_institucional_id)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls):
+        """Retorna la única instancia de configuración, creándola si no existe."""
+        obj, _ = cls.objects.get_or_create(id=1)
+        return obj
+
+    def __str__(self):
+        return f"{self.nombre_configuracion} ({'Activo' if self.activo else 'Inactivo'})"
+
+    class Meta:
+        verbose_name = "Configuración de Respaldo Google Drive"
+        verbose_name_plural = "☁️ Configuración de Respaldo Google Drive"
+
+
 

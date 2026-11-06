@@ -13,7 +13,7 @@ import time
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail
+from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail, ConfiguracionBackupDrive
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
@@ -805,6 +805,41 @@ def dashboard_api_view(request):
 
 
 # Inyectar el dashboard en el Admin de Django
+def gdrive_backup_view(request):
+    """
+    Vista de administración para configurar y probar los respaldos duales en Google Drive.
+    Solo accesible para administradores (staff / superuser).
+    """
+    if not request.user.is_staff:
+        raise PermissionDenied
+
+    from .models import ConfiguracionBackupDrive
+    from .gdrive_backup_service import ejecutar_backup_completo
+
+    config = ConfiguracionBackupDrive.get_solo()
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        config.activo = 'activo' in request.POST
+        config.service_account_json = request.POST.get('service_account_json', '').strip()
+        config.carpeta_personal_id = request.POST.get('carpeta_personal_id', '').strip()
+        config.carpeta_institucional_id = request.POST.get('carpeta_institucional_id', '').strip()
+        config.save()
+
+        if accion == 'probar_y_subir':
+            res = ejecutar_backup_completo()
+            if res.get('status') == 'ok':
+                messages.success(request, f"¡Respaldo dual generado exitosamente! Archivo: {res.get('archivo')}")
+            else:
+                messages.warning(request, f"Respaldo finalizado con observaciones: {res.get('message', '')}")
+        else:
+            messages.success(request, "Configuración de Google Drive guardada exitosamente.")
+
+        return redirect('admin:admin-gdrive-backup')
+
+    return render(request, 'admin/gdrive_backup_admin.html', {'config': config})
+
+
 def patch_admin_urls():
     original_get_urls = admin.site.get_urls
 
@@ -815,6 +850,7 @@ def patch_admin_urls():
             path('dashboard-api/', admin.site.admin_view(dashboard_api_view), name='admin-dashboard-api'),
             path('broadcast/', admin.site.admin_view(broadcast_view), name='admin-broadcast'),
             path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
+            path('gdrive-backup/', admin.site.admin_view(gdrive_backup_view), name='admin-gdrive-backup'),
             path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
             path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
             path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
@@ -834,12 +870,25 @@ admin.site.index_title = format_html(
     '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a> | '
     '<a href="/admin/api/asistente/import-excel/" style="color: #4ade80; text-decoration: underline; font-weight: bold;">Carga Masiva Excel</a> | '
     '<a href="/admin/backup-db/" style="color: #f87171; text-decoration: underline;">Backup DB</a> | '
+    '<a href="/admin/gdrive-backup/" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">☁️ Respaldo Drive</a> | '
     '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a> | '
     '<a href="/admin/manual-certificate/" style="color: #60a5fa; text-decoration: underline;">Certificado Manual</a> | '
     '<a href="/admin/corregir-asistencia-email/" style="color: #fca5a5; text-decoration: underline; font-weight: bold;">⚠️ Incidencias Asistencia / Email</a>'
 )
 admin.site.site_header = "Congreso Logística UNAB 2026 Admin"
 admin.site.site_title = "Panel Administrativo"
+
+
+@admin.register(ConfiguracionBackupDrive)
+class ConfiguracionBackupDriveAdmin(admin.ModelAdmin):
+    list_display = ('nombre_configuracion', 'activo', 'ultimo_respaldo_fecha', 'ultimo_respaldo_archivo')
+
+    def changelist_view(self, request, extra_context=None):
+        return redirect('admin:admin-gdrive-backup')
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        return redirect('admin:admin-gdrive-backup')
+
 
 
 

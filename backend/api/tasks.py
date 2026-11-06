@@ -135,3 +135,60 @@ def task_enviar_confirmacion_asistencia(self, asistente_id, inscripcion_id=None)
         self.retry(exc=exc)
 
 
+@shared_task(bind=True)
+def task_procesar_cola_certificados_lote(self, batch_size=10, forzar=False, delay_seconds=2):
+    """
+    Procesa un lote controlado de certificados pendientes para emisión y envío.
+    Regla de seguridad: Si forzar=False, bloquea el envío antes de las 18:00 hs (hora oficial Argentina GMT-3).
+    Aplica una pausa configurable entre envíos para proteger CPU de Pillow y SMTP.
+    """
+    ahora_local = timezone.localtime(timezone.now())
+    if not forzar and ahora_local.hour < 18:
+        msg = f"Envío bloqueado preventivamente: La hora actual ({ahora_local.strftime('%H:%M:%S')}) es anterior a las 18:00 hs oficial."
+        logger.warning(f"[CERTIFICADOS BATCH] {msg}")
+        return {
+            'status': 'blocked_by_time',
+            'message': msg,
+            'processed': 0,
+            'errors': 0,
+            'remaining': Certificado.objects.filter(email_enviado=False).count(),
+            'logs': [msg]
+        }
+
+    certificados = list(Certificado.objects.filter(email_enviado=False).order_by('id')[:batch_size])
+    logs = []
+    processed = 0
+    errors = 0
+
+    logger.info(f"[CERTIFICADOS BATCH] Iniciando procesamiento de lote ({len(certificados)} certificados, delay={delay_seconds}s)...")
+
+    for cert in certificados:
+        destinatario = getattr(cert.asistente, 'email', '') or f"Asistente #{cert.asistente_id}"
+        try:
+            result = send_certificate_email(cert)
+            success = result[0] if isinstance(result, tuple) else bool(result)
+            if success:
+                logs.append(f"✓ Certificado enviado con éxito a {destinatario}")
+                processed += 1
+            else:
+                motivo = result[1] if isinstance(result, tuple) and len(result) > 1 else "Error en el transporte SMTP"
+                logs.append(f"✗ Error al enviar a {destinatario}: {motivo}")
+                errors += 1
+        except Exception as e:
+            logs.append(f"✗ Excepción con {destinatario}: {str(e)}")
+            errors += 1
+
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
+
+    remaining = Certificado.objects.filter(email_enviado=False).count()
+    return {
+        'status': 'ok',
+        'processed': processed,
+        'errors': errors,
+        'remaining': remaining,
+        'logs': logs
+    }
+
+
+

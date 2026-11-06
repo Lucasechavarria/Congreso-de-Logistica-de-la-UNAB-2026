@@ -1,10 +1,13 @@
 import logging
+import time
 from celery import shared_task
-from .models import Asistente, Certificado
+from django.utils import timezone
+from .models import Asistente, Certificado, Inscripcion
 from .email import (
     send_individual_confirmation_email,
     send_group_confirmation_emails,
     send_certificate_email,
+    send_attendance_confirmation_email,
     send_admin_email_failure_alert
 )
 
@@ -103,3 +106,32 @@ def task_generar_y_enviar_certificado(self, certificado_id):
         if self.request.retries >= self.max_retries or is_eager:
             return False
         self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def task_enviar_confirmacion_asistencia(self, asistente_id, inscripcion_id=None):
+    """
+    Envía de forma asíncrona el email institucional de confirmación de asistencia
+    al momento en que el participante se acredita (check-in QR o DNI).
+    """
+    try:
+        asistente = Asistente.objects.get(id=asistente_id)
+        inscripcion = None
+        if inscripcion_id:
+            try:
+                inscripcion = Inscripcion.objects.get(id=inscripcion_id)
+            except Inscripcion.DoesNotExist:
+                pass
+        success = send_attendance_confirmation_email(asistente, inscripcion)
+        if not success:
+            raise Exception("No se pudo entregar el correo de confirmación de asistencia.")
+        logger.info(f"[SUCCESS] Confirmación de asistencia enviada a {asistente.email}")
+        return True
+    except Exception as exc:
+        logger.error(f"[ERROR] Falló el envío de confirmación de asistencia para asistente {asistente_id}: {exc}")
+        is_eager = getattr(self.request, 'is_eager', False)
+        if self.request.retries >= self.max_retries or is_eager:
+            return False
+        self.retry(exc=exc)
+
+

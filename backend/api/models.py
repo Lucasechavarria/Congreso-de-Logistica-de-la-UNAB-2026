@@ -529,13 +529,10 @@ class Certificado(models.Model):
             bg_name = 'Certificados-congreso-2026.png'
             
         bg_path = os.path.join(settings.BASE_DIR, 'certificates', bg_name)
+        target_path = bg_path if os.path.exists(bg_path) else os.path.join(settings.BASE_DIR, 'certificates', 'Certificados-congreso.png')
         
-        try:
-            img = Image.open(bg_path).convert("RGB")
-        except FileNotFoundError:
-            # Fallback al original si no existe el nuevo
-            bg_path_old = os.path.join(settings.BASE_DIR, 'certificates', 'Certificados-congreso.png')
-            img = Image.open(bg_path_old).convert("RGB")
+        with Image.open(target_path) as base_img:
+            img = base_img.convert("RGB")
 
         draw = ImageDraw.Draw(img)
 
@@ -582,6 +579,7 @@ class Certificado(models.Model):
         # Convertir la imagen a PDF en memoria
         buffer = BytesIO()
         img.save(buffer, format="PDF", resolution=100.0)
+        img.close()
         buffer.seek(0)
         
         if save:
@@ -722,4 +720,6 @@ class LogEnvioEmail(models.Model):
         ordering = ['-fecha_envio']
         verbose_name = "Log de Envío de Email"
         verbose_name_plural = "Logs de Envíos de Email"
+
+
 

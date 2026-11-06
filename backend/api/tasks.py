@@ -1,10 +1,13 @@
 import logging
+import time
 from celery import shared_task
-from .models import Asistente, Certificado
+from django.utils import timezone
+from .models import Asistente, Certificado, Inscripcion
 from .email import (
     send_individual_confirmation_email,
     send_group_confirmation_emails,
     send_certificate_email,
+    send_attendance_confirmation_email,
     send_admin_email_failure_alert
 )
 
@@ -103,3 +106,106 @@ def task_generar_y_enviar_certificado(self, certificado_id):
         if self.request.retries >= self.max_retries or is_eager:
             return False
         self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def task_enviar_confirmacion_asistencia(self, asistente_id, inscripcion_id=None):
+    """
+    Envía de forma asíncrona el email institucional de confirmación de asistencia
+    al momento en que el participante se acredita (check-in QR o DNI).
+    """
+    try:
+        asistente = Asistente.objects.get(id=asistente_id)
+        inscripcion = None
+        if inscripcion_id:
+            try:
+                inscripcion = Inscripcion.objects.get(id=inscripcion_id)
+            except Inscripcion.DoesNotExist:
+                pass
+        success = send_attendance_confirmation_email(asistente, inscripcion)
+        if not success:
+            raise Exception("No se pudo entregar el correo de confirmación de asistencia.")
+        logger.info(f"[SUCCESS] Confirmación de asistencia enviada a {asistente.email}")
+        return True
+    except Exception as exc:
+        logger.error(f"[ERROR] Falló el envío de confirmación de asistencia para asistente {asistente_id}: {exc}")
+        is_eager = getattr(self.request, 'is_eager', False)
+        if self.request.retries >= self.max_retries or is_eager:
+            return False
+        self.retry(exc=exc)
+
+
+@shared_task(bind=True)
+def task_procesar_cola_certificados_lote(self, batch_size=10, forzar=False, delay_seconds=2):
+    """
+    Procesa un lote controlado de certificados pendientes para emisión y envío.
+    Regla de seguridad: Si forzar=False, bloquea el envío antes de las 18:00 hs (hora oficial Argentina GMT-3).
+    Aplica una pausa configurable entre envíos para proteger CPU de Pillow y SMTP.
+    """
+    ahora_local = timezone.localtime(timezone.now())
+    if not forzar and ahora_local.hour < 18:
+        msg = f"Envío bloqueado preventivamente: La hora actual ({ahora_local.strftime('%H:%M:%S')}) es anterior a las 18:00 hs oficial."
+        logger.warning(f"[CERTIFICADOS BATCH] {msg}")
+        return {
+            'status': 'blocked_by_time',
+            'message': msg,
+            'processed': 0,
+            'errors': 0,
+            'remaining': Certificado.objects.filter(email_enviado=False).count(),
+            'logs': [msg]
+        }
+
+    certificados = list(Certificado.objects.filter(email_enviado=False).order_by('id')[:batch_size])
+    logs = []
+    processed = 0
+    errors = 0
+
+    logger.info(f"[CERTIFICADOS BATCH] Iniciando procesamiento de lote ({len(certificados)} certificados, delay={delay_seconds}s)...")
+
+    for cert in certificados:
+        destinatario = getattr(cert.asistente, 'email', '') or f"Asistente #{cert.asistente_id}"
+        try:
+            result = send_certificate_email(cert)
+            success = result[0] if isinstance(result, tuple) else bool(result)
+            if success:
+                logs.append(f"✓ Certificado enviado con éxito a {destinatario}")
+                processed += 1
+            else:
+                motivo = result[1] if isinstance(result, tuple) and len(result) > 1 else "Error en el transporte SMTP"
+                logs.append(f"✗ Error al enviar a {destinatario}: {motivo}")
+                errors += 1
+        except Exception as e:
+            logs.append(f"✗ Excepción con {destinatario}: {str(e)}")
+            errors += 1
+
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
+
+    remaining = Certificado.objects.filter(email_enviado=False).count()
+    return {
+        'status': 'ok',
+        'processed': processed,
+        'errors': errors,
+        'remaining': remaining,
+        'logs': logs
+    }
+
+
+@shared_task(bind=True)
+def task_ejecutar_backup_dual_gdrive(self):
+    """
+    Tarea programada por Celery Beat para generar el respaldo dual y subirlo
+    a los Google Drive Personal e Institucional en los horarios estipulados.
+    """
+    from .gdrive_backup_service import ejecutar_backup_completo
+    try:
+        resultado = ejecutar_backup_completo()
+        logger.info(f"[BACKUP GDRIVE TASK] Ejecución finalizada: {resultado.get('status')} - {resultado.get('archivo')}")
+        return resultado
+    except Exception as exc:
+        logger.error(f"[BACKUP GDRIVE TASK] Error crítico ejecutando backup: {exc}")
+        return {'status': 'error', 'error': str(exc)}
+
+
+
+

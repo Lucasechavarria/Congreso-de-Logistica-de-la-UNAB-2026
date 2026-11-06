@@ -1,0 +1,319 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/admin_dark_theme.css' %}">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --bg: var(--dark-bg);
+        --card: var(--dark-card);
+        --p: var(--color-primary);
+        --b: var(--border-soft);
+        --txt: var(--text-primary);
+        --neon-cyan: var(--color-secondary);
+        --neon-green: #10b981;
+    }
+
+    body {
+        background: var(--bg) !important;
+        color: var(--txt) !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    #content {
+        background: var(--bg) !important;
+        padding: 25px !important;
+    }
+
+    .backup-container {
+        max-width: 950px;
+        margin: 20px auto;
+        padding: 35px;
+        background: var(--card);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-radius: 16px;
+        border: 1px solid var(--b);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .backup-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .backup-header h2 {
+        color: #fff;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 8px;
+    }
+
+    .backup-header p {
+        color: var(--text-secondary);
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .schedule-card {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--b);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+
+    .schedule-title {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--neon-cyan);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .schedule-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+    }
+
+    .schedule-badge {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 10px 14px;
+        text-align: center;
+    }
+
+    .schedule-badge .day {
+        display: block;
+        font-size: 11px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .schedule-badge .time {
+        display: block;
+        font-size: 16px;
+        font-weight: 800;
+        color: #fff;
+        margin-top: 2px;
+    }
+
+    .form-group {
+        margin-bottom: 22px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: #e2e8f0;
+        margin-bottom: 8px;
+        letter-spacing: 0.3px;
+    }
+
+    .form-help {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 5px;
+        display: block;
+        line-height: 1.4;
+    }
+
+    .form-input, .form-textarea {
+        width: 100%;
+        background: #090d16;
+        border: 1px solid var(--b);
+        border-radius: 8px;
+        color: #f1f5f9;
+        padding: 12px 14px;
+        font-size: 13px;
+        box-sizing: border-box;
+        outline: none;
+        transition: border-color 0.2s ease;
+    }
+
+    .form-textarea {
+        font-family: 'Fira Code', monospace;
+        font-size: 12px;
+        min-height: 140px;
+        resize: vertical;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 10px rgba(167, 139, 250, 0.2);
+    }
+
+    .form-switch {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+    }
+
+    .form-switch input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--color-primary);
+        cursor: pointer;
+    }
+
+    .btn-actions {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary {
+        flex: 1;
+        min-width: 200px;
+        background: linear-gradient(135deg, var(--color-primary), #818cf8);
+        color: #0f0724;
+        border: none;
+        padding: 14px 20px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+    }
+
+    .btn-test {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        color: #34d399;
+        padding: 14px 24px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-test:hover {
+        background: rgba(16, 185, 129, 0.25);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    }
+
+    .terminal-box {
+        margin-top: 25px;
+        background: #090d16;
+        border: 1px solid var(--b);
+        border-radius: 10px;
+        padding: 16px 20px;
+        font-family: 'Fira Code', monospace;
+        font-size: 12px;
+        color: #cbd5e1;
+        max-height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="backup-container dark-theme-container">
+    <div class="backup-header">
+        <h2>☁️ Respaldo Dual en Google Drive</h2>
+        <p>Configuración del respaldo automático para Drive Personal y Drive Institucional UNaB.</p>
+    </div>
+
+    <!-- Horarios Programados Celery Beat -->
+    <div class="schedule-card">
+        <div class="schedule-title">
+            <span>⏰ Horarios de Respaldo Programados (Hora Argentina GMT-3)</span>
+        </div>
+        <div class="schedule-grid">
+            <div class="schedule-badge">
+                <span class="day">Viernes 6 Nov</span>
+                <span class="time">23:59 hs</span>
+            </div>
+            <div class="schedule-badge">
+                <span class="day">Sábado 7 Nov</span>
+                <span class="time">06:00 hs</span>
+            </div>
+            <div class="schedule-badge">
+                <span class="day">Sábado 7 Nov</span>
+                <span class="time">10:00 hs</span>
+            </div>
+            <div class="schedule-badge">
+                <span class="day">Sábado 7 Nov</span>
+                <span class="time">14:00 hs</span>
+            </div>
+            <div class="schedule-badge">
+                <span class="day">Sábado 7 Nov</span>
+                <span class="time">18:00 hs</span>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" action="">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label class="form-switch">
+                <input type="checkbox" name="activo" {% if config.activo %}checked{% endif %}>
+                <span>¿Habilitar ejecución automática en los horarios del cronograma?</span>
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label for="id_service_account_json">1. Google Service Account JSON:</label>
+            <textarea id="id_service_account_json" name="service_account_json" class="form-textarea" placeholder='{"type": "service_account", "project_id": "...", ...}'>{{ config.service_account_json }}</textarea>
+            <span class="form-help">Pegá aquí el contenido completo del archivo JSON descargado de Google Cloud Console (Service Account Keys).</span>
+        </div>
+
+        <div class="form-group">
+            <label for="id_carpeta_personal">2. Carpeta Google Drive Personal:</label>
+            <input type="text" id="id_carpeta_personal" name="carpeta_personal_id" class="form-input" value="{{ config.carpeta_personal_id }}" placeholder="ID o URL completa de la carpeta compartida en Drive personal" />
+            <span class="form-help">Podés pegar el ID directo o el enlace web completo (ej: https://drive.google.com/drive/folders/1AbCdEf...). Recordá compartir la carpeta con el email de tu Service Account con permiso de <strong>Editor</strong>.</span>
+        </div>
+
+        <div class="form-group">
+            <label for="id_carpeta_institucional">3. Carpeta Google Drive Institucional (UNaB):</label>
+            <input type="text" id="id_carpeta_institucional" name="carpeta_institucional_id" class="form-input" value="{{ config.carpeta_institucional_id }}" placeholder="ID o URL completa de la carpeta compartida en Drive institucional" />
+            <span class="form-help">Podés pegar el ID directo o el enlace web completo de la carpeta del Drive oficial UNaB compartida con el bot.</span>
+        </div>
+
+        <div class="btn-actions">
+            <button type="submit" name="accion" value="guardar" class="btn-primary">
+                💾 Guardar Configuración
+            </button>
+            <button type="submit" name="accion" value="probar_y_subir" class="btn-test">
+                ⚡ Guardar, Probar Conexión y Subir Respaldo Ahora
+            </button>
+        </div>
+    </form>
+
+    <!-- Reporte del Último Respaldo -->
+    {% if config.ultimo_respaldo_fecha %}
+    <div style="margin-top: 35px;">
+        <h4 style="color: #fff; margin-bottom: 8px; font-weight: 700;">Último Respaldo Ejecutado:</h4>
+        <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 10px 0;">
+            Fecha: <strong>{{ config.ultimo_respaldo_fecha|date:"d/m/Y H:i:s" }}</strong> | Archivo: <code>{{ config.ultimo_respaldo_archivo }}</code>
+        </p>
+        <div class="terminal-box">{{ config.ultimo_respaldo_estado }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

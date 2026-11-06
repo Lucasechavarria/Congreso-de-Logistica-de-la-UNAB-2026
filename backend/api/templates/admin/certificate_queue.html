@@ -114,6 +114,124 @@
         display: block;
     }
 
+    /* Controles de Configuración de Lote y Horario */
+    .controls-panel {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--b);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 25px;
+    }
+
+    .time-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .time-banner-ok {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        color: #34d399;
+    }
+
+    .time-banner-wait {
+        background: rgba(245, 158, 11, 0.15);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        color: #fbbf24;
+    }
+
+    .config-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        align-items: center;
+    }
+
+    .config-item label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+
+    .config-select {
+        width: 100%;
+        background: #0b0f19;
+        border: 1px solid var(--b);
+        border-radius: 6px;
+        color: #fff;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        outline: none;
+    }
+
+    .config-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        color: #f1f5f9;
+        margin-top: 18px;
+    }
+
+    .config-checkbox-label input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--color-primary);
+        cursor: pointer;
+    }
+
+    .breakdown-tags {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+
+    .breakdown-pill {
+        font-size: 11px;
+        padding: 3px 10px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-secondary);
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .btn-secondary {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--b);
+        color: #fff;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-secondary:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
     /* Rediseño Radial Progress SVG */
     .radial-progress-wrapper {
         display: flex;
@@ -317,8 +435,51 @@
 {% block content %}
 <div class="queue-container dark-theme-container">
     <div class="queue-header">
-        <h2>🚀 Procesador de Certificados</h2>
-        <p>Enviando certificados pendientes de forma segura en lotes asíncronos.</p>
+        <h2>🚀 Procesador de Certificados en Lotes</h2>
+        <p>Emisión y envío seguro de certificados con control de rate-limit y protección de horario.</p>
+    </div>
+
+    <!-- Banner de Horario Oficial -->
+    <div class="time-banner {% if hora_valida %}time-banner-ok{% else %}time-banner-wait{% endif %}">
+        <div>
+            {% if hora_valida %}
+                <span>✓ Horario Habilitado: {{ hora_actual_str }} hs (GMT-3). Ventana de envío después de las 18:00 hs activa.</span>
+            {% else %}
+                <span>⏳ En espera de las 18:00 hs. Hora oficial actual: {{ hora_actual_str }} hs (GMT-3).</span>
+            {% endif %}
+        </div>
+        <div>
+            <span class="breakdown-pill">Argentina UTC-3</span>
+        </div>
+    </div>
+
+    <!-- Panel de Configuración de Lote -->
+    <div class="controls-panel">
+        <div class="config-grid">
+            <div class="config-item">
+                <label for="batch-size-select">Tamaño de Lote:</label>
+                <select id="batch-size-select" class="config-select">
+                    <option value="5">5 por tanda (Prudente)</option>
+                    <option value="10" selected>10 por tanda (Recomendado)</option>
+                    <option value="15">15 por tanda (Rápido)</option>
+                    <option value="20">20 por tanda (Máximo)</option>
+                </select>
+            </div>
+            <div class="config-item">
+                <label for="delay-select">Pausa entre envíos:</label>
+                <select id="delay-select" class="config-select">
+                    <option value="1">1 segundo</option>
+                    <option value="2" selected>2 segundos (Recomendado)</option>
+                    <option value="3">3 segundos (Alta seguridad)</option>
+                </select>
+            </div>
+            <div class="config-item">
+                <label class="config-checkbox-label">
+                    <input type="checkbox" id="forzar-checkbox" {% if hora_valida %}checked{% endif %} />
+                    <span>Forzar envío ahora {% if not hora_valida %}(Omitir espera 18 hs){% endif %}</span>
+                </label>
+            </div>
+        </div>
     </div>
 
     <!-- Resumen de Estados del Lote -->
@@ -326,20 +487,37 @@
         <div class="stat-item" id="stat-item-pendientes">
             <span class="stat-value" id="pendientes-count">{{ pendientes }}</span>
             <span class="stat-label">Pendientes</span>
+            <div class="breakdown-tags">
+                <span class="breakdown-pill" title="Asistencia">Asist: {{ pendientes_asistencia|default:pendientes }}</span>
+                <span class="breakdown-pill" title="Disertante">Disert: {{ pendientes_disertante|default:0 }}</span>
+                <span class="breakdown-pill" title="Empresa">Emp: {{ pendientes_empresa|default:0 }}</span>
+            </div>
         </div>
         <div class="stat-item" id="stat-item-procesados">
             <span class="stat-value" id="procesados-count" style="color: var(--color-primary); text-shadow: 0 0 10px rgba(167, 139, 250, 0.2);">0</span>
-            <span class="stat-label">Enviados</span>
+            <span class="stat-label">Enviados (Sesión)</span>
+            <div class="breakdown-tags">
+                <span class="breakdown-pill">Total Histórico: {{ enviados|default:0 }}</span>
+            </div>
         </div>
         <div class="stat-item" id="stat-item-errores">
             <span class="stat-value" id="errores-count" style="color: var(--neon-magenta); text-shadow: 0 0 10px rgba(244, 63, 94, 0.2);">0</span>
             <span class="stat-label">Errores</span>
+            <div class="breakdown-tags">
+                <span class="breakdown-pill" id="subtext-status">En espera</span>
+            </div>
         </div>
     </div>
 
-    <button id="start-btn" class="btn-start" {% if pendientes == 0 %}disabled{% endif %}>
-        {% if pendientes == 0 %}Nada que procesar{% else %}Empezar a enviar{% endif %}
-    </button>
+    <!-- Botonera de Control -->
+    <div class="btn-group">
+        <button id="start-btn" class="btn-start" {% if pendientes == 0 %}disabled{% endif %}>
+            {% if pendientes == 0 %}Nada que procesar{% else %}Iniciar Envío por Lotes{% endif %}
+        </button>
+        <button id="pause-btn" class="btn-secondary" style="display: none; max-width: 180px;">
+            ⏸ Pausar
+        </button>
+    </div>
 
     <!-- Indicador Radial de Progreso -->
     <div class="radial-progress-wrapper">
@@ -371,20 +549,25 @@
                 <div class="terminal-dot dot-green"></div>
             </div>
             <div class="terminal-title">SMTP Transmission logs</div>
-            <div style="width: 42px;"></div> <!-- Spacer para alinear centro -->
+            <div style="width: 42px;"></div>
         </div>
         <div class="log-container" id="log-box">
-            <div class="log-entry"><span class="log-timestamp">INIT</span><span class="log-text">Consola de transmisión inicializada. Esperando señal de inicio...</span></div>
+            <div class="log-entry"><span class="log-timestamp">INIT</span><span class="log-text">Consola de transmisión inicializada. Esperando comando...</span></div>
         </div>
     </div>
 </div>
 
 <script>
     const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
     const logBox = document.getElementById('log-box');
     const progressFill = document.getElementById('radial-progress-fill');
     const progressPercentText = document.getElementById('radial-percent');
     const progressStatusText = document.getElementById('progress-status-text');
+    const batchSizeSelect = document.getElementById('batch-size-select');
+    const delaySelect = document.getElementById('delay-select');
+    const forzarCheckbox = document.getElementById('forzar-checkbox');
+    const subtextStatus = document.getElementById('subtext-status');
     
     const pendientesEl = document.getElementById('pendientes-count');
     const procesadosEl = document.getElementById('procesados-count');
@@ -397,26 +580,73 @@
     let totalPendientes = parseInt("{{ pendientes }}") || 0;
     let procesados = 0;
     let errores = 0;
+    let isPaused = false;
+    let isRunning = false;
 
     // Radio del círculo SVG es r=50
     const circleRadius = 50;
     const circumference = 2 * Math.PI * circleRadius; // ~314.16
 
-    // Configurar circunferencia inicial
     progressFill.style.strokeDasharray = circumference;
     progressFill.style.strokeDashoffset = circumference;
 
-    startBtn.addEventListener('click', async () => {
-        startBtn.disabled = true;
-        addLog("Iniciando procesamiento de lotes asíncronos...", "log-warning");
-        progressStatusText.innerText = "Iniciando...";
+    startBtn.addEventListener('click', () => {
+        if (isRunning && isPaused) {
+            // Reanudar
+            isPaused = false;
+            pauseBtn.innerText = "⏸ Pausar";
+            startBtn.style.display = "none";
+            pauseBtn.style.display = "block";
+            addLog("▶ Proceso reanudado.", "log-warning");
+            processNextBatch();
+            return;
+        }
+
+        isRunning = true;
+        isPaused = false;
+        startBtn.style.display = "none";
+        pauseBtn.style.display = "block";
+        addLog("Iniciando procesamiento de lotes controlados...", "log-warning");
+        progressStatusText.innerText = "Procesando...";
+        subtextStatus.innerText = "En transmisión";
         processNextBatch();
     });
 
+    pauseBtn.addEventListener('click', () => {
+        isPaused = true;
+        pauseBtn.style.display = "none";
+        startBtn.style.display = "block";
+        startBtn.innerText = "▶ Reanudar Envío";
+        progressStatusText.innerText = "Pausado por el usuario";
+        subtextStatus.innerText = "Pausado";
+        addLog("⏸ Procesamiento en pausa. Se esperará a reanudar para la siguiente tanda.", "log-warning");
+    });
+
     async function processNextBatch() {
+        if (isPaused) {
+            return;
+        }
+
+        const batchSize = batchSizeSelect ? batchSizeSelect.value : 10;
+        const delay = delaySelect ? delaySelect.value : 2;
+        const forzar = forzarCheckbox ? forzarCheckbox.checked : false;
+
+        const url = `{% url "admin:process-certificate-batch" %}?batch_size=${batchSize}&delay=${delay}&forzar=${forzar}`;
+
         try {
-            const response = await fetch('{% url "admin:process-certificate-batch" %}');
+            const response = await fetch(url);
             const data = await response.json();
+
+            if (data.status === 'blocked_by_time') {
+                addLog(data.message, "log-warning");
+                progressStatusText.innerText = "Retenido (Esperando 18:00 hs)";
+                subtextStatus.innerText = "Bloqueo horario";
+                pauseBtn.style.display = "none";
+                startBtn.style.display = "block";
+                startBtn.innerText = "Iniciar (Requiere Forzar)";
+                isRunning = false;
+                return;
+            }
 
             if (data.status === 'ok') {
                 let batchProcessed = data.processed;
@@ -426,12 +656,10 @@
                 procesados += batchProcessed;
                 errores += batchErrors;
                 
-                // Actualizar contadores en la interfaz
                 procesadosEl.innerText = procesados;
                 erroresEl.innerText = errores;
                 pendientesEl.innerText = nuevosPendientes;
 
-                // Animaciones de bounce en contadores que han cambiado
                 if (batchProcessed > 0) {
                     statProcesadosItem.classList.add('bounce-active');
                     setTimeout(() => statProcesadosItem.classList.remove('bounce-active'), 400);
@@ -444,49 +672,56 @@
                 statPendientesItem.classList.add('bounce-active');
                 setTimeout(() => statPendientesItem.classList.remove('bounce-active'), 400);
                 
-                // Calcular y animar el progreso radial
-                let percent = totalPendientes > 0 ? Math.min(100, (procesados / totalPendientes) * 100) : 100;
+                let targetTotal = totalPendientes > 0 ? totalPendientes : (procesados + nuevosPendientes);
+                let percent = targetTotal > 0 ? Math.min(100, (procesados / targetTotal) * 100) : 100;
                 progressPercentText.innerText = `${Math.round(percent)}%`;
                 
-                // Calcular stroke-dashoffset
                 let offset = circumference - (percent / 100) * circumference;
                 progressFill.style.strokeDashoffset = offset;
-                
-                progressStatusText.innerText = `Enviados: ${procesados} de ${totalPendientes}`;
+                progressStatusText.innerText = `Enviados: ${procesados} de ${targetTotal}`;
 
                 data.logs.forEach(msg => {
-                    let entryClass = "";
-                    if (msg.toLowerCase().includes("éxito") || msg.toLowerCase().includes("exito")) {
+                    let entryClass = "log-warning";
+                    if (msg.includes("✓") || msg.toLowerCase().includes("éxito") || msg.toLowerCase().includes("exito")) {
                         entryClass = "log-success";
-                    } else if (msg.toLowerCase().includes("error") || msg.toLowerCase().includes("falló") || msg.toLowerCase().includes("fallo")) {
+                    } else if (msg.includes("✗") || msg.toLowerCase().includes("error") || msg.toLowerCase().includes("falló") || msg.toLowerCase().includes("fallo")) {
                         entryClass = "log-error";
-                    } else {
-                        entryClass = "log-warning";
                     }
                     addLog(msg, entryClass);
                 });
 
                 if (data.remaining > 0) {
-                    // Esperar 1 segundo antes del siguiente lote para proteger reputación de servidor SMTP
-                    setTimeout(processNextBatch, 1000);
+                    if (!isPaused) {
+                        // Pausa de 4 segundos entre tandas de lotes para protección de SMTP y memoria
+                        setTimeout(processNextBatch, 4000);
+                    }
                 } else {
                     addLog("✨ ¡Procesamiento masivo finalizado exitosamente!", "log-success");
                     progressStatusText.innerText = "¡Procesamiento completo!";
+                    subtextStatus.innerText = "Finalizado";
+                    pauseBtn.style.display = "none";
+                    startBtn.style.display = "block";
+                    startBtn.disabled = true;
                     startBtn.innerText = "Finalizado";
                     progressPercentText.innerText = "100%";
                     progressFill.style.strokeDashoffset = 0;
+                    isRunning = false;
                 }
             } else {
-                addLog("Error crítico del lote: " + data.message, "log-error");
+                addLog("Error en el lote: " + (data.message || "Error desconocido"), "log-error");
                 progressStatusText.innerText = "Error en lote";
-                startBtn.disabled = false;
+                pauseBtn.style.display = "none";
+                startBtn.style.display = "block";
                 startBtn.innerText = "Reintentar Lote";
+                isRunning = false;
             }
         } catch (e) {
             addLog("Error de conexión al servidor: " + e.message, "log-error");
             progressStatusText.innerText = "Error de conexión";
-            startBtn.disabled = false;
+            pauseBtn.style.display = "none";
+            startBtn.style.display = "block";
             startBtn.innerText = "Reintentar Lote";
+            isRunning = false;
         }
     }
 

@@ -10,7 +10,8 @@ logger = logging.getLogger('django.services')
 def confirm_asistencia(inscripcion: Inscripcion) -> Tuple[Certificado, bool]:
     """
     Servicio transaccional para confirmar la asistencia de un participante,
-    generar su certificado e iniciar el proceso de envío de email de confirmación.
+    registrar su certificado en cola para envío diferido por lotes (después de las 18 hs)
+    y disparar de forma asíncrona el email de Confirmación de Asistencia inmediato.
     Retorna una tupla (certificado, email_success).
     """
     with transaction.atomic():
@@ -18,27 +19,41 @@ def confirm_asistencia(inscripcion: Inscripcion) -> Tuple[Certificado, bool]:
         inscripcion.fecha_confirmacion = timezone.now()
         inscripcion.save()
 
-        # Crear u obtener el certificado de asistencia asociado a la edición específica
-        certificado, created = Certificado.objects.get_or_create(
-            asistente=inscripcion.asistente,
-            edicion=inscripcion.edicion,
-            tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
-        )
-        
-        # Encolar la generación y el envío del certificado asíncronamente (Celery) con fallback seguro
-        from .tasks import task_generar_y_enviar_certificado
-        def _safe_dispatch_certificado(cert_id: int = certificado.id) -> None:
-            try:
-                task_generar_y_enviar_certificado.delay(cert_id)
-            except Exception as e:
-                logger.warning(f"[Celery] Error encolando certificado ({e}). Ejecutando fallback síncrono...")
-                try:
-                    c = Certificado.objects.get(id=cert_id)
-                    send_certificate_email(c)
-                except Exception as sync_err:
-                    logger.error(f"[Fallback Sync] Error enviando certificado directo: {sync_err}")
+        asistente = inscripcion.asistente
 
-        transaction.on_commit(_safe_dispatch_certificado)
+        # Determinar el tipo de certificado según la vinculación del participante
+        tipo_cert = Certificado.TipoCertificado.ASISTENCIA
+        if getattr(asistente, 'disertante_vinculado_id', None):
+            tipo_cert = Certificado.TipoCertificado.DISERTANTE
+        elif getattr(asistente, 'empresa_vinculada_id', None):
+            tipo_cert = Certificado.TipoCertificado.EMPRESA
+
+        # Crear u obtener el certificado asociado a la edición específica (queda pendiente: email_enviado=False)
+        certificado, created = Certificado.objects.get_or_create(
+            asistente=asistente,
+            edicion=inscripcion.edicion,
+            tipo_certificado=tipo_cert,
+            defaults={'email_enviado': False}
+        )
+
+        # Encolar el envío del Email de Confirmación de Asistencia (liviano e inmediato).
+        # El certificado queda en cola para ser emitido por lotes después de las 18:00 hs.
+        from .tasks import task_enviar_confirmacion_asistencia
+        from .email import send_attendance_confirmation_email
+
+        def _safe_dispatch_confirmacion_asistencia(asist_id: int = asistente.id, insc_id: int = inscripcion.id) -> None:
+            try:
+                task_enviar_confirmacion_asistencia.delay(asist_id, insc_id)
+            except Exception as e:
+                logger.warning(f"[Celery] Error encolando confirmación de asistencia ({e}). Ejecutando fallback síncrono...")
+                try:
+                    a = Asistente.objects.get(id=asist_id)
+                    insc = Inscripcion.objects.get(id=insc_id)
+                    send_attendance_confirmation_email(a, insc)
+                except Exception as sync_err:
+                    logger.error(f"[Fallback Sync] Error enviando confirmación de asistencia directa: {sync_err}")
+
+        transaction.on_commit(_safe_dispatch_confirmacion_asistencia)
         email_success = True
 
         return certificado, email_success

@@ -9,11 +9,11 @@ from django.urls import reverse, path
 from django.utils import timezone
 import json
 import re
-from django.utils import timezone
+import time
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail
+from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail, ConfiguracionBackupDrive
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
@@ -448,36 +448,94 @@ def backup_database_view(request):
 @admin.site.admin_view
 def certificate_queue_view(request):
     """
-    Muestra la interfaz de progreso para el envío de certificados.
+    Muestra la interfaz de progreso y control para el envío de certificados por lotes.
     """
     pendientes = Certificado.objects.filter(email_enviado=False).count()
-    return render(request, 'admin/certificate_queue.html', {'pendientes': pendientes})
+    pendientes_asistencia = Certificado.objects.filter(email_enviado=False, tipo_certificado='ASISTENCIA').count()
+    pendientes_disertante = Certificado.objects.filter(email_enviado=False, tipo_certificado='DISERTANTE').count()
+    pendientes_empresa = Certificado.objects.filter(email_enviado=False, tipo_certificado='EMPRESA').count()
+    enviados = Certificado.objects.filter(email_enviado=True).count()
+
+    ahora_local = timezone.localtime(timezone.now())
+    hora_valida = ahora_local.hour >= 18
+    hora_actual_str = ahora_local.strftime("%H:%M:%S")
+
+    context = {
+        'pendientes': pendientes,
+        'pendientes_asistencia': pendientes_asistencia,
+        'pendientes_disertante': pendientes_disertante,
+        'pendientes_empresa': pendientes_empresa,
+        'enviados': enviados,
+        'hora_valida': hora_valida,
+        'hora_actual_str': hora_actual_str,
+    }
+    return render(request, 'admin/certificate_queue.html', context)
 
 @admin.site.admin_view
 def process_certificate_batch_api(request):
     """
-    JSON API para procesar un lote de certificados.
+    JSON API para procesar un lote de certificados con rate-limiting y protección de horario.
+    Parámetros admitidos:
+      - batch_size: int (por defecto 10, min 1, max 30)
+      - forzar: bool (por defecto false)
+      - delay: float (segundos entre envíos, por defecto 2.0)
     """
-    BATCH_SIZE = 5
-    certificados = Certificado.objects.filter(email_enviado=False)[:BATCH_SIZE]
+    # 1. Parseo de parámetros
+    try:
+        raw_batch = request.GET.get('batch_size') or request.POST.get('batch_size') or 10
+        batch_size = max(1, min(int(raw_batch), 30))
+    except (TypeError, ValueError):
+        batch_size = 10
 
+    forzar_raw = request.GET.get('forzar') or request.POST.get('forzar') or 'false'
+    forzar = str(forzar_raw).lower() in ['true', '1', 'yes']
+
+    try:
+        raw_delay = request.GET.get('delay') or request.POST.get('delay') or 2.0
+        delay = max(0.0, min(float(raw_delay), 10.0))
+    except (TypeError, ValueError):
+        delay = 2.0
+
+    # 2. Validación de regla horaria (18:00 hs Argentina GMT-3)
+    ahora_local = timezone.localtime(timezone.now())
+    if not forzar and ahora_local.hour < 18:
+        remaining = Certificado.objects.filter(email_enviado=False).count()
+        return JsonResponse({
+            'status': 'blocked_by_time',
+            'blocked_by_time': True,
+            'message': f"Envío retenido: Son las {ahora_local.strftime('%H:%M:%S')} hs. El despacho está programado para después de las 18:00 hs (hora Argentina).",
+            'processed': 0,
+            'errors': 0,
+            'remaining': remaining,
+            'logs': [f"⚠️ Bloqueo de horario: Hora actual {ahora_local.strftime('%H:%M:%S')} hs es previa a las 18:00 hs. Activá 'Forzar envío' para continuar."]
+        })
+
+    # 3. Procesar lote
+    certificados = list(Certificado.objects.filter(email_enviado=False).order_by('id')[:batch_size])
     logs = []
     processed = 0
     errors = 0
 
-    for cert in certificados:
+    for idx, cert in enumerate(certificados):
+        destinatario = getattr(cert.asistente, 'email', '') or f"Asistente #{cert.asistente_id}"
+        tipo_display = cert.get_tipo_certificado_display()
         try:
             result = send_certificate_email(cert)
-            success = result[0] if isinstance(result, tuple) else result
+            success = result[0] if isinstance(result, tuple) else bool(result)
             if success:
-                logs.append(f"Enviado con éxito a {cert.asistente.email}")
+                logs.append(f"✓ Enviado con éxito a {destinatario} ({tipo_display})")
                 processed += 1
             else:
-                logs.append(f"Error enviando a {cert.asistente.email}")
+                motivo = result[1] if isinstance(result, tuple) and len(result) > 1 else "Error SMTP"
+                logs.append(f"✗ Falló el envío a {destinatario}: {motivo}")
                 errors += 1
         except Exception as e:
-            logs.append(f"Error crítico con {cert.asistente.email}: {str(e)}")
+            logs.append(f"✗ Error crítico con {destinatario}: {str(e)}")
             errors += 1
+
+        # Pausa entre envíos del lote para no saturar SMTP ni CPU
+        if delay > 0 and idx < len(certificados) - 1:
+            time.sleep(delay)
 
     remaining = Certificado.objects.filter(email_enviado=False).count()
 
@@ -747,6 +805,41 @@ def dashboard_api_view(request):
 
 
 # Inyectar el dashboard en el Admin de Django
+def gdrive_backup_view(request):
+    """
+    Vista de administración para configurar y probar los respaldos duales en Google Drive.
+    Solo accesible para administradores (staff / superuser).
+    """
+    if not request.user.is_staff:
+        raise PermissionDenied
+
+    from .models import ConfiguracionBackupDrive
+    from .gdrive_backup_service import ejecutar_backup_completo
+
+    config = ConfiguracionBackupDrive.get_solo()
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        config.activo = 'activo' in request.POST
+        config.service_account_json = request.POST.get('service_account_json', '').strip()
+        config.carpeta_personal_id = request.POST.get('carpeta_personal_id', '').strip()
+        config.carpeta_institucional_id = request.POST.get('carpeta_institucional_id', '').strip()
+        config.save()
+
+        if accion == 'probar_y_subir':
+            res = ejecutar_backup_completo()
+            if res.get('status') == 'ok':
+                messages.success(request, f"¡Respaldo dual generado exitosamente! Archivo: {res.get('archivo')}")
+            else:
+                messages.warning(request, f"Respaldo finalizado con observaciones: {res.get('message', '')}")
+        else:
+            messages.success(request, "Configuración de Google Drive guardada exitosamente.")
+
+        return redirect('admin:admin-gdrive-backup')
+
+    return render(request, 'admin/gdrive_backup_admin.html', {'config': config})
+
+
 def patch_admin_urls():
     original_get_urls = admin.site.get_urls
 
@@ -757,6 +850,7 @@ def patch_admin_urls():
             path('dashboard-api/', admin.site.admin_view(dashboard_api_view), name='admin-dashboard-api'),
             path('broadcast/', admin.site.admin_view(broadcast_view), name='admin-broadcast'),
             path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
+            path('gdrive-backup/', admin.site.admin_view(gdrive_backup_view), name='admin-gdrive-backup'),
             path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
             path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
             path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
@@ -776,12 +870,26 @@ admin.site.index_title = format_html(
     '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a> | '
     '<a href="/admin/api/asistente/import-excel/" style="color: #4ade80; text-decoration: underline; font-weight: bold;">Carga Masiva Excel</a> | '
     '<a href="/admin/backup-db/" style="color: #f87171; text-decoration: underline;">Backup DB</a> | '
+    '<a href="/admin/gdrive-backup/" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">☁️ Respaldo Drive</a> | '
     '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a> | '
     '<a href="/admin/manual-certificate/" style="color: #60a5fa; text-decoration: underline;">Certificado Manual</a> | '
     '<a href="/admin/corregir-asistencia-email/" style="color: #fca5a5; text-decoration: underline; font-weight: bold;">⚠️ Incidencias Asistencia / Email</a>'
 )
 admin.site.site_header = "Congreso Logística UNAB 2026 Admin"
 admin.site.site_title = "Panel Administrativo"
+
+
+@admin.register(ConfiguracionBackupDrive)
+class ConfiguracionBackupDriveAdmin(admin.ModelAdmin):
+    list_display = ('nombre_configuracion', 'activo', 'ultimo_respaldo_fecha', 'ultimo_respaldo_archivo')
+
+    def changelist_view(self, request, extra_context=None):
+        return redirect('admin:admin-gdrive-backup')
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        return redirect('admin:admin-gdrive-backup')
+
+
 
 
 

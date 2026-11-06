@@ -2,8 +2,8 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
-from unittest.mock import patch
-from api.models import Asistente, Certificado, Edicion
+from unittest.mock import patch, MagicMock
+from api.models import Asistente, Certificado, Edicion, Inscripcion
 from api.email import send_certificate_email
 import json
 
@@ -47,7 +47,7 @@ class CertificateQueueTests(TestCase):
             self.certificados.append(cert)
 
         # URL de la API de procesamiento por lote
-        self.batch_url = reverse('admin:process-certificate-batch')
+        self.batch_url = reverse('admin:process-certificate-batch') + '?forzar=true&delay=0'
 
     @patch('django.core.mail.EmailMultiAlternatives.send')
     def test_send_certificate_email_smtp_failure(self, mock_send):
@@ -151,6 +151,74 @@ class CertificateQueueTests(TestCase):
         # @admin.site.admin_view redirige al login de Django Admin si no está logueado
         self.assertEqual(response.status_code, 302)
         self.assertIn('/admin/login/', response.url)
+
+    @patch('django.utils.timezone.localtime')
+    def test_process_certificate_batch_api_blocked_before_18hs(self, mock_localtime):
+        """
+        Valida que si la hora local es anterior a las 18:00 hs y no se envía forzar=true,
+        la API retenga el procesamiento y retorne 'blocked_by_time'.
+        """
+        self.client.login(username='admin_test', password='password123')
+        import datetime
+        from zoneinfo import ZoneInfo
+        mock_localtime.return_value = datetime.datetime(2026, 11, 6, 11, 30, 0, tzinfo=ZoneInfo('America/Argentina/Buenos_Aires'))
+
+        base_url = reverse('admin:process-certificate-batch')
+        response = self.client.get(base_url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data.get('status'), 'blocked_by_time')
+        self.assertTrue(data.get('blocked_by_time'))
+        self.assertEqual(data.get('processed'), 0)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_confirm_asistencia_flow(self, mock_send):
+        """
+        Valida que al confirmar asistencia:
+        1. asistencia_confirmada se marque como True.
+        2. Se cree el certificado con email_enviado=False (retenido en cola para las 18 hs).
+        3. Se despache el email de confirmación de asistencia.
+        """
+        mock_send.return_value = True
+        asistente = Asistente.objects.create(
+            first_name="Prueba",
+            last_name="Asistencia",
+            dni="45000111",
+            email="asistencia.prueba@unab.edu.ar",
+            profile_type="STUDENT"
+        )
+        from api.models import Inscripcion
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion,
+            asistencia_confirmada=False
+        )
+
+        from api.services import confirm_asistencia
+        with self.captureOnCommitCallbacks(execute=True):
+            cert, success = confirm_asistencia(inscripcion)
+
+        inscripcion.refresh_from_db()
+        self.assertTrue(inscripcion.asistencia_confirmada)
+        self.assertIsNotNone(inscripcion.fecha_confirmacion)
+        self.assertEqual(cert.tipo_certificado, "ASISTENCIA")
+        self.assertFalse(cert.email_enviado)
+        self.assertTrue(success)
+        self.assertTrue(mock_send.called)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_management_command_procesar_cola(self, mock_send):
+        """
+        Valida que el comando 'procesar_cola_certificados' procese la cola correctamente con --forzar.
+        """
+        mock_send.return_value = True
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('procesar_cola_certificados', batch_size=2, forzar=True, delay=0, pausa_lote=0, stdout=out)
+        output = out.getvalue()
+        self.assertIn('[FINALIZADO]', output)
+        self.assertEqual(Certificado.objects.filter(email_enviado=False).count(), 0)
 
 
 class MultiCategoryCertificateAdminTests(TestCase):
@@ -512,6 +580,154 @@ class MultiCategoryCertificateAdminTests(TestCase):
 
         log_ok = LogEnvioEmail.objects.filter(destinatario='lucia.gomez@gmail.com', exitoso=True).first()
         self.assertIsNotNone(log_ok)
+
+
+class GDriveBackupAndShieldingTests(TestCase):
+    def setUp(self):
+        self.edicion, _ = Edicion.objects.get_or_create(
+            anio=2026,
+            defaults={'nombre': "Congreso 2026", 'activa': True}
+        )
+        self.asistente = Asistente.objects.create(
+            first_name="Esteban",
+            last_name="Quito",
+            email="esteban.quito@externo.org",
+            dni="29999888",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        self.inscripcion = Inscripcion.objects.create(
+            asistente=self.asistente,
+            edicion=self.edicion,
+            asistencia_confirmada=True
+        )
+
+    def test_attendance_email_shielding_no_congreso_email(self):
+        """
+        Valida que el email institucional de confirmación de asistencia se envíe ÚNICAMENTE
+        al asistente, sin enviar copia (To o BCC) a congresologisticaytransporte@unab.edu.ar.
+        """
+        from django.core import mail
+        from api.email import send_attendance_confirmation_email, CONGRESO_EMAIL
+
+        mail.outbox = []
+        enviado = send_attendance_confirmation_email(self.asistente, self.inscripcion)
+        self.assertTrue(enviado)
+        self.assertEqual(len(mail.outbox), 1)
+        
+        msg = mail.outbox[0]
+        self.assertEqual(msg.to, [self.asistente.email])
+        self.assertNotIn(CONGRESO_EMAIL, msg.to)
+        self.assertNotIn(CONGRESO_EMAIL, getattr(msg, 'bcc', []))
+        self.assertEqual(getattr(msg, 'bcc', []), [])
+
+    def test_generar_paquete_backup_creates_valid_zip_with_excel_and_json(self):
+        """
+        Valida que generar_paquete_backup() genere un archivo .zip fechado que contenga:
+        - El libro Excel consolidado (.xlsx) con las tablas
+        - El dump de datos portable (.json)
+        """
+        import zipfile
+        import os
+        from api.gdrive_backup_service import generar_paquete_backup
+
+        zip_path, zip_name, size_bytes = generar_paquete_backup()
+        self.assertTrue(os.path.exists(zip_path))
+        self.assertTrue(zip_name.startswith('backup_congreso_'))
+        self.assertTrue(zip_name.endswith('.zip'))
+        self.assertGreater(size_bytes, 0)
+
+        # Verificar contenido interno del ZIP
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            nombres = zf.namelist()
+            self.assertTrue(any(n.endswith('.xlsx') for n in nombres), f"Falta archivo .xlsx en {nombres}")
+            self.assertTrue(any(n.endswith('_data.json') for n in nombres), f"Falta archivo _data.json en {nombres}")
+
+        # Limpieza
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
+
+    @patch('googleapiclient.discovery.build')
+    def test_subir_archivo_a_gdrive_mocked(self, mock_build):
+        """
+        Valida que subir_archivo_a_gdrive llame correctamente a la API de Drive v3
+        pasando el parent folder ID y retorne el id del archivo subido.
+        """
+        import os
+        from django.conf import settings
+        from api.gdrive_backup_service import subir_archivo_a_gdrive
+
+        mock_service = MagicMock()
+        mock_files = MagicMock()
+        mock_create = MagicMock()
+        mock_create.execute.return_value = {
+            'id': 'file_id_drive_12345',
+            'webViewLink': 'https://drive.google.com/file/d/file_id_drive_12345'
+        }
+        mock_files.create.return_value = mock_create
+        mock_service.files.return_value = mock_files
+        mock_build.return_value = mock_service
+
+        fake_creds = {
+            "type": "service_account",
+            "project_id": "test-project",
+            "private_key_id": "fake_key_id",
+            "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0fake...\n-----END RSA PRIVATE KEY-----\n",
+            "client_email": "backup-bot@test.iam.gserviceaccount.com",
+            "token_uri": "https://oauth2.googleapis.com/token"
+        }
+
+        # Crear archivo temporal
+        temp_file = os.path.join(settings.BASE_DIR, 'test_dummy_backup.zip')
+        with open(temp_file, 'wb') as f:
+            f.write(b"PK\x05\x06" + b"\x00" * 18)
+
+        try:
+            with patch('google.oauth2.service_account.Credentials.from_service_account_info'):
+                resultado = subir_archivo_a_gdrive(temp_file, 'carpeta_personal_abc', fake_creds)
+                self.assertTrue(resultado.get('success'))
+                self.assertEqual(resultado.get('file_id'), 'file_id_drive_12345')
+        finally:
+            import gc
+            gc.collect()
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            except Exception:
+                pass
+
+    def test_celery_beat_schedule_five_slots_configured(self):
+        """
+        Valida que settings.CELERY_BEAT_SCHEDULE tenga registrados los 5 horarios exactos
+        estipulados para el Congreso de Logística:
+        - Viernes 6 Nov a las 23:59 hs
+        - Sábado 7 Nov a las 06:00, 10:00, 14:00 y 18:00 hs
+        """
+        from django.conf import settings
+        sched = settings.CELERY_BEAT_SCHEDULE
+
+        claves_esperadas = [
+            'gdrive-backup-viernes-2359',
+            'gdrive-backup-sabado-0600',
+            'gdrive-backup-sabado-1000',
+            'gdrive-backup-sabado-1400',
+            'gdrive-backup-sabado-1800',
+        ]
+        for k in claves_esperadas:
+            self.assertIn(k, sched, f"Falta clave de cronograma {k} en CELERY_BEAT_SCHEDULE")
+            self.assertEqual(sched[k]['task'], 'api.tasks.task_ejecutar_backup_dual_gdrive')
+
+        # Validar crontab específico de viernes 23:59
+        cron_v = sched['gdrive-backup-viernes-2359']['schedule']
+        self.assertIn(59, cron_v.minute)
+        self.assertIn(23, cron_v.hour)
+        self.assertIn(6, cron_v.day_of_month)
+
+        # Validar crontab de sábado 06:00
+        cron_s6 = sched['gdrive-backup-sabado-0600']['schedule']
+        self.assertIn(0, cron_s6.minute)
+        self.assertIn(6, cron_s6.hour)
+        self.assertIn(7, cron_s6.day_of_month)
+
 
 
 

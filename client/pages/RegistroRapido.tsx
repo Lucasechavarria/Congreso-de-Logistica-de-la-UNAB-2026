@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FormInput,
   FormSelect,
@@ -40,7 +40,10 @@ export default function RegistroRapido() {
   const [showModal, setShowModal] = useState(false);
   const [asistente, setAsistente] = useState<any>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+
+  const dniParam = searchParams.get("dni") ? searchParams.get("dni")!.replace(/\D/g, "").slice(0, 8) : "";
 
   const {
     register,
@@ -52,8 +55,19 @@ export default function RegistroRapido() {
     resolver: zodResolver(registroRapidoSchema),
     defaultValues: {
       tipo_inscripcion: "INDIVIDUAL",
+      dni: dniParam,
     },
   });
+
+  useEffect(() => {
+    const param = searchParams.get("dni");
+    if (param) {
+      const clean = param.replace(/\D/g, "").slice(0, 8);
+      if (clean) {
+        setValue("dni", clean);
+      }
+    }
+  }, [searchParams, setValue]);
 
   const tipoInscripcion = watch("tipo_inscripcion");
 

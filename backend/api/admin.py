@@ -13,7 +13,7 @@ import time
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail, ConfiguracionRespaldo
+from .models import Disertante, Empresa, PersonalEmpresa, Asistente, Inscripcion, Certificado, Programa, Dashboard, Edicion, PostulacionDisertante, InscripcionPrensa, MiembroGrupo, LogEnvioEmail, ConfiguracionRespaldo, Acreditacion
 from django.shortcuts import redirect
 from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
@@ -3413,6 +3413,13 @@ class MiembroGrupoAdmin(admin.ModelAdmin):
     list_filter = ('fecha_registro',)
     search_fields = ('full_name', 'dni', 'representante__first_name', 'representante__last_name')
     readonly_fields = ('fecha_registro',)
+
+@admin.register(Acreditacion)
+class AcreditacionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'inscripcion', 'fecha_acreditacion', 'metodo', 'es_reingreso', 'ip_origen')
+    list_filter = ('metodo', 'es_reingreso', 'fecha_acreditacion')
+    search_fields = ('inscripcion__asistente__dni', 'inscripcion__asistente__first_name', 'inscripcion__asistente__last_name', 'observaciones')
+    readonly_fields = ('fecha_acreditacion',)
 
 @admin.register(LogEnvioEmail)
 class LogEnvioEmailAdmin(admin.ModelAdmin):

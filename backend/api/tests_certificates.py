@@ -1107,6 +1107,183 @@ class AcreditacionAndVerificarDNITests(TestCase):
         self.assertIsNotNone(acred)
         self.assertEqual(acred.ip_origen, '190.220.10.5')
 
+    def test_verificar_dni_disertante_rejected_in_old_edition_does_not_block_current_edition(self):
+        """
+        Valida que un disertante con estado RECHAZADO en una edición anterior (no activa)
+        pueda acreditarse como asistente general en la edición 2026 activa sin ser bloqueado.
+        """
+        edicion_ant, _ = Edicion.objects.get_or_create(anio=2024, defaults={'nombre': 'Congreso 2024', 'activa': False})
+        dis_ant = Disertante.objects.create(
+            nombre="Disertante Pasado",
+            estado='RECHAZADO',
+            edicion=edicion_ant
+        )
+        asistente = Asistente.objects.create(
+            first_name="Disertante",
+            last_name="Pasado",
+            dni="43111222",
+            email="dis.pasado@unab.edu.ar",
+            phone="1144332211",
+            profile_type=Asistente.ProfileType.VISITOR,
+            disertante_vinculado=dis_ant
+        )
+        Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '43111222',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data.get('status'), 'pending_confirmation')
+
+    def test_verificar_dni_empresa_rejected_in_old_edition_does_not_block_current_edition(self):
+        """
+        Valida que una empresa rechazada en una edición anterior no bloquee
+        la acreditación del participante en la edición activa.
+        """
+        edicion_ant, _ = Edicion.objects.get_or_create(anio=2024, defaults={'nombre': 'Congreso 2024', 'activa': False})
+        empresa_ant = Empresa.objects.create(
+            nombre_empresa="Empresa Vieja Rechazada",
+            estado='RECHAZADA',
+            edicion=edicion_ant
+        )
+        asistente = Asistente.objects.create(
+            first_name="Empleado",
+            last_name="Viejo",
+            dni="44222333",
+            email="empleado.viejo@test.com",
+            phone="1155443322",
+            profile_type=Asistente.ProfileType.PROFESSIONAL,
+            empresa_vinculada=empresa_ant
+        )
+        Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '44222333',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data.get('status'), 'pending_confirmation')
+
+    def test_verificar_dni_barcode_with_trailing_zero_is_normalized(self):
+        """
+        Valida que un lector de código de barras que envía 9 dígitos con '0' final
+        (ej: 453334440) se normalice a 8 dígitos (45333444) y acredite correctamente.
+        """
+        asistente = Asistente.objects.create(
+            first_name="Codigo",
+            last_name="Barras",
+            dni="45333444",
+            email="barras@test.com",
+            phone="1122446688",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '453334440',
+            'confirmar': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        inscripcion.refresh_from_db()
+        self.assertTrue(inscripcion.asistencia_confirmada)
+
+    def test_verificar_dni_syncs_personal_empresa_contact_fields(self):
+        """
+        Valida que al confirmar asistencia y actualizar datos, PersonalEmpresa
+        también reciba el email y teléfono reales actualizados.
+        """
+        empresa = Empresa.objects.create(
+            nombre_empresa="Tech Logistics SA",
+            edicion=self.edicion,
+            estado='CONFIRMADA'
+        )
+        asistente = Asistente.objects.create(
+            first_name="Ramiro",
+            last_name="Preacreditado",
+            dni="46444555",
+            email="acreditado_46444555@empresa.temp",
+            phone="1111111111",
+            profile_type=Asistente.ProfileType.PROFESSIONAL,
+            empresa_vinculada=empresa
+        )
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion,
+            empresa=empresa
+        )
+        personal = PersonalEmpresa.objects.create(
+            empresa=empresa,
+            nombre="Ramiro",
+            apellido="Preacreditado",
+            dni="46444555",
+            email="",
+            telefono="",
+            acreditado=False
+        )
+
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '46444555',
+            'confirmar': True,
+            'email': 'ramiro.real@gmail.com',
+            'phone': '1133221100'
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+
+        personal.refresh_from_db()
+        self.assertTrue(personal.acreditado)
+        self.assertEqual(personal.email, 'ramiro.real@gmail.com')
+        self.assertEqual(personal.telefono, '1133221100')
+
+    def test_registro_rapido_sets_es_reingreso_true_if_already_accredited(self):
+        """
+        Valida que si un asistente ya acreditado vuelve a registrarse por RegistroRapido,
+        la nueva auditoría en Acreditacion registre es_reingreso=True.
+        """
+        asistente = Asistente.objects.create(
+            first_name="Reingresante",
+            last_name="Rapido",
+            dni="47555666",
+            email="reingreso.rapido@test.com",
+            phone="1199881122",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion,
+            asistencia_confirmada=True,
+            fecha_confirmacion=timezone.now()
+        )
+        Acreditacion.objects.create(
+            inscripcion=inscripcion,
+            metodo='QR_ESTATICO_MESA',
+            es_reingreso=False
+        )
+
+        payload = {
+            'asistente': {
+                'first_name': 'Reingresante',
+                'last_name': 'Rapido',
+                'dni': '47555666',
+                'email': 'reingreso.rapido@test.com',
+                'profile_type': 'VISITOR'
+            }
+        }
+        response = self.client.post('/api/registro-rapido/', payload, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+
+        acreds = list(Acreditacion.objects.filter(inscripcion=inscripcion).order_by('fecha_acreditacion'))
+        self.assertEqual(len(acreds), 2)
+        self.assertFalse(acreds[0].es_reingreso)
+        self.assertTrue(acreds[1].es_reingreso)
+
+
 
 
 

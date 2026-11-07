@@ -440,6 +440,8 @@ class VerificarDNIView(views.APIView):
 
             # Sanitizar y normalizar DNI: eliminar puntos, espacios o caracteres no numéricos
             dni = re.sub(r'\D', '', str(raw_dni))
+            if len(dni) == 9 and dni.endswith('0'):
+                dni = dni[:8]
             if not dni:
                 return Response({'status': 'error', 'message': 'El DNI provisto no contiene dígitos válidos.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -456,13 +458,15 @@ class VerificarDNIView(views.APIView):
                     'message': 'DNI no encontrado en el listado de registrados.'
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            # 2. Control de Rechazos previos (Disertante / Empresa)
+            # 2. Control de Rechazos previos (Disertante / Empresa) - acotados a la edición activa
             if asistente.disertante_vinculado and getattr(asistente.disertante_vinculado, 'estado', None) == 'RECHAZADO':
-                return Response({
-                    'status': 'error',
-                    'code': 'REGISTRATION_REJECTED',
-                    'message': 'Tu registro de disertante figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
-                }, status=status.HTTP_403_FORBIDDEN)
+                dis_edicion_id = getattr(asistente.disertante_vinculado, 'edicion_id', None)
+                if dis_edicion_id is None or dis_edicion_id == edicion_activa.id:
+                    return Response({
+                        'status': 'error',
+                        'code': 'REGISTRATION_REJECTED',
+                        'message': 'Tu registro de disertante figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
+                    }, status=status.HTTP_403_FORBIDDEN)
 
             postulacion = PostulacionDisertante.objects.filter(dni=dni, edicion=edicion_activa, estado='RECHAZADO').first()
             if postulacion:
@@ -473,11 +477,13 @@ class VerificarDNIView(views.APIView):
                 }, status=status.HTTP_403_FORBIDDEN)
 
             if asistente.empresa_vinculada and getattr(asistente.empresa_vinculada, 'estado', None) == 'RECHAZADA':
-                return Response({
-                    'status': 'error',
-                    'code': 'REGISTRATION_REJECTED',
-                    'message': 'La empresa asociada a tu registro figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
-                }, status=status.HTTP_403_FORBIDDEN)
+                emp_edicion_id = getattr(asistente.empresa_vinculada, 'edicion_id', None)
+                if emp_edicion_id is None or emp_edicion_id == edicion_activa.id:
+                    return Response({
+                        'status': 'error',
+                        'code': 'REGISTRATION_REJECTED',
+                        'message': 'La empresa asociada a tu registro figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
+                    }, status=status.HTTP_403_FORBIDDEN)
 
             if PersonalEmpresa.objects.filter(
                 Q(asistente=asistente) | Q(dni=asistente.dni),
@@ -670,14 +676,24 @@ class VerificarDNIView(views.APIView):
 
                 # Sincronizar PersonalEmpresa si el asistente pertenece a una empresa vinculada
                 now = inscripcion.fecha_confirmacion or timezone.now()
+                update_fields_emp = {
+                    'acreditado': True,
+                    'fecha_acreditacion': now,
+                    'asistente': asistente,
+                }
+                if asistente.email and not is_provisional_email(asistente.email):
+                    update_fields_emp['email'] = asistente.email
+                if asistente.phone and not is_provisional_phone(asistente.phone):
+                    update_fields_emp['telefono'] = asistente.phone
+                if asistente.first_name:
+                    update_fields_emp['nombre'] = asistente.first_name
+                if asistente.last_name:
+                    update_fields_emp['apellido'] = asistente.last_name
+
                 PersonalEmpresa.objects.filter(
                     Q(asistente=asistente) | Q(dni=asistente.dni),
                     empresa__edicion=edicion_activa
-                ).update(
-                    acreditado=True,
-                    fecha_acreditacion=now,
-                    asistente=asistente,
-                )
+                ).update(**update_fields_emp)
 
             # 5. Capa de Selectores: Determinar tipo de pantalla para visualización QR
             pantalla, subtitulo, nombre_vinculado = selectors.resolve_qr_screen_data(asistente)
@@ -702,8 +718,9 @@ class VerificarDNIView(views.APIView):
                 }
             }, status=status.HTTP_200_OK)
 
-        except ValidationError as ve:
-            return Response({'status': 'error', 'message': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValidationError, serializers.ValidationError) as ve:
+            msg = ve.detail if hasattr(ve, 'detail') else (ve.message_dict if hasattr(ve, 'message_dict') else str(ve))
+            return Response({'status': 'error', 'message': msg}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': f'Error al verificar DNI: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -724,6 +741,8 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 serializer.is_valid(raise_exception=True)
                 inscripcion = serializer.save()
                 
+                ya_acreditado = bool(inscripcion.asistencia_confirmada)
+
                 # Acreditar asistencia y encolar certificado para el cierre de jornada (envía Email 2: Confirmación de Asistencia)
                 certificado, email_success = services.confirm_asistencia(inscripcion)
 
@@ -734,20 +753,27 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
                     inscripcion=inscripcion,
                     fecha_acreditacion=inscripcion.fecha_confirmacion or timezone.now(),
                     metodo='IN_SITU',
-                    es_reingreso=False,
-                    observaciones='Acreditación automática por Registro Rápido',
+                    es_reingreso=ya_acreditado,
+                    observaciones='Reingreso / Acreditación repetida por Registro Rápido' if ya_acreditado else 'Acreditación automática por Registro Rápido',
                     ip_origen=ip_origen,
                 )
 
                 # Sincronizar PersonalEmpresa si aplica
+                update_fields_rr = {
+                    'acreditado': True,
+                    'fecha_acreditacion': inscripcion.fecha_confirmacion or timezone.now(),
+                    'asistente': inscripcion.asistente,
+                }
+                if inscripcion.asistente:
+                    if inscripcion.asistente.email and not is_provisional_email(inscripcion.asistente.email):
+                        update_fields_rr['email'] = inscripcion.asistente.email
+                    if inscripcion.asistente.phone and not is_provisional_phone(inscripcion.asistente.phone):
+                        update_fields_rr['telefono'] = inscripcion.asistente.phone
+
                 PersonalEmpresa.objects.filter(
                     Q(asistente=inscripcion.asistente) | Q(dni=inscripcion.asistente.dni),
                     empresa__edicion=inscripcion.edicion
-                ).update(
-                    acreditado=True,
-                    fecha_acreditacion=inscripcion.fecha_confirmacion or timezone.now(),
-                    asistente=inscripcion.asistente,
-                )
+                ).update(**update_fields_rr)
             
             headers = self.get_success_headers(serializer.data)
             msg = 'Registro completado y asistencia confirmada. Te enviamos la confirmación por correo y recibirás tu certificado oficial al finalizar la jornada.'
@@ -755,8 +781,9 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 'status': 'success', 
                 'message': msg
             }, status=status.HTTP_201_CREATED, headers=headers)
-        except serializers.ValidationError as e:
-            return Response({'status': 'error', 'message': e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValidationError, serializers.ValidationError) as e:
+            msg = e.detail if hasattr(e, 'detail') else (e.message_dict if hasattr(e, 'message_dict') else str(e))
+            return Response({'status': 'error', 'message': msg}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

@@ -153,6 +153,27 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
+// Helper para extraer mensajes de error legibles desde la API
+function formatErrorMessage(data: unknown, fallback: string): string {
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  if (typeof data === "object" && data !== null) {
+    const record = data as Record<string, unknown>;
+    if (typeof record.message === "string") return record.message;
+    if (typeof record.error === "string") return record.error;
+    if (typeof record.detail === "string") return record.detail;
+    if (typeof record.message === "object" && record.message !== null) {
+      if (Array.isArray(record.message)) {
+        return record.message.join(", ");
+      }
+      return Object.entries(record.message as Record<string, unknown>)
+        .map(([field, val]) => `${field}: ${Array.isArray(val) ? val.join(", ") : String(val)}`)
+        .join(" | ");
+    }
+  }
+  return fallback;
+}
+
 // Helpers para detección certera de datos provisorios
 function isProvisionalEmailAddress(email?: string): boolean {
   if (!email) return true;
@@ -506,8 +527,8 @@ export default function VerificarDNI() {
   };
 
   // Paso 1: Buscar DNI en modo check_only
-  const handleCheckDni = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCheckDni = async (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault();
     setErrorMsg("");
 
     if (!dni.trim()) {
@@ -538,12 +559,12 @@ export default function VerificarDNI() {
         return;
       }
       if (response.status === 403 && data.code === "REGISTRATION_REJECTED") {
-        setRejectedMsg(data.message || "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción.");
+        setRejectedMsg(formatErrorMessage(data, "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción."));
         setShowRejectedModal(true);
         return;
       }
       if (!response.ok) {
-        throw new Error(data.message || "Error desconocido al verificar DNI.");
+        throw new Error(formatErrorMessage(data, "Error al verificar DNI."));
       }
 
       if (data.status === "pending_confirmation") {
@@ -592,12 +613,12 @@ export default function VerificarDNI() {
         return;
       }
       if (response.status === 403 && data.code === "REGISTRATION_REJECTED") {
-        setRejectedMsg(data.message || "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción.");
+        setRejectedMsg(formatErrorMessage(data, "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción."));
         setShowRejectedModal(true);
         return;
       }
       if (!response.ok) {
-        throw new Error(data.message || "Error desconocido al confirmar asistencia.");
+        throw new Error(formatErrorMessage(data, "Error al confirmar asistencia."));
       }
 
       setResult(data as VerificacionResult);
@@ -625,11 +646,11 @@ export default function VerificarDNI() {
       return;
     }
     if (isProvisionalEmailAddress(editFields.email)) {
-      setErrorMsg("Por favor, ingresá un correo electrónico válido y no provisorio para recibir tu certificado.");
+      setErrorMsg("Por favor, ingresá un correo electrónico válido y no provisorio (ej: usuario@gmail.com) para recibir tu certificado digital.");
       return;
     }
     if (isProvisionalPhoneNumber(editFields.phone)) {
-      setErrorMsg("Por favor, ingresá un número de teléfono real (mínimo 8 dígitos). El teléfono provisorio no es válido.");
+      setErrorMsg("Por favor, ingresá un número de celular real (mínimo 8 dígitos). El teléfono provisorio no es válido.");
       return;
     }
 
@@ -657,12 +678,12 @@ export default function VerificarDNI() {
         return;
       }
       if (response.status === 403 && data.code === "REGISTRATION_REJECTED") {
-        setRejectedMsg(data.message || "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción.");
+        setRejectedMsg(formatErrorMessage(data, "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción."));
         setShowRejectedModal(true);
         return;
       }
       if (!response.ok) {
-        throw new Error(data.message || "Error al actualizar y confirmar.");
+        throw new Error(formatErrorMessage(data, "Error al actualizar y confirmar."));
       }
 
       setResult(data as VerificacionResult);
@@ -1048,8 +1069,10 @@ export default function VerificarDNI() {
 
   // ── Paso 3: Formulario de Modificación Fluida ──
   if (step === "edit_details" && asistenteDetails) {
-    const isPhoneInputProvisional = isProvisionalPhoneNumber(editFields.phone);
-    const isEmailInputProvisional = isProvisionalEmailAddress(editFields.email);
+    const emailHasContent = editFields.email.trim().length > 0;
+    const phoneHasContent = editFields.phone.trim().length > 0;
+    const isEmailInvalid = emailHasContent && isProvisionalEmailAddress(editFields.email);
+    const isPhoneInvalid = phoneHasContent && isProvisionalPhoneNumber(editFields.phone);
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-[#2d1854] to-slate-950 p-4">
@@ -1067,7 +1090,7 @@ export default function VerificarDNI() {
               Editar Información
             </h2>
             <p className="text-purple-200/80 text-sm mb-6 leading-relaxed">
-              Modificá los campos necesarios para tu acreditación y certificado digital.
+              Modificá los campos necesarios para tu acreditación y certificado digital oficial.
             </p>
 
             <form onSubmit={handleConfirmWithEdit} className="space-y-4">
@@ -1096,7 +1119,7 @@ export default function VerificarDNI() {
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1.5">
-                  Correo Electrónico {isEmailInputProvisional && "(Corregir)"}
+                  Correo Electrónico {isEmailInvalid ? "(Inválido)" : !emailHasContent ? "(Requerido)" : ""}
                 </label>
                 <input
                   type="email"
@@ -1104,36 +1127,40 @@ export default function VerificarDNI() {
                   onChange={(e) => setEditFields({ ...editFields, email: e.target.value })}
                   placeholder="ejemplo@correo.com"
                   className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-all duration-200 ${
-                    isEmailInputProvisional
+                    isEmailInvalid
                       ? "border-rose-500/80 focus:ring-4 focus:ring-rose-500/20 bg-rose-950/20 shadow-[0_0_12px_rgba(244,63,94,0.35)] font-bold placeholder:text-rose-300/40 text-white"
                       : "border-white/10 bg-slate-950/40 text-white focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
                   }`}
                 />
-                {isEmailInputProvisional && (
+                {isEmailInvalid ? (
                   <span className="block text-[10px] font-semibold text-rose-300 mt-1.5">
-                    ⚠️ Se requiere un correo real para recibir tu certificado digital.
+                    ⚠️ Se requiere un correo real para recibir tu certificado digital (ej: tu.nombre@gmail.com).
+                  </span>
+                ) : (
+                  <span className="block text-[10px] text-purple-300/60 mt-1">
+                    ✉️ Enviaremos tu certificado oficial a esta casilla al cierre de la jornada.
                   </span>
                 )}
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1.5">
-                  Número de Celular {isPhoneInputProvisional && "(Corregir)"}
+                  Número de Celular {isPhoneInvalid ? "(Inválido)" : !phoneHasContent ? "(Requerido)" : ""}
                 </label>
                 <input
                   type="tel"
                   value={editFields.phone}
                   onChange={(e) => setEditFields({ ...editFields, phone: e.target.value.replace(/\D/g, "") })}
-                  placeholder="Ej: 1123456789 (Sin guiones)"
+                  placeholder="Ej: 1123456789 (Mínimo 8 dígitos)"
                   className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-all duration-200 ${
-                    isPhoneInputProvisional
+                    isPhoneInvalid
                       ? "border-rose-500/80 focus:ring-4 focus:ring-rose-500/20 bg-rose-950/20 shadow-[0_0_12px_rgba(244,63,94,0.35)] font-bold placeholder:text-rose-300/40 text-white"
                       : "border-white/10 bg-slate-950/40 text-white focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
                   }`}
                 />
-                {isPhoneInputProvisional && (
+                {isPhoneInvalid && (
                   <span className="block text-[10px] font-semibold text-rose-300 mt-1.5">
-                    ⚠️ Se requiere un número celular real para continuar.
+                    ⚠️ Se requiere un número celular real (mínimo 8 dígitos numéricos).
                   </span>
                 )}
               </div>
@@ -1162,7 +1189,7 @@ export default function VerificarDNI() {
               </div>
 
               {errorMsg && (
-                <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mt-4 leading-relaxed">
+                <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mt-4 leading-relaxed animate-shake">
                   <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-red-200">{errorMsg}</p>
                 </div>
@@ -1180,7 +1207,7 @@ export default function VerificarDNI() {
 
                 <button
                   type="submit"
-                  disabled={loading || isPhoneInputProvisional || isEmailInputProvisional}
+                  disabled={loading}
                   className="flex-1 py-3.5 rounded-2xl text-white font-extrabold text-sm bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 btn-shimmer border border-white/10"
                 >
                   {loading ? (

@@ -10,10 +10,11 @@ def get_active_edition() -> Optional[Edicion]:
 def get_asistente_by_dni(dni: str) -> Optional[Asistente]:
     """
     Busca un asistente registrado por su DNI. Retorna None si no existe.
+    Utiliza .filter().first() para blindar contra MultipleObjectsReturned en bases con datos legacy.
     """
     try:
-        return Asistente.objects.get(dni=dni)
-    except Asistente.DoesNotExist:
+        return Asistente.objects.filter(dni=dni).first()
+    except Exception:
         return None
 
 def get_inscripcion_for_edition(asistente: Asistente, edicion: Edicion) -> Optional[Inscripcion]:

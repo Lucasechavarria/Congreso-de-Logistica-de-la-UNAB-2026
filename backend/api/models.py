@@ -450,10 +450,6 @@ class Asistente(models.Model):
         super().save(*args, **kwargs)
 
     @property
-    def nombre_completo(self):
-        return f"{self.first_name} {self.last_name}"
-    
-    @property
     def es_representante_grupo(self):
         """Verifica si este asistente es representante de un grupo"""
         return self.profile_type == self.ProfileType.GROUP_REPRESENTATIVE

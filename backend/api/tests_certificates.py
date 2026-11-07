@@ -865,8 +865,9 @@ class AcreditacionAndVerificarDNITests(TestCase):
         self.assertEqual(response.data.get('code'), 'ALREADY_ACCREDITED')
         self.assertIn('hora_acreditacion', response.data)
         self.assertIn('fecha_acreditacion', response.data)
-        self.assertEqual(response.data.get('hora_acreditacion'), now.strftime("%H:%M hs"))
-        self.assertEqual(response.data.get('fecha_acreditacion'), now.strftime("%d/%m/%Y"))
+        local_now = timezone.localtime(now)
+        self.assertEqual(response.data.get('hora_acreditacion'), local_now.strftime("%H:%M hs"))
+        self.assertEqual(response.data.get('fecha_acreditacion'), local_now.strftime("%d/%m/%Y"))
         self.assertIn('asistente', response.data)
         self.assertIn('pantalla', response.data)
 
@@ -975,6 +976,137 @@ class AcreditacionAndVerificarDNITests(TestCase):
         acred = Acreditacion.objects.filter(inscripcion=inscripcion).first()
         self.assertIsNotNone(acred)
         self.assertEqual(acred.metodo, 'IN_SITU')
+
+    def test_verificar_dni_provisional_check_does_not_flag_valid_localities(self):
+        """Valida que un email real con 'temperley' en el usuario no se marque como provisorio."""
+        asistente = Asistente.objects.create(
+            first_name="Marcos",
+            last_name="Temperley",
+            dni="37111222",
+            email="marcos.temperley@gmail.com",
+            phone="1144332211",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '37111222',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data.get('is_provisional_email'))
+        self.assertFalse(response.data.get('is_provisional_phone'))
+
+    def test_verificar_dni_blocks_confirmation_with_provisional_email_or_phone(self):
+        """Valida que si se intenta confirmar con datos provisorios, el backend rechace con HTTP 400 PROVISIONAL_DATA_REQUIRED."""
+        asistente = Asistente.objects.create(
+            first_name="Temporal",
+            last_name="Usuario",
+            dni="38222333",
+            email="temp.user@empresa.temp",
+            phone="1111111111",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+        # Intentar confirmar sin corregir datos
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '38222333',
+            'confirmar': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data.get('code'), 'PROVISIONAL_DATA_REQUIRED')
+        inscripcion.refresh_from_db()
+        self.assertFalse(inscripcion.asistencia_confirmada)
+        self.assertEqual(Acreditacion.objects.filter(inscripcion=inscripcion).count(), 0)
+
+    def test_verificar_dni_not_enrolled_for_active_edition_returns_404_not_registered(self):
+        """Valida que un asistente registrado en otra edición pero no en la activa devuelva 404 NOT_REGISTERED."""
+        otra_edicion, _ = Edicion.objects.get_or_create(anio=2025, defaults={'nombre': "Congreso 2025", 'activa': False})
+        asistente = Asistente.objects.create(
+            first_name="Pasado",
+            last_name="Anterior",
+            dni="39333444",
+            email="pasado@test.com",
+            phone="1199887766",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=otra_edicion
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '39333444',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data.get('code'), 'NOT_REGISTERED')
+
+    def test_verificar_dni_concurrency_race_condition(self):
+        """
+        Valida que si dos solicitudes de confirmación concurrente llegan para la misma inscripción,
+        la primera entrega HTTP 200 y la segunda entrega HTTP 409 ALREADY_ACCREDITED,
+        generando exactamente un solo registro de Acreditacion.
+        """
+        asistente = Asistente.objects.create(
+            first_name="Concurrente",
+            last_name="Test",
+            dni="41000111",
+            email="concurrente@unab.edu.ar",
+            phone="1155443322",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+
+        res1 = self.client.post('/api/verificar-dni/', {
+            'dni': '41000111',
+            'confirmar': True
+        }, content_type='application/json')
+        self.assertEqual(res1.status_code, 200)
+        self.assertEqual(res1.data.get('status'), 'success')
+
+        res2 = self.client.post('/api/verificar-dni/', {
+            'dni': '41000111',
+            'confirmar': True
+        }, content_type='application/json')
+        self.assertEqual(res2.status_code, 409)
+        self.assertEqual(res2.data.get('code'), 'ALREADY_ACCREDITED')
+
+        # Comprobar que solo existe 1 registro de Acreditacion
+        self.assertEqual(Acreditacion.objects.filter(inscripcion=inscripcion).count(), 1)
+
+    def test_verificar_dni_ip_extraction_and_sanitization(self):
+        """Valida que IP con puerto o proxy múltiple se guarde sanitizada en Acreditacion."""
+        asistente = Asistente.objects.create(
+            first_name="IP",
+            last_name="Proxy",
+            dni="42111222",
+            email="ip.proxy@test.com",
+            phone="1122334455",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+        response = self.client.post(
+            '/api/verificar-dni/',
+            {'dni': '42111222', 'confirmar': True},
+            content_type='application/json',
+            HTTP_X_FORWARDED_FOR='190.220.10.5:8080, 10.0.0.1'
+        )
+        self.assertEqual(response.status_code, 200)
+        acred = Acreditacion.objects.filter(inscripcion=inscripcion).first()
+        self.assertIsNotNone(acred)
+        self.assertEqual(acred.ip_origen, '190.220.10.5')
+
 
 
 

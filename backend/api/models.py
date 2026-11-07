@@ -744,7 +744,9 @@ class Acreditacion(models.Model):
         ordering = ['-fecha_acreditacion']
 
     def __str__(self):
-        return f"Acreditación #{self.id} - {self.inscripcion.asistente} ({self.fecha_acreditacion.strftime('%d/%m/%Y %H:%M')})"
+        fecha_local = timezone.localtime(self.fecha_acreditacion) if self.fecha_acreditacion else None
+        fecha_str = fecha_local.strftime('%d/%m/%Y %H:%M') if fecha_local else ''
+        return f"Acreditación #{self.id} - {self.inscripcion.asistente} ({fecha_str})"
 
 class Dashboard(models.Model):
     class Meta:

@@ -153,6 +153,24 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
+// Helpers para detección certera de datos provisorios
+function isProvisionalEmailAddress(email?: string): boolean {
+  if (!email) return true;
+  const clean = email.trim().toLowerCase();
+  if (!clean.includes("@")) return true;
+  if (clean.endsWith(".temp") || clean.includes("@empresa.temp") || clean.includes("@unab.temp")) return true;
+  if (/@(?:[a-zA-Z0-9-]+\.)*temp$/.test(clean)) return true;
+  if (!/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(clean)) return true;
+  return false;
+}
+
+function isProvisionalPhoneNumber(phone?: string): boolean {
+  if (!phone) return true;
+  const digits = phone.replace(/\D/g, "");
+  if (!digits || digits === "1111111111" || digits.length < 8) return true;
+  return false;
+}
+
 // ─── Pantalla de éxito ────────────────────────────────────────────────────────
 function PantallaExito({
   result,
@@ -344,9 +362,18 @@ function PantallaYaAcreditado({
                 <span>Asistencia confirmada</span>
               </div>
               <p className="text-sm text-purple-100 font-medium">
-                {data.hora_acreditacion
-                  ? `Confirmaste tu asistencia hoy a las ${data.hora_acreditacion}`
-                  : data.message}
+                {(() => {
+                  if (!data.hora_acreditacion) return data.message;
+                  const now = new Date();
+                  const day = String(now.getDate()).padStart(2, "0");
+                  const month = String(now.getMonth() + 1).padStart(2, "0");
+                  const year = String(now.getFullYear());
+                  const todayStr = `${day}/${month}/${year}`;
+                  if (!data.fecha_acreditacion || data.fecha_acreditacion === todayStr) {
+                    return `Confirmaste tu asistencia hoy a las ${data.hora_acreditacion}`;
+                  }
+                  return `Confirmaste tu asistencia el ${data.fecha_acreditacion} a las ${data.hora_acreditacion}`;
+                })()}
               </p>
               {data.fecha_acreditacion && (
                 <span className="inline-block mt-2 text-[11px] font-semibold text-amber-200/80 bg-black/20 px-3 py-1 rounded-full border border-amber-500/20">
@@ -436,19 +463,12 @@ export default function VerificarDNI() {
 
   // Validar si el teléfono es provisional/genérico
   const isPhoneGeneric = asistenteDetails 
-    ? Boolean(asistenteDetails.is_provisional_phone ?? (asistenteDetails.phone === "1111111111" || !asistenteDetails.phone.trim()))
+    ? Boolean(asistenteDetails.is_provisional_phone ?? isProvisionalPhoneNumber(asistenteDetails.phone))
     : false;
 
   // Validar si el correo es provisional/genérico
   const isEmailProvisional = asistenteDetails
-    ? Boolean(
-        asistenteDetails.is_provisional_email ??
-        (!asistenteDetails.email ||
-          !asistenteDetails.email.includes("@") ||
-          asistenteDetails.email.includes(".temp") ||
-          asistenteDetails.email.includes("@empresa.temp") ||
-          asistenteDetails.email.includes("@unab.temp"))
-      )
+    ? Boolean(asistenteDetails.is_provisional_email ?? isProvisionalEmailAddress(asistenteDetails.email))
     : false;
 
   const hasProvisionalData = isPhoneGeneric || isEmailProvisional;
@@ -509,7 +529,7 @@ export default function VerificarDNI() {
 
       const data = await response.json();
 
-      if (response.status === 404) {
+      if (response.status === 404 || data.code === "NOT_REGISTERED") {
         setShowModal(true);
         return;
       }
@@ -528,13 +548,15 @@ export default function VerificarDNI() {
 
       if (data.status === "pending_confirmation") {
         setAsistenteDetails(data.asistente);
+        const emailTemp = Boolean(data.asistente.is_provisional_email ?? isProvisionalEmailAddress(data.asistente.email));
+        const phoneTemp = Boolean(data.asistente.is_provisional_phone ?? isProvisionalPhoneNumber(data.asistente.phone));
         setEditFields({
-          first_name: data.asistente.first_name,
-          last_name: data.asistente.last_name,
-          email: data.asistente.email,
-          phone: data.asistente.phone,
-          institution: data.asistente.institution,
-          career: data.asistente.career,
+          first_name: data.asistente.first_name || "",
+          last_name: data.asistente.last_name || "",
+          email: emailTemp ? "" : (data.asistente.email || ""),
+          phone: phoneTemp ? "" : (data.asistente.phone || ""),
+          institution: data.asistente.institution || "",
+          career: data.asistente.career || "",
         });
         setStep("verify_details");
       }
@@ -602,12 +624,12 @@ export default function VerificarDNI() {
       setErrorMsg("El apellido no puede estar vacío");
       return;
     }
-    if (!editFields.email.trim() || editFields.email.toLowerCase().includes(".temp") || !/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(editFields.email.trim())) {
+    if (isProvisionalEmailAddress(editFields.email)) {
       setErrorMsg("Por favor, ingresá un correo electrónico válido y no provisorio para recibir tu certificado.");
       return;
     }
-    if (!editFields.phone.trim() || editFields.phone.trim() === "1111111111") {
-      setErrorMsg("Por favor, ingresá un número de teléfono real. El teléfono provisorio no es válido.");
+    if (isProvisionalPhoneNumber(editFields.phone)) {
+      setErrorMsg("Por favor, ingresá un número de teléfono real (mínimo 8 dígitos). El teléfono provisorio no es válido.");
       return;
     }
 
@@ -962,45 +984,61 @@ export default function VerificarDNI() {
             {/* Botones de acción */}
             <div className="flex flex-col gap-3">
               {hasProvisionalData ? (
-                <div className="text-center text-xs text-rose-400/90 font-bold bg-rose-500/5 py-3 rounded-2xl border border-rose-500/20 mb-1">
-                  🔒 La confirmación directa está bloqueada hasta actualizar tus datos provisorios.
-                </div>
+                <>
+                  <div className="text-center text-xs text-rose-400 font-bold bg-rose-500/10 py-3 rounded-2xl border border-rose-500/20">
+                    🔒 La confirmación directa está bloqueada hasta actualizar tus datos provisorios.
+                  </div>
+
+                  <button
+                    onClick={() => setStep("edit_details")}
+                    className="w-full py-4 rounded-2xl text-white font-extrabold text-base bg-gradient-to-r from-amber-500 via-orange-600 to-purple-700 hover:from-amber-400 hover:to-purple-600 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 btn-shimmer border border-white/10"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                    Actualizar Datos para Acreditarme
+                  </button>
+
+                  <button
+                    onClick={() => setStep("input_dni")}
+                    className="w-full py-3 rounded-2xl font-bold bg-white/5 hover:bg-white/10 active:scale-[0.98] transition-all duration-200 text-sm border border-white/5 flex items-center justify-center gap-2 text-purple-200"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Volver
+                  </button>
+                </>
               ) : (
-                <button
-                  onClick={handleConfirmDirect}
-                  disabled={loading}
-                  className="w-full py-4 rounded-2xl text-white font-extrabold text-base bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 btn-shimmer border border-white/10"
-                >
-                  {loading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Check className="w-5 h-5" />
-                  )}
-                  Sí, mis datos son correctos (Confirmar)
-                </button>
+                <>
+                  <button
+                    onClick={handleConfirmDirect}
+                    disabled={loading}
+                    className="w-full py-4 rounded-2xl text-white font-extrabold text-base bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 btn-shimmer border border-white/10"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Check className="w-5 h-5" />
+                    )}
+                    Sí, mis datos son correctos (Confirmar)
+                  </button>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setStep("input_dni")}
+                      className="flex-1 py-3.5 rounded-2xl font-bold bg-white/5 hover:bg-white/10 active:scale-[0.98] transition-all duration-200 text-sm border border-white/5 flex items-center justify-center gap-2 text-purple-200"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Volver
+                    </button>
+
+                    <button
+                      onClick={() => setStep("edit_details")}
+                      className="flex-1 py-3.5 rounded-2xl font-bold active:scale-[0.98] transition-all duration-200 text-sm flex items-center justify-center gap-2 bg-purple-500/20 hover:bg-purple-500/35 text-purple-100 border border-purple-500/30"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Modificar Datos
+                    </button>
+                  </div>
+                </>
               )}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setStep("input_dni")}
-                  className="flex-1 py-3.5 rounded-2xl font-bold bg-white/5 hover:bg-white/10 active:scale-[0.98] transition-all duration-200 text-sm border border-white/5 flex items-center justify-center gap-2 text-purple-200"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Volver
-                </button>
-
-                <button
-                  onClick={() => setStep("edit_details")}
-                  className={`flex-1 py-3.5 rounded-2xl font-bold active:scale-[0.98] transition-all duration-200 text-sm flex items-center justify-center gap-2 ${
-                    hasProvisionalData
-                      ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/25 border border-white/20 btn-shimmer"
-                      : "bg-purple-500/20 hover:bg-purple-500/35 text-purple-100 border border-purple-500/30"
-                  }`}
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Modificar Datos
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -1010,8 +1048,8 @@ export default function VerificarDNI() {
 
   // ── Paso 3: Formulario de Modificación Fluida ──
   if (step === "edit_details" && asistenteDetails) {
-    const isPhoneInputProvisional = !editFields.phone.trim() || editFields.phone.trim() === "1111111111";
-    const isEmailInputProvisional = !editFields.email.trim() || editFields.email.toLowerCase().includes(".temp") || !/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(editFields.email.trim());
+    const isPhoneInputProvisional = isProvisionalPhoneNumber(editFields.phone);
+    const isEmailInputProvisional = isProvisionalEmailAddress(editFields.email);
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-[#2d1854] to-slate-950 p-4">
@@ -1062,7 +1100,7 @@ export default function VerificarDNI() {
                 </label>
                 <input
                   type="email"
-                  value={editFields.email.includes(".temp") ? "" : editFields.email}
+                  value={editFields.email}
                   onChange={(e) => setEditFields({ ...editFields, email: e.target.value })}
                   placeholder="ejemplo@correo.com"
                   className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-all duration-200 ${
@@ -1080,11 +1118,11 @@ export default function VerificarDNI() {
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1.5">
-                  Número de Celular {editFields.phone === "1111111111" && "(Corregir)"}
+                  Número de Celular {isPhoneInputProvisional && "(Corregir)"}
                 </label>
                 <input
                   type="tel"
-                  value={editFields.phone === "1111111111" ? "" : editFields.phone}
+                  value={editFields.phone}
                   onChange={(e) => setEditFields({ ...editFields, phone: e.target.value.replace(/\D/g, "") })}
                   placeholder="Ej: 1123456789 (Sin guiones)"
                   className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-all duration-200 ${

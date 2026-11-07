@@ -377,9 +377,14 @@ class VerificarDNIView(views.APIView):
 
     @sanitize_xss_payload
     def post(self, request, *args, **kwargs):
-        dni = request.data.get('dni')
-        if not dni:
+        raw_dni = request.data.get('dni')
+        if not raw_dni:
             return Response({'status': 'error', 'message': 'No se proporcionó DNI.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Sanitizar y normalizar DNI: eliminar puntos, espacios o caracteres no numéricos
+        dni = re.sub(r'\D', '', str(raw_dni))
+        if not dni:
+            return Response({'status': 'error', 'message': 'El DNI provisto no contiene dígitos válidos.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 1. Capa de Selectores: Buscar la información requerida
         edicion_activa = selectors.get_active_edition()
@@ -439,7 +444,7 @@ class VerificarDNIView(views.APIView):
                 'asistente': asistente_data,
             }, status=status.HTTP_200_OK)
 
-        # Si es para confirmar, opcionalmente actualizamos datos primero
+        # Si es para confirmar, opcionalmente actualizamos datos primero y confirmamos de forma atómica
         first_name = request.data.get('first_name')
         last_name = request.data.get('last_name')
         email = request.data.get('email')
@@ -447,8 +452,8 @@ class VerificarDNIView(views.APIView):
         institution = request.data.get('institution')
         career = request.data.get('career')
 
-        if any([first_name, last_name, email, phone, institution, career]):
-            with transaction.atomic():
+        with transaction.atomic():
+            if any([first_name, last_name, email, phone, institution, career]):
                 if first_name:
                     asistente.first_name = " ".join(first_name.strip().split())
                 if last_name:
@@ -485,8 +490,8 @@ class VerificarDNIView(views.APIView):
                         detalle.career = career.strip()
                     detalle.save()
 
-        # 2. Capa de Servicios: Confirmación transaccional y generación/envío de certificado
-        certificado, email_success = services.confirm_asistencia(inscripcion)
+            # 2. Capa de Servicios: Confirmación transaccional, encolado de certificado y envío de confirmación de asistencia
+            certificado, email_success = services.confirm_asistencia(inscripcion)
 
         # 3. Capa de Selectores: Determinar tipo de pantalla para visualización QR
         pantalla, subtitulo, nombre_vinculado = selectors.resolve_qr_screen_data(asistente)
@@ -514,6 +519,8 @@ class VerificarDNIView(views.APIView):
 class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """
     Vista para registro rápido in-situ en el evento.
+    Crea la inscripción, dispara la confirmación de inscripción, acredita la asistencia de inmediato
+    (Email de bienvenida) y deja el certificado en cola diferida para el cierre de jornada.
     """
     queryset = Inscripcion.objects.all()
     serializer_class = InscripcionSerializer
@@ -522,26 +529,15 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         try:
-            serializer.is_valid(raise_exception=True)
-            inscripcion = serializer.save()
-            
-            # Confirmar asistencia inmediatamente para registro in-situ
-            inscripcion.asistencia_confirmada = True
-            inscripcion.fecha_confirmacion = timezone.now()
-            inscripcion.save()
-            
-            # Crear certificado de asistencia
-            certificado, created = Certificado.objects.get_or_create(
-                asistente=inscripcion.asistente,
-                tipo_certificado=Certificado.TipoCertificado.ASISTENCIA
-            )
-            
-            # Enviar el certificado por email
-            result = send_certificate_email(certificado)
-            email_success = result[0] if isinstance(result, tuple) else bool(result)
+            with transaction.atomic():
+                serializer.is_valid(raise_exception=True)
+                inscripcion = serializer.save()
+                
+                # Acreditar asistencia y encolar certificado para el cierre de jornada (envía Email 2: Confirmación de Asistencia)
+                certificado, email_success = services.confirm_asistencia(inscripcion)
             
             headers = self.get_success_headers(serializer.data)
-            msg = 'Registro completado. Asistencia confirmada y certificado enviado por email.' if email_success else 'Registro completado y asistencia confirmada, pero no se pudo enviar el certificado por email (sistema de correos no configurado).'
+            msg = 'Registro completado y asistencia confirmada. Te enviamos la confirmación por correo y recibirás tu certificado oficial al finalizar la jornada.'
             return Response({
                 'status': 'success', 
                 'message': msg

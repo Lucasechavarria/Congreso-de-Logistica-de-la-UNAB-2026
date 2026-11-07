@@ -37,7 +37,7 @@ export default function BolsaTrabajo() {
   }, [searchTerm]);
 
   // Fetch de ofertas
-  const { data: ofertas = [], isLoading: isLoadingOfertas } = useQuery({
+  const { data: ofertas = [], isLoading: isLoadingOfertas } = useQuery<any[]>({
     queryKey: ["ofertas", debouncedSearch, modalidad, empresaId],
     queryFn: () => {
       const params: Record<string, string> = {};
@@ -49,9 +49,9 @@ export default function BolsaTrabajo() {
   });
 
   // Fetch de empresas para el filtro
-  const { data: empresas = [] } = useQuery({
+  const { data: empresas = [] } = useQuery<any[]>({
     queryKey: ["empresas-filtro"],
-    queryFn: getEmpresas,
+    queryFn: () => getEmpresas(),
   });
 
   const clearFilters = () => {

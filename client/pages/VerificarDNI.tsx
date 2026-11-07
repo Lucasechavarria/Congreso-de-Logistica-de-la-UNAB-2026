@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
   AlertCircle,
@@ -14,6 +15,8 @@ import {
   Edit2,
   ArrowLeft,
   Check,
+  RefreshCw,
+  WifiOff,
 } from "lucide-react";
 import { API_HOST } from "@/lib/api";
 
@@ -180,13 +183,16 @@ function PantallaExito({ result }: { result: VerificacionResult }) {
             <div className="border-t border-white/10 my-6" />
 
             {/* Footer instrucción para colaborador */}
-            <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 text-center border border-white/5">
-              <Shield className="w-6 h-6 text-purple-400 mx-auto mb-2" />
+            <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 text-center border border-white/5 space-y-1">
+              <Shield className="w-6 h-6 text-purple-400 mx-auto mb-1" />
               <p className="text-sm font-semibold text-purple-100">
-                Acreditación exitosa
+                ¡Acreditación exitosa!
               </p>
-              <p className="text-xs text-purple-300/80 mt-0.5">
-                Ya podés ingresar a las salas del congreso
+              <p className="text-xs text-purple-300/90 leading-relaxed">
+                Ya podés ingresar a las salas del congreso.
+              </p>
+              <p className="text-xs text-emerald-300 font-medium bg-emerald-500/10 border border-emerald-500/20 rounded-xl py-1 px-2 mt-2">
+                ✉️ Tu certificado oficial de asistencia será emitido y enviado a tu correo al finalizar la jornada.
               </p>
             </div>
             
@@ -203,14 +209,46 @@ function PantallaExito({ result }: { result: VerificacionResult }) {
   );
 }
 
+// Helper con timeout seguro para entornos móviles y redes inestables
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 8000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      throw new Error("La solicitud demoró más de 8 segundos. Verificá tu señal de internet y volvé a intentar.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function VerificarDNI() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<"input_dni" | "verify_details" | "edit_details" | "success">("input_dni");
   const [dni, setDni] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [showModal, setShowModal] = useState<boolean>(false);
+
+  // Precargar DNI si viene en los query params (ej: /verificar-dni?dni=12345678)
+  useEffect(() => {
+    const paramDni = searchParams.get("dni");
+    if (paramDni) {
+      const cleanParam = paramDni.replace(/\D/g, "").slice(0, 8);
+      if (cleanParam) {
+        setDni(cleanParam);
+      }
+    }
+  }, [searchParams]);
   
   // Datos del asistente para verificar/editar
   const [asistenteDetails, setAsistenteDetails] = useState<AsistenteDetails | null>(null);
@@ -246,7 +284,7 @@ export default function VerificarDNI() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_HOST}/api/verificar-dni/`, {
+      const response = await fetchWithTimeout(`${API_HOST}/api/verificar-dni/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dni: dni.trim(), check_only: true }),
@@ -297,7 +335,7 @@ export default function VerificarDNI() {
     setErrorMsg("");
     setLoading(true);
     try {
-      const response = await fetch(`${API_HOST}/api/verificar-dni/`, {
+      const response = await fetchWithTimeout(`${API_HOST}/api/verificar-dni/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dni: dni.trim(), confirmar: true }),
@@ -344,7 +382,7 @@ export default function VerificarDNI() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_HOST}/api/verificar-dni/`, {
+      const response = await fetchWithTimeout(`${API_HOST}/api/verificar-dni/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -446,8 +484,24 @@ export default function VerificarDNI() {
 
                 {errorMsg && (
                   <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
-                    <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-red-200 leading-relaxed">{errorMsg}</p>
+                    {errorMsg.includes("segundos") || errorMsg.includes("internet") ? (
+                      <WifiOff className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm text-red-200 leading-relaxed">{errorMsg}</p>
+                      {(errorMsg.includes("segundos") || errorMsg.includes("internet")) && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleCheckDni(e)}
+                          className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-200 underline underline-offset-2"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          Reintentar ahora
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 

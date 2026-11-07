@@ -445,8 +445,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/day',
         'user': '1000/day',
-        'dni_verification': '10/min',       # 10 peticiones por minuto por IP para DNI
-        'form_registration': '5/min',       # 5 peticiones por minuto por IP para formularios
+        'dni_verification': '300/min',      # 300 peticiones por minuto por IP para DNI (blindaje Wi-Fi evento)
+        'form_registration': '30/min',       # 30 peticiones por minuto por IP para formularios
     }
 }
 

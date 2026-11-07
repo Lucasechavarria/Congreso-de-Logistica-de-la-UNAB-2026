@@ -3,7 +3,10 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 from unittest.mock import patch, MagicMock
-from api.models import Asistente, Certificado, Edicion, Inscripcion
+from api.models import (
+    Asistente, Certificado, Edicion, Inscripcion, Acreditacion,
+    Empresa, Disertante, PersonalEmpresa, PostulacionDisertante
+)
 from api.email import send_certificate_email
 import json
 
@@ -741,6 +744,238 @@ class GDriveBackupAndShieldingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/zip')
         self.assertIn('attachment; filename="backup_congreso_', response['Content-Disposition'])
+
+
+class AcreditacionAndVerificarDNITests(TestCase):
+    def setUp(self):
+        self.edicion, _ = Edicion.objects.get_or_create(
+            anio=2026,
+            defaults={'nombre': "Congreso de Logística 2026", 'activa': True}
+        )
+        if not self.edicion.activa:
+            self.edicion.activa = True
+            self.edicion.save()
+
+    def test_acreditacion_model_creation(self):
+        asistente = Asistente.objects.create(
+            first_name="Juan",
+            last_name="Perez",
+            dni="30111222",
+            email="juan.perez@test.com",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion,
+            asistencia_confirmada=True
+        )
+        acred = Acreditacion.objects.create(
+            inscripcion=inscripcion,
+            metodo='QR_ESTATICO_MESA',
+            es_reingreso=False,
+            observaciones='Ingreso por Tótem 1',
+            ip_origen='192.168.1.100'
+        )
+        self.assertEqual(acred.metodo, 'QR_ESTATICO_MESA')
+        self.assertEqual(inscripcion.acreditaciones.count(), 1)
+        self.assertEqual(inscripcion.acreditaciones.first(), acred)
+        self.assertIn("Acreditación #", str(acred))
+
+    def test_verificar_dni_not_found_returns_404(self):
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '99999999',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data.get('status'), 'error')
+
+    def test_verificar_dni_rejected_empresa_returns_403(self):
+        empresa_rechazada = Empresa.objects.create(
+            nombre_empresa="Empresa Rechazada S.A.",
+            edicion=self.edicion,
+            estado='RECHAZADA'
+        )
+        asistente = Asistente.objects.create(
+            first_name="Carlos",
+            last_name="Rechazado",
+            dni="31222333",
+            email="carlos@rechazada.com",
+            profile_type=Asistente.ProfileType.PROFESSIONAL,
+            empresa_vinculada=empresa_rechazada
+        )
+        Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion,
+            empresa=empresa_rechazada
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '31222333',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data.get('code'), 'REGISTRATION_REJECTED')
+        self.assertIn('recepción', response.data.get('message').lower())
+
+    def test_verificar_dni_rejected_disertante_returns_403(self):
+        disertante_rechazado = Disertante.objects.create(
+            nombre="Disertante No Admitido",
+            edicion=self.edicion,
+            estado='RECHAZADO'
+        )
+        asistente = Asistente.objects.create(
+            first_name="Roberto",
+            last_name="Disertante",
+            dni="32333444",
+            email="roberto@disertante.com",
+            profile_type=Asistente.ProfileType.PROFESSIONAL,
+            disertante_vinculado=disertante_rechazado
+        )
+        Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '32333444',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data.get('code'), 'REGISTRATION_REJECTED')
+
+    def test_verificar_dni_already_accredited_returns_409(self):
+        now = timezone.now()
+        asistente = Asistente.objects.create(
+            first_name="Lucia",
+            last_name="Acreditada",
+            dni="33444555",
+            email="lucia@acreditada.com",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion,
+            asistencia_confirmada=True,
+            fecha_confirmacion=now
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '33444555',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data.get('status'), 'already_accredited')
+        self.assertEqual(response.data.get('code'), 'ALREADY_ACCREDITED')
+        self.assertIn('hora_acreditacion', response.data)
+        self.assertIn('fecha_acreditacion', response.data)
+        self.assertEqual(response.data.get('hora_acreditacion'), now.strftime("%H:%M hs"))
+        self.assertEqual(response.data.get('fecha_acreditacion'), now.strftime("%d/%m/%Y"))
+        self.assertIn('asistente', response.data)
+        self.assertIn('pantalla', response.data)
+
+    def test_verificar_dni_check_only_flags_provisional_data(self):
+        asistente = Asistente.objects.create(
+            first_name="Provisorio",
+            last_name="Test",
+            dni="34555666",
+            email="asistente@empresa.temp",
+            phone="1111111111",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion
+        )
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '34555666',
+            'check_only': True
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data.get('status'), 'pending_confirmation')
+        self.assertTrue(response.data.get('is_provisional_phone'))
+        self.assertTrue(response.data.get('is_provisional_email'))
+
+    def test_verificar_dni_confirm_attendance_creates_acreditacion_and_syncs_personal(self):
+        empresa = Empresa.objects.create(
+            nombre_empresa="Logística Global",
+            edicion=self.edicion,
+            estado='CONFIRMADA'
+        )
+        asistente = Asistente.objects.create(
+            first_name="Marcos",
+            last_name="Empresarial",
+            dni="35666777",
+            email="marcos.temp@empresa.temp",
+            phone="1111111111",
+            profile_type=Asistente.ProfileType.PROFESSIONAL,
+            empresa_vinculada=empresa
+        )
+        inscripcion = Inscripcion.objects.create(
+            asistente=asistente,
+            edicion=self.edicion,
+            empresa=empresa
+        )
+        personal = PersonalEmpresa.objects.create(
+            empresa=empresa,
+            nombre="Marcos",
+            apellido="Empresarial",
+            dni="35666777",
+            acreditado=False
+        )
+
+        response = self.client.post('/api/verificar-dni/', {
+            'dni': '35666777',
+            'confirmar': True,
+            'email': 'marcos.real@gmail.com',
+            'phone': '1144556677',
+            'metodo': 'QR_ESTATICO_MESA'
+        }, content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data.get('status'), 'success')
+
+        # Verificar Inscripcion actualizada
+        inscripcion.refresh_from_db()
+        self.assertTrue(inscripcion.asistencia_confirmada)
+        self.assertIsNotNone(inscripcion.fecha_confirmacion)
+
+        # Verificar Asistente actualizado
+        asistente.refresh_from_db()
+        self.assertEqual(asistente.email, 'marcos.real@gmail.com')
+        self.assertEqual(asistente.phone, '1144556677')
+
+        # Verificar registro en Acreditacion
+        acreditaciones = Acreditacion.objects.filter(inscripcion=inscripcion)
+        self.assertEqual(acreditaciones.count(), 1)
+        acred = acreditaciones.first()
+        self.assertEqual(acred.metodo, 'QR_ESTATICO_MESA')
+        self.assertFalse(acred.es_reingreso)
+
+        # Verificar sincronización con PersonalEmpresa
+        personal.refresh_from_db()
+        self.assertTrue(personal.acreditado)
+        self.assertIsNotNone(personal.fecha_acreditacion)
+        self.assertEqual(personal.asistente, asistente)
+
+    def test_registro_rapido_creates_acreditacion_in_situ(self):
+        payload = {
+            'asistente': {
+                'first_name': 'Camila',
+                'last_name': 'Express',
+                'dni': '36777888',
+                'email': 'camila.express@unab.edu.ar',
+                'profile_type': 'VISITOR'
+            }
+        }
+        response = self.client.post('/api/registro-rapido/', payload, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data.get('status'), 'success')
+
+        asistente = Asistente.objects.get(dni='36777888')
+        inscripcion = Inscripcion.objects.get(asistente=asistente, edicion=self.edicion)
+        self.assertTrue(inscripcion.asistencia_confirmada)
+
+        acred = Acreditacion.objects.filter(inscripcion=inscripcion).first()
+        self.assertIsNotNone(acred)
+        self.assertEqual(acred.metodo, 'IN_SITU')
+
 
 
 

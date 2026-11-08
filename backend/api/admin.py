@@ -424,7 +424,8 @@ def certificate_queue_view(request):
                 'Email Registrado': f['email'],
                 'Tipo Certificado': f['tipo_display'],
                 'Intentos de Envío': f['intentos'],
-                'Motivo del Fallo / Error': f['error'],
+                'Categoría del Fallo': f.get('error_categoria', 'Incidencia'),
+                'Motivo Detallado del Fallo / Error': f['error'],
                 'Fecha Generación': f.get('fecha_generacion', ''),
             })
         df = pd.DataFrame(data)

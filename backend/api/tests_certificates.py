@@ -2001,14 +2001,63 @@ class BatchQueueResilienceAndSchedulerTests(TestCase):
         self.assertIn(cert_smtp.id, fallidos_dict)
 
         self.assertIn("gmial.com", fallidos_dict[cert_typo.id]['error'].lower())
+        self.assertEqual(fallidos_dict[cert_typo.id]['error_categoria'], "Error Tipográfico en Dominio")
         self.assertEqual(fallidos_dict[cert_typo.id]['nombre'], "Carlos Typo")
         self.assertEqual(fallidos_dict[cert_typo.id]['dni'], "44111222")
         self.assertEqual(fallidos_dict[cert_typo.id]['intentos'], 1)
 
-        self.assertIn("454 4.7.0", fallidos_dict[cert_smtp.id]['error'])
+        self.assertIn("454", fallidos_dict[cert_smtp.id]['error'])
+        self.assertEqual(fallidos_dict[cert_smtp.id]['error_categoria'], "Límite de Envíos en Gmail Superado")
         self.assertEqual(fallidos_dict[cert_smtp.id]['nombre'], "Elena Smtp")
         self.assertEqual(fallidos_dict[cert_smtp.id]['tipo'], "DISERTANTE")
         self.assertEqual(fallidos_dict[cert_smtp.id]['intentos'], 2)
+
+        # Participante sin email registrado
+        asist_sin = Asistente.objects.create(
+            first_name="Sin",
+            last_name="Mail",
+            dni="44555666",
+            email="sin-email-999@sin-email.congreso.unab",
+            profile_type="VISITOR"
+        )
+        cert_sin = Certificado.objects.create(
+            asistente=asist_sin,
+            edicion=self.edicion,
+            tipo_certificado="ASISTENCIA",
+            email_enviado=False,
+            intentos=1
+        )
+        # Participante con error de timeout
+        asist_to = Asistente.objects.create(
+            first_name="Time",
+            last_name="Out",
+            dni="44777999",
+            email="timeout.user@gmail.com",
+            profile_type="VISITOR"
+        )
+        cert_to = Certificado.objects.create(
+            asistente=asist_to,
+            edicion=self.edicion,
+            tipo_certificado="ASISTENCIA",
+            email_enviado=False,
+            intentos=1
+        )
+        LogEnvioEmail.objects.create(
+            destinatario="timeout.user@gmail.com",
+            asunto="Certificado de Asistencia",
+            tipo_email="certificado_asistencia",
+            exitoso=False,
+            error="Fallo en PDF o SMTP: Connection timed out"
+        )
+
+        fallidos2 = obtener_lista_certificados_fallidos(limit=10)
+        fallidos2_dict = {f['id']: f for f in fallidos2}
+
+        self.assertEqual(fallidos2_dict[cert_sin.id]['error_categoria'], "Sin Correo Registrado")
+        self.assertIn("marcador temporal", fallidos2_dict[cert_sin.id]['error'])
+
+        self.assertEqual(fallidos2_dict[cert_to.id]['error_categoria'], "Tiempo de Espera Agotado (Timeout)")
+        self.assertIn("tardó más de lo esperado", fallidos2_dict[cert_to.id]['error'])
 
     def test_certificate_queue_view_export_fallidos_excel(self):
         """

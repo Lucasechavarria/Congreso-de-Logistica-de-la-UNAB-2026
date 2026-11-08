@@ -558,11 +558,31 @@
     .cert-type-disertante { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.35); }
     .cert-type-empresa { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35); }
 
+    .error-cat-badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+        white-space: nowrap;
+    }
+    .error-cat-typo { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .error-cat-sin_correo { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .error-cat-cuota_smtp { background: rgba(217, 70, 239, 0.2); color: #e879f9; border: 1px solid rgba(217, 70, 239, 0.4); }
+    .error-cat-timeout { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
+    .error-cat-casilla_inexistente { background: rgba(244, 63, 94, 0.2); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.4); }
+    .error-cat-formato_invalido { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .error-cat-auth { background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .error-cat-transporte, .error-cat-general { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+
     .error-reason-box {
-        color: #fca5a5;
+        color: #e2e8f0;
         font-size: 12px;
-        line-height: 1.4;
-        max-width: 320px;
+        line-height: 1.45;
+        max-width: 380px;
     }
 
     .error-icon {
@@ -797,8 +817,11 @@
                             <span class="badge-intentos">{{ item.intentos }}</span>
                         </td>
                         <td>
-                            <div class="error-reason-box" title="{{ item.error }}">
-                                <span class="error-icon">✗</span> {{ item.error }}
+                            <div>
+                                <span class="error-cat-badge error-cat-{{ item.error_codigo|default:'general' }}">{{ item.error_categoria|default:"Incidencia" }}</span>
+                                <div class="error-reason-box" title="{{ item.error }}">
+                                    <span class="error-icon">✗</span> {{ item.error }}
+                                </div>
                             </div>
                         </td>
                         <td>
@@ -985,8 +1008,11 @@
                         <span class="badge-intentos">${item.intentos}</span>
                     </td>
                     <td>
-                        <div class="error-reason-box" title="${escapeHtml(item.error || '')}">
-                            <span class="error-icon">✗</span> ${escapeHtml(item.error || 'Fallo de envío')}
+                        <div>
+                            <span class="error-cat-badge error-cat-${escapeHtml(item.error_codigo || 'general')}">${escapeHtml(item.error_categoria || 'Incidencia')}</span>
+                            <div class="error-reason-box" title="${escapeHtml(item.error || '')}">
+                                <span class="error-icon">✗</span> ${escapeHtml(item.error || 'Fallo de envío')}
+                            </div>
                         </div>
                     </td>
                     <td>

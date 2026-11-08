@@ -457,6 +457,105 @@ def obtener_estado_cola_certificados(since_log_id: int = 0, limit: int = 40) -> 
     }
 
 
+def formatear_motivo_fallo_humano(raw_error: str | None, email_dest: str | None) -> tuple[str, str, str]:
+    """
+    Traduce errores técnicos crudos, excepciones de Python o códigos SMTP a un motivo
+    claro, pedagógico y 100% entendible por los administradores del evento.
+    Retorna: (categoria_legible, descripcion_detallada, codigo_categoria)
+    """
+    email_clean = (email_dest or '').strip().lower()
+
+    # 1. Casilla vacía o temporal
+    if not email_clean or email_clean.startswith('sin-email-') or 'sin-email' in email_clean:
+        return (
+            "Sin Correo Registrado",
+            "El participante no posee una dirección de correo electrónico real cargada (casilla vacía o marcador temporal sin-email). Corrija el correo para poder enviarlo.",
+            "sin_correo"
+        )
+
+    err = (raw_error or '').strip()
+    err_lower = err.lower()
+
+    # 2. Typos y errores tipográficos comunes en dominios
+    if "error de tipeo" in err_lower or "quiso decir" in err_lower or "@gmial.com" in err_lower or "typo" in err_lower:
+        desc = err if "El dominio" in err else f"La dirección '{email_clean}' contiene un error de tipeo en el dominio (ej. @gmial.com en lugar de @gmail.com). Corrija el email antes de reenviar para evitar rebotes."
+        return (
+            "Error Tipográfico en Dominio",
+            desc,
+            "typo"
+        )
+
+    # 3. Formato o sintaxis inválida
+    if "formato" in err_lower or "inválido" in err_lower or "invalido" in err_lower or "validate_email" in err_lower or "carácter" in err_lower:
+        return (
+            "Formato de Correo Inválido",
+            f"El formato del correo '{email_clean}' no cumple los estándares internacionales (posee espacios, caracteres no permitidos o falta el @/dominio).",
+            "formato_invalido"
+        )
+
+    # 4. Cuota SMTP / Límite diario de Gmail superado
+    if "454" in err or "quota" in err_lower or "cuota" in err_lower or "daily limit" in err_lower or "too many" in err_lower or "rate limit" in err_lower:
+        return (
+            "Límite de Envíos en Gmail Superado",
+            "Google Workspace / Gmail aplicó una pausa temporal por alcanzar el límite de envíos diarios (SMTP 454: Quota exceeded). El mensaje se reenviará automáticamente al renovarse la cuota.",
+            "cuota_smtp"
+        )
+
+    # 5. Casilla de destino inexistente o buzón no encontrado (550 / 551 / 553 / User unknown)
+    if any(code in err for code in ("550", "551", "552", "553", "554")) or "does not exist" in err_lower or "user unknown" in err_lower or "mailbox unavailable" in err_lower or "no existe" in err_lower:
+        return (
+            "Casilla de Destino Inexistente",
+            f"El proveedor del destinatario rechazó la entrega porque la casilla '{email_clean}' no existe o fue dada de baja (SMTP 550: Buzón no encontrado).",
+            "casilla_inexistente"
+        )
+
+    # 6. Autenticación de la cuenta emisora institucional (535 / BadCredentials)
+    if "535" in err or "badcredentials" in err_lower or "password not accepted" in err_lower or "authentication" in err_lower:
+        return (
+            "Error de Autenticación de Cuenta Emisora",
+            "El servidor de correos institucional rechazó la contraseña de aplicación configurada (SMTP 535: Fallo de autenticación). Verifique las credenciales del sistema.",
+            "auth"
+        )
+
+    # 7. Timeout o caída de red
+    if "timeout" in err_lower or "timed out" in err_lower or "connection reset" in err_lower or "10060" in err or "tiempo de espera" in err_lower or "unreachable" in err_lower:
+        return (
+            "Tiempo de Espera Agotado (Timeout)",
+            "El servidor de correo tardó más de lo esperado en responder durante la conexión SMTP. El certificado no se perdió y es seguro reintentarlo.",
+            "timeout"
+        )
+
+    # 8. Rechazo de transporte o 0 enviados
+    if "0 enviados" in err_lower or "no aceptó el mensaje" in err_lower or "smtp" in err_lower:
+        detalle_limpio = err.replace("Fallo en PDF o SMTP:", "").replace("Exception:", "").strip()
+        if not detalle_limpio:
+            detalle_limpio = "Interrupción temporal en la conexión SMTP."
+        return (
+            "Interrupción de Transporte SMTP",
+            f"El servidor de correo no pudo completar la transmisión ({detalle_limpio}). Podés reintentar el despacho individual o en lote.",
+            "transporte"
+        )
+
+    # 9. Fallo en generación de PDF
+    if "pdf" in err_lower or "pillow" in err_lower or "image" in err_lower or "font" in err_lower:
+        return (
+            "Error al Generar Archivo PDF",
+            f"Ocurrió un problema al componer el archivo PDF del certificado: {err[:140]}.",
+            "pdf"
+        )
+
+    # Fallback general limpio
+    motivo_limpio = err.replace("Fallo en PDF o SMTP:", "").replace("Exception:", "").strip()
+    if not motivo_limpio:
+        motivo_limpio = "Error en el intento de envío previo. Pendiente de reintento."
+
+    return (
+        "Incidencia de Envío",
+        motivo_limpio,
+        "general"
+    )
+
+
 def obtener_lista_certificados_fallidos(limit: int = 100) -> list[dict]:
     """
     Retorna la lista de certificados con envíos fallidos (email_enviado=False, intentos > 0),
@@ -509,16 +608,19 @@ def obtener_lista_certificados_fallidos(limit: int = 100) -> list[dict]:
         telefono = getattr(asist, 'telefono', '') or ''
 
         # Determinar el motivo exacto del fallo
+        raw_error = None
         if not email_dest or email_dest.strip() == '' or email_dest.startswith('sin-email-'):
-            error_motivo = "Sin correo registrado (casilla vacía o temporal sin-email)"
+            raw_error = "Sin correo registrado (casilla vacía o temporal sin-email)"
         else:
             es_valido, motivo_val = validar_email_destinatario(email_dest)
             if not es_valido:
-                error_motivo = motivo_val
+                raw_error = motivo_val
             elif email_dest.lower() in logs_dict:
-                error_motivo = logs_dict[email_dest.lower()]
+                raw_error = logs_dict[email_dest.lower()]
             else:
-                error_motivo = "Rechazo de transporte SMTP o tiempo de espera agotado"
+                raw_error = "Rechazo de transporte SMTP o tiempo de espera agotado"
+
+        cat_titulo, desc_legible, cat_codigo = formatear_motivo_fallo_humano(raw_error, email_dest)
 
         fecha_gen_str = ""
         if cert.fecha_generacion:
@@ -534,7 +636,10 @@ def obtener_lista_certificados_fallidos(limit: int = 100) -> list[dict]:
             'tipo': cert.tipo_certificado,
             'tipo_display': cert.get_tipo_certificado_display(),
             'intentos': cert.intentos,
-            'error': error_motivo,
+            'error': desc_legible,
+            'error_categoria': cat_titulo,
+            'error_codigo': cat_codigo,
+            'raw_error': raw_error or desc_legible,
             'fecha_generacion': fecha_gen_str,
         })
 

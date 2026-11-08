@@ -2291,6 +2291,199 @@ class PreacreditacionMasivaStaffEmpresasTests(TestCase):
         self.assertTrue(Acreditacion.objects.filter(inscripcion=insc_lucas).exists())
         self.assertTrue(Acreditacion.objects.filter(inscripcion=insc_previa).exists())
 
+    def test_procesar_preacreditacion_sin_columna_dni_carrera_empresa(self):
+        """
+        Valida que una planilla sin columna DNI que contenga 'CARRERA EMPRESA' y 'GRUPO'
+        (como las planillas de campo/coordinadores) procese exitosamente:
+        - Clasifique a carreras y roles de coordinación como VISITANTE.
+        - Clasifique a empresas comerciales (OCASA, SERVIJUR, URBANO) como EMPRESA.
+        - Guarde el grupo en comision y otorgue la asistencia y certificados correspondientes.
+        """
+        import io
+        import pandas as pd
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from api.models import Asistente, Inscripcion, Empresa, PersonalEmpresa, Certificado
+
+        csv_content = (
+            "GRUPO,APELLIDO,NOMBRE,Mail,TELEFONO,CARRERA EMPRESA\n"
+            "1,Grillo,Ezequiel,Grilloezequiel2004@yahoo.com.ar,11 2882-1058,coordinador g1\n"
+            "1,Heredia,Jesica,herediajesica316@gmail.com,11 4181-7601,TECNICO EN LOGISTICA\n"
+            "1,Gonzalez,Gaston Andres,andres.gonzalez@ocasa.com,,OCASA\n"
+            "1,Paterno,Maximiliano,gerencia@servijursrl.com.ar,,SERVIJUR\n"
+            "2,Pucciarelli,Federico Sebastian,fpucciarelli@urbano.com.ar,,URBANO\n"
+        )
+        uploaded_file = SimpleUploadedFile(
+            "coordinadores_empresas.csv",
+            csv_content.encode('utf-8'),
+            content_type="text/csv"
+        )
+
+        url = reverse('admin:admin-preacreditacion-masiva')
+        res = self.client.post(url, {
+            'archivo': uploaded_file,
+            'marcar_asistencia': 'on',
+        })
+        self.assertEqual(res.status_code, 200)
+
+        # 1. Ezequiel Grillo (coordinador g1) -> VISITANTE
+        asist_grillo = Asistente.objects.filter(email="grilloezequiel2004@yahoo.com.ar").first()
+        self.assertIsNotNone(asist_grillo)
+        self.assertEqual(asist_grillo.first_name, "Ezequiel")
+        self.assertEqual(asist_grillo.last_name, "Grillo")
+        self.assertEqual(asist_grillo.profile_type, Asistente.ProfileType.VISITOR)
+        self.assertEqual(asist_grillo.comision, "Grupo 1")
+        self.assertIsNone(asist_grillo.empresa_vinculada)
+        cert_grillo = Certificado.objects.filter(asistente=asist_grillo, edicion=self.edicion).first()
+        self.assertIsNotNone(cert_grillo)
+        self.assertEqual(cert_grillo.tipo_certificado, Certificado.TipoCertificado.ASISTENCIA)
+
+        # 2. Jesica Heredia (TECNICO EN LOGISTICA) -> VISITANTE
+        asist_heredia = Asistente.objects.filter(email="herediajesica316@gmail.com").first()
+        self.assertIsNotNone(asist_heredia)
+        self.assertEqual(asist_heredia.profile_type, Asistente.ProfileType.VISITOR)
+        self.assertIsNone(asist_heredia.empresa_vinculada)
+        cert_heredia = Certificado.objects.filter(asistente=asist_heredia, edicion=self.edicion).first()
+        self.assertIsNotNone(cert_heredia)
+        self.assertEqual(cert_heredia.tipo_certificado, Certificado.TipoCertificado.ASISTENCIA)
+
+        # 3. Gaston Gonzalez (OCASA) -> EMPRESA
+        asist_gonzalez = Asistente.objects.filter(email="andres.gonzalez@ocasa.com").first()
+        self.assertIsNotNone(asist_gonzalez)
+        emp_ocasa = Empresa.objects.filter(nombre_empresa__icontains="OCASA").first()
+        self.assertIsNotNone(emp_ocasa)
+        self.assertEqual(asist_gonzalez.empresa_vinculada, emp_ocasa)
+        self.assertTrue(PersonalEmpresa.objects.filter(empresa=emp_ocasa, asistente=asist_gonzalez).exists())
+        cert_gonzalez = Certificado.objects.filter(asistente=asist_gonzalez, edicion=self.edicion).first()
+        self.assertIsNotNone(cert_gonzalez)
+        self.assertEqual(cert_gonzalez.tipo_certificado, Certificado.TipoCertificado.EMPRESA)
+
+        # 4. Maximiliano Paterno (SERVIJUR) -> EMPRESA
+        emp_servijur = Empresa.objects.filter(nombre_empresa__icontains="SERVIJUR").first()
+        self.assertIsNotNone(emp_servijur)
+
+        # 5. Federico Pucciarelli (URBANO) -> EMPRESA
+        emp_urbano = Empresa.objects.filter(nombre_empresa__icontains="URBANO").first()
+        self.assertIsNotNone(emp_urbano)
+
+    def test_procesar_nomina_completa_usuario_91_filas(self):
+        """
+        Valida que la nómina real de 91 filas subida por el usuario (sin columna DNI)
+        sea procesada al 100% sin ningún error de 'DNI ausente o inválido'.
+        """
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from api.services import procesar_preacreditacion_masiva_staff_empresas
+        from api.models import Asistente, Empresa
+
+        csv_raw = (
+            "GRUPO,APELLIDO,NOMBRE,Mail,TELEFONO,CARRERA EMPRESA\n"
+            "1,Grillo,Ezequiel,Grilloezequiel2004@yahoo.com.ar,11 2882-1058,coordinador g1\n"
+            "1,Paez,Germán,davidgermanpaez@gmail.com,11 6548-5789,asistente g1\n"
+            "1,Cejas,Sofía,sofiacejas3@gmail.com,11 4081-6059,asistente g1\n"
+            "1,Heredia,Jesica,herediajesica316@gmail.com,11 4181-7601,TECNICO EN LOGISTICA \n"
+            "1,Morello,Daniela,tecnicalogistica92@gmail.com,2224540862,TECNICO EN LOGISTICA \n"
+            "1,Gallardo,Matias Nahuel ,matiasbng19@gmail.com,1136987506,LICENCIATURA EN LOGISTICA \n"
+            "1,Rosales ,Maria Elena ,mariasantijuanpi@gmail.com,11-5658-9820,LICENCIATURA EN LOGISTICA \n"
+            "1,Moyano,Julian,julian7764@gmail.com,,AUTOMATIZACIÓN \n"
+            "1,Nazareno,Zalazar ,nzalazar950@gmail.com,,AUTOMATIZACIÓN \n"
+            "1,Tarizzo,Facundo,facundotarizzo73@gmail.com,,CIENCIAS DE DATOS\n"
+            "1,Martínez,Analía,martinezanalia.tecdis@gmail.com,,DESARROLLO PRODUCTO\n"
+            "1,Coria Avalos,Selene,selene.coriaavalos@gmail.com,1160267673,DESARROLLO PRODUCTO\n"
+            "1,Gonzalez ,Gaston Andres,andres.gonzalez@ocasa.com,,OCASA\n"
+            "1,Jubés ,Adrián Jorge,adrian.jubes@ocasa.com, ++5491138692856,OCASA\n"
+            "1,Acosta ,Damián ,damian.acosta@ocasa.com,,OCASA\n"
+            "1,Robles ,Martín,martin.robles@ocasa.com,,OCASA\n"
+            "1,Cabrera ,Sergio Sebastian,sergio.cabrera@ocasa.com,,OCASA\n"
+            "1, Paterno,Maximiliano,gerencia@servijursrl.com.ar,,SERVIJUR\n"
+            "2,Amer,Florencia,Florencia.amer@unab.edu.ar,11 3138-1881,coordinador g2\n"
+            "2,Dálessandro,Sebastian,sebastian.dalessandro@docentes.unab.edu,1154250511,asistente g2 suplente\n"
+            "2,Simontachi,Lautaro,,2215622451,asistente g2\n"
+            "2,Cipriano,Guillermina ,Guillermina.cipriano@unab.edu.ar,11 3187-2860,asistente g2\n"
+            "2,Fonseca ,Julieta Denisse ,july.fonck.25@gmail.com,11 6790-9565,TECNICO EN LOGISTICA \n"
+            "2,Vergara,Alanis Belén,alanis.vergara2466@gmail.com,1154857757,TECNICO EN LOGISTICA \n"
+            "2,Montiel,Camila Rocio,cammilamontiel28@gmail.com,1125382773,LICENCIATURA EN LOGISTICA \n"
+            "2,Galichio ,Agostina ,agosgalic@gmail.com,1162172232,LICENCIATURA EN LOGISTICA \n"
+            "2,Beron,Braian,braianberon037@gmail.com,,AUTOMATIZACIÓN \n"
+            "2,Quintana,Oscar Miguel,oscarlely@gmail.com,,CIENCIAS DE DATOS\n"
+            "2,Lobos,David,davidlobos.edu@gmail.com,1169200865,CIENCIAS DE DATOS\n"
+            "2,Leon,María Florencia,mflorencialeon27@gmail.com,1123222003,DESARROLLO PRODUCTO\n"
+            "2,aguirre, giommi agustin,agustinaguirregiommi@gmail.com, ++5491124072447,OCASA\n"
+            "2,Coelho ,Cristóbal,cristobal.coelho@ocasa.com, ++5491160496219,OCASA\n"
+            "2,Dominguez Larrosa, Cesar,cesar.dominguez@ocasa.com,,OCASA\n"
+            "2,Dorrego ,Gonzalo,Gonzalo.dorrego@ocasa.com,,OCASA\n"
+            "2,Guzmán, Damian,damian.guzman@ocasa.com,,OCASA\n"
+            "2,Pucciarelli,Federico Sebastian ,fpucciarelli@urbano.com.ar,,URBANO\n"
+            "3,Kliabaras,Alejandro ,kliabarasa@gmail.com,11 6400-1090,coordinador g3\n"
+            "3,Garrido,Corina ,Cori.garrido93@gmail.com,11 2468-3394,asistente g3\n"
+            "3,Nuñez,Natalia ,natalianune86@gmail.com,1167910313,asistente g3\n"
+            "3,Taco,Sonia,sonyatacko@gmail.com,011-22926084,TECNICO EN LOGISTICA \n"
+            "3,Rios,Cintia ,cyana2005@hotmail.com,11 3895-7132,TECNICO EN LOGISTICA \n"
+            "3,Palmuchi ,Lucila ,lpalmuchi@gmail.com,1127692518,LICENCIATURA EN LOGISTICA \n"
+            "3,Monzón ,Stella Maris itati ,stellamarislu@gmail.com,1123089038,LICENCIATURA EN LOGISTICA \n"
+            "3,Trofimczuk ,Andrés ,andrestrofimczuk@gmail.com,11-5135-6114,AUTOMATIZACIÓN \n"
+            "3,Matias,Larregle,matilarregle@gmail.com,,CIENCIAS DE DATOS\n"
+            "3,Yazmin,Rispoli,rispolipaola1@gmail.com,1131977066,DESARROLLO PRODUCTO\n"
+            "3,Spataro,Anahí ,merspataro@gmail.com,1168833583,data science 1° UNDELTA\n"
+            "3,Ojeda,Martín,martinojeda1306@gmail.com,1152764270,DESARROLLO PRODUCTO\n"
+            "3,Scotti,Nahuel,scottinahuel90@gmail.com,1160198894,DESARROLLO PRODUCTO\n"
+            "3,Wojciechowski ,Lucas,lucas.wojciechowski@ocasa.com,  ++5491132767517,OCASA\n"
+            "3,Brian ,Ruben Gonzalez,gonzalez.brian@ocasa.com, ++5491166681980,OCASA\n"
+            "3,Wicijowski ,Ana Laura,ana.wicijowski@ocasa.com,,OCASA\n"
+            "3, Reyes ,Emilio,emilio.reyes@ocasa.com,,OCASA\n"
+            "3,Alvarez,Claudio DanieL,claudio.alvarez@ocasa.com,,OCASA\n"
+            "4,Flores,Cristian,cruzrojo18@gmail.com,,unab\n"
+            "3, Tachella,Maria Florencia,mtachella@urbano.com.ar,,URBANO\n"
+            "4,De La Rosa,Diego,delarosa_diego@hotmail.com,11 6114-6733,coordinador g4\n"
+            "4,Gonzáñez,Maira,maiigonzalez1992@gmail.com,1164457293,asistente g4\n"
+            "4,Gil,Ezequiel,ezequieldariogil1@gmail.com,1168197056,asistente g4\n"
+            "4,Acosta,Santiago ,santi.m.acosta@hotmail.com,1133596819,TECNICO EN LOGISTICA \n"
+            "4,Bernardez,Juan Pablo,juanbernardez88@gmail.com,11-5006-7743,TECNICO EN LOGISTICA \n"
+            "4,Moreno ,Jesica Olga Raquel ,jesicaraquelmoreno81@gmail.com,11 4071-8246,LICENCIATURA EN LOGISTICA \n"
+            "4,Abalsamo,Silvana,sil.e.abalsamo@gmail.com,1131501312,LICENCIATURA EN LOGISTICA \n"
+            "4,Fernandez,Guido Alonso,guidoalonsofernandez@gmail.com,1161489154,AUTOMATIZACIÓN \n"
+            "4,Sosa,Martin,mmartin.ssosa@gmail.com,,CIENCIAS DE DATOS\n"
+            "4,san martin,florencia,sanmartinflorencia81@gmail.com,,DESARROLLO PRODUCTO\n"
+            "4,Picoy Mendoza,Danny ,dpicoymendoza@gmail.com,1132878447,data science 1° UNDELTA\n"
+            "4, tejada,leandro,leandro.tejada@ocasa.com, ++5491169227250,OCASA\n"
+            "4,Ovelar, Ivan,ivan.obelar@ocasa.com,,OCASA\n"
+            "4,Peraza ,Ember,ember.peraza@ocasa.com,,OCASA\n"
+            "4,Ignacio ,Chaffin,ignacio.chaffin@ocasa.com,,OCASA\n"
+            "4, Carra D'Atri,Carmela,carmela.datri@ocasa.com,,OCASA\n"
+            "4,Rodriguez,Ezequiel,erodriguez@urbano.com.ar,1126719482,URBANO\n"
+            "4, Zuran,Pablo Javier,pzuran@urbano.com.ar,,URBANO\n"
+            "5,Penida,Matias Nahuel ,matiaspenida2012@gmail.com,11 41771594,coordinador g5\n"
+            "5,Contreras,Agustina,agustinacontrerasdg@gmail.com,11 5505-3808,asistente g5\n"
+            "5,Velo,Carina,carina.velo@unab.edu.ar,1169187158,asistente g5\n"
+            "5,VAZQUEZ,OLGA BEATRIZ,olga.bvazquez@gmail.com,1140677645,TECNICO EN LOGISTICA \n"
+            "5,Alegre,Kevin Samuel,samuelalegre1665@gmail.com,1125978677,TECNICO EN LOGISTICA \n"
+            "5,Reyes,Alejandra,alereyes12345678910@gmail.com,1153864930,LICENCIATURA EN LOGISTICA \n"
+            "5,BURGOS,CAMILA,camiiburgos80@gmail.com,11 6206-7676,LICENCIATURA EN LOGISTICA \n"
+            "5,Ledesma ,Facundo ,ledesmafacundo2007@gmail.com,,AUTOMATIZACIÓN \n"
+            "5,Carrizo,Juan Sebastian,juansearg@gmail.com,1126556924,CIENCIAS DE DATOS\n"
+            "5,Ballesteros Carry,Alejo ,alejo.ballescar@gmail.com,1132069068,data science 1° UNDELTA\n"
+            "5,Fernandez Veliz,Camila,rhsario.veliz@gmail.com,1137969482,DESARROLLO PRODUCTO\n"
+            "5,Bozzolo,Sergio,bozzolo1986@gmail.com,1159928261,DESARROLLO PRODUCTO\n"
+            "5,Andrada, Joana Belén,joana.andrada@ocasa.com,,OCASA\n"
+            "5,Aquino,Camila,camila.aquino@ocasa.com,,OCASA\n"
+            "5,Castelo,Alejandro,alejandro.castelo@ocasa.com,,OCASA\n"
+            "5, marchetti,belen eliana,belen.marchetti@ocasa.com,,OCASA\n"
+            "5,Reynaldo ,Roberto Maques ,rmaques@urbano.com.ar,,URBANO\n"
+        )
+        file_obj = io.BytesIO(csv_raw.encode('utf-8'))
+        file_obj.name = "nomina_asistentes_empresas.csv"
+
+        res = procesar_preacreditacion_masiva_staff_empresas(file_obj, marcar_asistencia=True)
+
+        self.assertEqual(len(res['errores']), 0, f"Errores inesperados: {res['errores']}")
+        self.assertEqual(res['total_procesados'], 91)
+        self.assertEqual(res['asistencias_otorgadas'], 91)
+        self.assertEqual(res['certificados_encolados'], 91)
+
+        # Verificar que empresas reales existan y tengan su personal
+        self.assertTrue(Empresa.objects.filter(nombre_empresa__icontains="OCASA").exists())
+        self.assertTrue(Empresa.objects.filter(nombre_empresa__icontains="SERVIJUR").exists())
+        self.assertTrue(Empresa.objects.filter(nombre_empresa__icontains="URBANO").exists())
+
 
 
 

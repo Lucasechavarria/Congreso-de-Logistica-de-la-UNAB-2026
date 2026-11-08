@@ -437,58 +437,24 @@
 
     <!-- Encabezado Principal -->
     <div class="respaldo-header">
-        <span class="badge-tag">Módulo de Seguridad y Continuidad Operativa</span>
+        <span class="badge-tag">Módulo de Respaldo Manual bajo Demanda</span>
         <h1>📦 Centro Unificado de Respaldos</h1>
         <p>
-            Generación íntegra de respaldos del sistema: base de datos relacional (PostgreSQL / SQLite), 
+            Generación manual e inmediata de respaldos íntegros del sistema: base de datos relacional PostgreSQL (.sql), 
             volcado de datos portable JSON y planillas consolidadas en Excel (.xlsx) con todas las acreditaciones y certificados.
         </p>
     </div>
 
-    <!-- Cronograma Oficial Celery Beat (Hora Argentina GMT-3) -->
-    <div class="cronograma-card">
-        <div class="cronograma-title">
-            ⏰ Cronograma Oficial de Respaldos Programados (Hora Argentina GMT-3)
-        </div>
-        <div class="slots-grid">
-            <div class="slot-item">
-                <div class="slot-day">Viernes 6 Nov</div>
-                <div class="slot-time">23:59 hs</div>
-                <div class="slot-desc">Cierre Jornada 1</div>
-            </div>
-            <div class="slot-item">
-                <div class="slot-day">Sábado 7 Nov</div>
-                <div class="slot-time">06:00 hs</div>
-                <div class="slot-desc">Apertura Jornada 2</div>
-            </div>
-            <div class="slot-item">
-                <div class="slot-day">Sábado 7 Nov</div>
-                <div class="slot-time">10:00 hs</div>
-                <div class="slot-desc">Corte Matutino</div>
-            </div>
-            <div class="slot-item">
-                <div class="slot-day">Sábado 7 Nov</div>
-                <div class="slot-time">14:00 hs</div>
-                <div class="slot-desc">Corte Mediodía</div>
-            </div>
-            <div class="slot-item">
-                <div class="slot-day">Sábado 7 Nov</div>
-                <div class="slot-time">18:00 hs</div>
-                <div class="slot-desc">Cierre del Congreso</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Acciones Rápidas -->
+    <!-- Acciones Rápidas Manuales -->
     <div class="actions-grid">
         <!-- Tarjeta 1: Descarga Directa al Navegador -->
         <div class="action-card">
             <div class="action-card-header">
                 <div class="action-card-title">
-                    📥 Descarga Inmediata (.ZIP)
+                    📥 Descarga Manual Inmediata (.ZIP)
                 </div>
                 <p class="action-card-desc">
-                    Genera el archivo comprimido al instante y lo descarga a tu computadora sin intermediarios ni demoras. Contiene el volcado SQL, JSON portable y Excel multipestaña.
+                    Genera el archivo comprimido al instante y lo descarga a tu computadora sin intermediarios ni demoras. Contiene el volcado PostgreSQL (.sql), JSON portable y Excel multipestaña (.xlsx).
                 </p>
             </div>
             <a href="?descargar=zip" class="btn-unified-download">
@@ -496,22 +462,20 @@
             </a>
         </div>
 
-        <!-- Tarjeta 2: Envío Inmediato por Correo -->
+        <!-- Tarjeta 2: Envío Manual Inmediato por Correo -->
         <div class="action-card">
             <div class="action-card-header">
                 <div class="action-card-title">
-                    ✉️ Despacho Inmediato por Email
+                    ✉️ Envío Manual por Email
                 </div>
                 <p class="action-card-desc">
-                    Genera el respaldo y lo envía de inmediato como archivo adjunto a las casillas personal e institucional configuradas. Desde Gmail podés guardarlo en Drive con un solo clic.
+                    Genera el respaldo en este momento y lo envía como archivo adjunto a las casillas personal e institucional configuradas abajo. Desde Gmail podés guardarlo en Drive con un solo clic.
                 </p>
             </div>
-            <form method="post" style="margin: 0;">
+            <form method="post" style="margin: 0;" onsubmit="const ep=document.getElementById('id_email_personal'); const ei=document.getElementById('id_email_institucional'); if(ep) this.elements['email_personal'].value=ep.value; if(ei) this.elements['email_institucional'].value=ei.value;">
                 {% csrf_token %}
-                <input type="hidden" name="activo" value="{% if config.activo %}on{% endif %}">
-                <input type="hidden" name="enviar_por_email" value="{% if config.enviar_por_email %}on{% endif %}">
-                <input type="hidden" name="email_personal" value="{{ config.email_personal }}">
-                <input type="hidden" name="email_institucional" value="{{ config.email_institucional }}">
+                <input type="hidden" name="email_personal" value="{{ config.email_personal|default:'echavarrialucas1986@gmail.com' }}">
+                <input type="hidden" name="email_institucional" value="{{ config.email_institucional|default:'congresologisticaytransporte@unab.edu.ar' }}">
                 <button type="submit" name="accion" value="enviar_ahora" class="btn-unified-email">
                     ✉️ Enviar Respaldo por Email Ahora
                 </button>
@@ -519,31 +483,15 @@
         </div>
     </div>
 
-    <!-- Formulario de Configuración de Casillas y Automatización -->
+    <!-- Formulario de Configuración de Casillas de Correo -->
     <div class="config-card">
         <div class="config-title">
-            ⚙️ Configuración de Automatización y Casillas de Correo
+            ⚙️ Configuración de Casillas de Destino para Respaldo Manual
         </div>
         <form method="post">
             {% csrf_token %}
-            
-            <label class="form-switch-box">
-                <input type="checkbox" name="activo" {% if config.activo %}checked{% endif %}>
-                <div>
-                    <span class="switch-label-title">Habilitar ejecución automática en Celery Beat</span>
-                    <span class="switch-label-desc">Genera y custodia respaldos automáticamente en los 5 horarios oficiales del cronograma.</span>
-                </div>
-            </label>
 
-            <label class="form-switch-box">
-                <input type="checkbox" name="enviar_por_email" {% if config.enviar_por_email %}checked{% endif %}>
-                <div>
-                    <span class="switch-label-title">Enviar automáticamente copia adjunta por correo electrónico</span>
-                    <span class="switch-label-desc">Despacha el paquete .zip a las casillas definidas a continuación durante cada corte programado.</span>
-                </div>
-            </label>
-
-            <div class="form-group" style="margin-top: 20px;">
+            <div class="form-group">
                 <label for="id_email_personal">1. Casilla de Correo Personal (Gmail):</label>
                 <input type="email" id="id_email_personal" name="email_personal" class="form-input-text" 
                        value="{{ config.email_personal|default:'echavarrialucas1986@gmail.com' }}" 
@@ -561,7 +509,7 @@
 
             <div style="margin-top: 25px; text-align: right;">
                 <button type="submit" name="accion" value="guardar" class="btn-unified-save">
-                    💾 Guardar Configuración
+                    💾 Guardar Casillas de Correo
                 </button>
             </div>
         </form>

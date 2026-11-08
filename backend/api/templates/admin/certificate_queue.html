@@ -848,6 +848,13 @@
     </div>
 </div>
 
+<div style="display: none;">
+    {% csrf_token %}
+</div>
+<script id="initial-logs-data" type="application/json">
+    {{ initial_logs_json|default:"[]"|safe }}
+</script>
+
 <script>
     const startBtn = document.getElementById('start-btn');
     const pauseBtn = document.getElementById('pause-btn');
@@ -877,30 +884,50 @@
     const failedBadgeCount = document.getElementById('failed-certs-badge-count');
     const failedTbody = document.getElementById('failed-certs-tbody');
     
-    let totalPendientes = parseInt("{{ pendientes }}") || 0;
-    let pendientesSinIntentarInicial = parseInt("{{ pendientes_sin_intentar|default:pendientes }}") || 0;
-    let enviadosHistoricos = parseInt("{{ enviados|default:0 }}") || 0;
+    let totalPendientes = parseInt("{{ pendientes }}", 10) || 0;
+    let pendientesSinIntentarInicial = parseInt("{{ pendientes_sin_intentar|default:pendientes }}", 10) || 0;
+    let enviadosHistoricos = parseInt("{{ enviados|default:0 }}", 10) || 0;
     let procesados = 0;
-    let errores = parseInt("{{ fallidos_previos|default:0 }}") || 0;
+    let errores = parseInt("{{ fallidos_previos|default:0 }}", 10) || 0;
     let isPaused = false;
     let isRunning = false;
     let retryFailedMode = false;
     let retryAfterId = 0;
     let intentadosReintentoSesion = 0;
     let consecutiveServerErrors = 0;
-    let lastSeenLogId = parseInt("{{ last_log_id|default:0 }}") || 0;
-    let horaValidaActual = {{ hora_valida|yesno:"true,false" }};
-    const initialLockBusy = {{ lock_busy|yesno:"true,false" }};
-    const initialLogs = {{ initial_logs_json|default:"[]"|safe }};
+    let lastSeenLogId = parseInt("{{ last_log_id|default:0 }}", 10) || 0;
+    let horaValidaActual = "{{ hora_valida|yesno:'true,false' }}" === "true";
+    const initialLockBusy = "{{ lock_busy|yesno:'true,false' }}" === "true";
+
+    let initialLogs = [];
+    try {
+        const rawLogsEl = document.getElementById('initial-logs-data');
+        if (rawLogsEl && rawLogsEl.textContent) {
+            initialLogs = JSON.parse(rawLogsEl.textContent);
+        }
+    } catch (e) {
+        initialLogs = [];
+    }
 
     // Radio del círculo SVG es r=50
     const circleRadius = 50;
     const circumference = 2 * Math.PI * circleRadius; // ~314.16
 
-    progressFill.style.strokeDasharray = circumference;
-    progressFill.style.strokeDashoffset = circumference;
+    if (progressFill) {
+        progressFill.style.strokeDasharray = circumference;
+        progressFill.style.strokeDashoffset = circumference;
+    }
+
+    function getCsrfToken() {
+        const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (input && input.value) return input.value;
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        if (match) return match[1];
+        return '{{ csrf_token }}';
+    }
 
     function updateRadialFromGlobal(sentCount, remainingCount) {
+        if (!progressPercentText || !progressFill) return;
         const totalUniverse = sentCount + remainingCount;
         if (totalUniverse <= 0) {
             progressPercentText.innerText = "0%";
@@ -965,9 +992,11 @@
             .replace(/'/g, '&#39;');
     }
 
+    let lastRenderedFailedSignature = '';
     function renderFailedCertificates(failedList) {
         if (!failedPanel || !failedTbody) return;
         if (!Array.isArray(failedList) || failedList.length === 0) {
+            lastRenderedFailedSignature = 'empty';
             if (failedBadgeCount) failedBadgeCount.innerText = "0";
             failedTbody.innerHTML = `
                 <tr id="no-failed-row">
@@ -979,7 +1008,13 @@
             return;
         }
 
-        if (failedBadgeCount) failedBadgeCount.innerText = failedList.length;
+        const currentSignature = JSON.stringify(failedList.map(item => [item.id, item.intentos, item.error, item.email]));
+        if (currentSignature === lastRenderedFailedSignature) {
+            return;
+        }
+        lastRenderedFailedSignature = currentSignature;
+
+        if (failedBadgeCount) failedBadgeCount.innerText = String(failedList.length);
         failedPanel.style.display = "block";
 
         let html = '';
@@ -988,7 +1023,7 @@
             const isWarning = errLower.includes('typo') || errLower.includes('inválido') || errLower.includes('invalido') || errLower.includes('sin email') || errLower.includes('sin correo');
             const emailBadgeCls = isWarning ? 'email-badge email-badge-warning' : 'email-badge';
             const telHtml = item.telefono ? `<div style="font-size: 11px; color: #94a3b8;">📱 ${escapeHtml(item.telefono)}</div>` : '';
-            const fixUrl = `{% url 'admin:admin-corregir-asistencia-email' %}?cert_id=${item.id}`;
+            const fixUrl = "{% url 'admin:admin-corregir-asistencia-email' %}?cert_id=" + encodeURIComponent(item.id);
 
             html += `
                 <tr id="failed-row-${item.id}">
@@ -1033,14 +1068,14 @@
 
     async function resetAndRetrySingle(certId) {
         try {
-            const url = `{% url 'admin:admin-certificate-queue' %}reintentar/${certId}/?enviar_ahora=1`;
+            const url = "{% url 'admin:admin-certificate-queue' %}reintentar/" + encodeURIComponent(certId) + "/?enviar_ahora=1";
             addLog(`🔄 Reintentando despacho de certificado #${certId}...`, "log-warning");
             const response = await fetch(url, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-CSRFToken': getCsrfToken(),
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
@@ -1049,7 +1084,7 @@
                 addLog(`✓ Certificado #${certId} procesado exitosamente: ${data.message || 'Enviado'}`, "log-success");
                 const row = document.getElementById(`failed-row-${certId}`);
                 if (row) row.remove();
-                if (pollQueueStatus) pollQueueStatus();
+                if (typeof pollQueueStatus === 'function') pollQueueStatus();
             } else {
                 addLog(`✗ Reintento de certificado #${certId} no completado: ${data ? data.message : 'Error'}`, "log-error");
             }
@@ -1084,11 +1119,11 @@
     function renderInitialLogs() {
         updateRadialFromGlobal(enviadosHistoricos, totalPendientes);
         if (totalPendientes === 0 && enviadosHistoricos > 0) {
-            progressStatusText.innerText = "¡Cola completada!";
-            subtextStatus.innerText = "Finalizado";
+            if (progressStatusText) progressStatusText.innerText = "¡Cola completada!";
+            if (subtextStatus) subtextStatus.innerText = "Finalizado";
         } else if (initialLockBusy) {
-            progressStatusText.innerText = `⚡ Auto-lote PostgreSQL activo | Pendientes: ${totalPendientes}`;
-            subtextStatus.innerText = "Auto-lote activo";
+            if (progressStatusText) progressStatusText.innerText = `⚡ Auto-lote PostgreSQL activo | Pendientes: ${totalPendientes}`;
+            if (subtextStatus) subtextStatus.innerText = "Auto-lote activo";
         }
         if (!Array.isArray(initialLogs) || initialLogs.length === 0) {
             return;
@@ -1105,7 +1140,7 @@
 
     async function pollQueueStatus() {
         try {
-            const url = `{% url "admin:certificate-queue-status" %}?since_log_id=${lastSeenLogId}`;
+            const url = "{% url 'admin:certificate-queue-status' %}?since_log_id=" + encodeURIComponent(lastSeenLogId);
             const response = await fetch(url, {
                 method: 'GET',
                 credentials: 'same-origin',
@@ -1139,51 +1174,59 @@
                 pendientesSinIntentarInicial = (typeof data.remaining_unattempted === 'number') ? data.remaining_unattempted : data.remaining;
                 errores = (typeof data.failed_count === 'number') ? data.failed_count : errores;
 
-                procesadosEl.innerText = procesados;
-                pendientesEl.innerText = totalPendientes;
-                erroresEl.innerText = errores;
+                if (procesadosEl) procesadosEl.innerText = procesados;
+                if (pendientesEl) pendientesEl.innerText = totalPendientes;
+                if (erroresEl) erroresEl.innerText = errores;
 
                 let enviadosTotales = (typeof data.sent_total === 'number') ? data.sent_total : (enviadosHistoricos + procesados);
                 updateRadialFromGlobal(enviadosTotales, totalPendientes);
 
                 if (totalPendientes === 0) {
-                    progressStatusText.innerText = "¡Cola completada!";
-                    subtextStatus.innerText = "Finalizado";
-                    startBtn.disabled = true;
-                    startBtn.innerText = "Finalizado";
+                    if (progressStatusText) progressStatusText.innerText = "¡Cola completada!";
+                    if (subtextStatus) subtextStatus.innerText = "Finalizado";
+                    if (startBtn) {
+                        startBtn.disabled = true;
+                        startBtn.innerText = "Finalizado";
+                    }
                 } else if (newSuccess > 0 || newErrors > 0 || data.lock_busy) {
-                    progressStatusText.innerText = `⚡ Auto-lote PostgreSQL activo | Pendientes: ${totalPendientes}`;
-                    subtextStatus.innerText = "Auto-lote activo";
-                    startBtn.disabled = false;
-                    if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
-                        startBtn.innerText = "Iniciar Envío por Lotes";
+                    if (progressStatusText) progressStatusText.innerText = `⚡ Auto-lote PostgreSQL activo | Pendientes: ${totalPendientes}`;
+                    if (subtextStatus) subtextStatus.innerText = "Auto-lote activo";
+                    if (startBtn) {
+                        startBtn.disabled = false;
+                        if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
+                            startBtn.innerText = "Iniciar Envío por Lotes";
+                        }
                     }
                 } else if (totalPendientes > 0 && !data.lock_busy && newSuccess === 0) {
-                    startBtn.disabled = false;
-                    if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
-                        startBtn.innerText = "Iniciar Envío por Lotes";
+                    if (startBtn) {
+                        startBtn.disabled = false;
+                        if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
+                            startBtn.innerText = "Iniciar Envío por Lotes";
+                        }
                     }
-                    if (subtextStatus.innerText === "Auto-lote activo" || subtextStatus.innerText === "Finalizado") {
+                    if (subtextStatus && (subtextStatus.innerText === "Auto-lote activo" || subtextStatus.innerText === "Finalizado")) {
                         subtextStatus.innerText = "En espera";
-                        progressStatusText.innerText = "Listo para comenzar (sincronizado)";
+                        if (progressStatusText) progressStatusText.innerText = "Listo para comenzar (sincronizado)";
                     }
                 }
             } else if (data.lock_busy) {
-                progressStatusText.innerText = `⚡ Auto-lote PostgreSQL transmitiendo en segundo plano...`;
-                subtextStatus.innerText = "Auto-lote activo";
+                if (progressStatusText) progressStatusText.innerText = `⚡ Auto-lote PostgreSQL transmitiendo en segundo plano...`;
+                if (subtextStatus) subtextStatus.innerText = "Auto-lote activo";
             } else if (totalPendientes > 0 && !data.lock_busy && newSuccess === 0) {
-                startBtn.disabled = false;
-                if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
-                    startBtn.innerText = "Iniciar Envío por Lotes";
+                if (startBtn) {
+                    startBtn.disabled = false;
+                    if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
+                        startBtn.innerText = "Iniciar Envío por Lotes";
+                    }
                 }
-                if (subtextStatus.innerText === "Auto-lote activo") {
+                if (subtextStatus && subtextStatus.innerText === "Auto-lote activo") {
                     subtextStatus.innerText = "En espera";
-                    progressStatusText.innerText = "Listo para comenzar (sincronizado)";
+                    if (progressStatusText) progressStatusText.innerText = "Listo para comenzar (sincronizado)";
                 }
             } else if (totalPendientes === 0 && enviadosHistoricos > 0) {
                 updateRadialFromGlobal(enviadosHistoricos, 0);
-                progressStatusText.innerText = "¡Cola completada!";
-                subtextStatus.innerText = "Finalizado";
+                if (progressStatusText) progressStatusText.innerText = "¡Cola completada!";
+                if (subtextStatus) subtextStatus.innerText = "Finalizado";
             }
         } catch (err) {
             // Ignorar errores silenciosos de polling
@@ -1193,52 +1236,58 @@
     renderInitialLogs();
     setInterval(pollQueueStatus, 3000);
 
-    startBtn.addEventListener('click', () => {
-        if (isRunning && isPaused) {
-            // Reanudar
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            if (isRunning && isPaused) {
+                // Reanudar
+                isPaused = false;
+                if (pauseBtn) pauseBtn.innerText = "⏸ Pausar";
+                startBtn.style.display = "none";
+                if (pauseBtn) pauseBtn.style.display = "block";
+                addLog("▶ Proceso reanudado.", "log-warning");
+                processNextBatch();
+                return;
+            }
+
+            // Si no quedan certificados sin intentar pero sí hay pendientes (fallidos previos), activar modo reintento
+            if (pendientesSinIntentarInicial === 0 && totalPendientes > 0) {
+                retryFailedMode = true;
+                retryAfterId = 0;
+                intentadosReintentoSesion = 0;
+            } else if (!retryFailedMode) {
+                intentadosReintentoSesion = 0;
+            }
+
+            isRunning = true;
             isPaused = false;
-            pauseBtn.innerText = "⏸ Pausar";
+            consecutiveServerErrors = 0;
             startBtn.style.display = "none";
-            pauseBtn.style.display = "block";
-            addLog("▶ Proceso reanudado.", "log-warning");
+            if (pauseBtn) pauseBtn.style.display = "block";
+            addLog(
+                retryFailedMode
+                    ? "🔄 Reintentando envío de certificados con incidencias previas..."
+                    : "Iniciando procesamiento de lotes controlados...",
+                "log-warning"
+            );
+            if (progressStatusText) progressStatusText.innerText = "Procesando...";
+            if (subtextStatus) subtextStatus.innerText = "En transmisión";
             processNextBatch();
-            return;
-        }
+        });
+    }
 
-        // Si no quedan certificados sin intentar pero sí hay pendientes (fallidos previos), activar modo reintento
-        if (pendientesSinIntentarInicial === 0 && totalPendientes > 0) {
-            retryFailedMode = true;
-            retryAfterId = 0;
-            intentadosReintentoSesion = 0;
-        } else if (!retryFailedMode) {
-            intentadosReintentoSesion = 0;
-        }
-
-        isRunning = true;
-        isPaused = false;
-        consecutiveServerErrors = 0;
-        startBtn.style.display = "none";
-        pauseBtn.style.display = "block";
-        addLog(
-            retryFailedMode
-                ? "🔄 Reintentando envío de certificados con incidencias previas..."
-                : "Iniciando procesamiento de lotes controlados...",
-            "log-warning"
-        );
-        progressStatusText.innerText = "Procesando...";
-        subtextStatus.innerText = "En transmisión";
-        processNextBatch();
-    });
-
-    pauseBtn.addEventListener('click', () => {
-        isPaused = true;
-        pauseBtn.style.display = "none";
-        startBtn.style.display = "block";
-        startBtn.innerText = "▶ Reanudar Envío";
-        progressStatusText.innerText = "Pausado por el usuario";
-        subtextStatus.innerText = "Pausado";
-        addLog("⏸ Procesamiento en pausa. Se esperará a reanudar para la siguiente tanda.", "log-warning");
-    });
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            isPaused = true;
+            pauseBtn.style.display = "none";
+            if (startBtn) {
+                startBtn.style.display = "block";
+                startBtn.innerText = "▶ Reanudar Envío";
+            }
+            if (progressStatusText) progressStatusText.innerText = "Pausado por el usuario";
+            if (subtextStatus) subtextStatus.innerText = "Pausado";
+            addLog("⏸ Procesamiento en pausa. Se esperará a reanudar para la siguiente tanda.", "log-warning");
+        });
+    }
 
     async function processNextBatch() {
         if (isPaused) {
@@ -1250,7 +1299,13 @@
         const forzar = forzarCheckbox ? forzarCheckbox.checked : false;
         const afterIdParam = retryFailedMode ? retryAfterId : 0;
 
-        const url = `{% url "admin:process-certificate-batch" %}?batch_size=${batchSize}&delay=${delay}&forzar=${forzar}&reintentar_fallidos=${retryFailedMode}&after_id=${afterIdParam}&since_log_id=${lastSeenLogId}`;
+        const url = "{% url 'admin:process-certificate-batch' %}" + 
+                    "?batch_size=" + encodeURIComponent(batchSize) + 
+                    "&delay=" + encodeURIComponent(delay) + 
+                    "&forzar=" + encodeURIComponent(forzar) + 
+                    "&reintentar_fallidos=" + encodeURIComponent(retryFailedMode) + 
+                    "&after_id=" + encodeURIComponent(afterIdParam) + 
+                    "&since_log_id=" + encodeURIComponent(lastSeenLogId);
 
         try {
             const response = await fetch(url, {
@@ -1264,11 +1319,13 @@
 
             if (response.redirected || response.status === 401 || response.status === 403 || (response.url && response.url.includes('/login'))) {
                 addLog("⚠️ La sesión de administrador expiró o no tiene permisos. Por favor recargá la página e iniciá sesión nuevamente.", "log-error");
-                progressStatusText.innerText = "Sesión expirada";
-                subtextStatus.innerText = "Sesión expirada";
-                pauseBtn.style.display = "none";
-                startBtn.style.display = "block";
-                startBtn.innerText = "Recargar / Reintentar";
+                if (progressStatusText) progressStatusText.innerText = "Sesión expirada";
+                if (subtextStatus) subtextStatus.innerText = "Sesión expirada";
+                if (pauseBtn) pauseBtn.style.display = "none";
+                if (startBtn) {
+                    startBtn.style.display = "block";
+                    startBtn.innerText = "Recargar / Reintentar";
+                }
                 isRunning = false;
                 return;
             }
@@ -1295,8 +1352,8 @@
                         `⚠️ El servidor demoró más de lo esperado (HTTP ${response.status || 'Timeout'}). Ajustando a lote seguro (5 certs, 1s) y continuando automáticamente en 4s... (Intento ${consecutiveServerErrors}/3)`,
                         "log-warning"
                     );
-                    progressStatusText.innerText = "Recuperando conexión...";
-                    subtextStatus.innerText = "Auto-reintento";
+                    if (progressStatusText) progressStatusText.innerText = "Recuperando conexión...";
+                    if (subtextStatus) subtextStatus.innerText = "Auto-reintento";
                     setTimeout(processNextBatch, 4000);
                     return;
                 }
@@ -1305,11 +1362,13 @@
                     `✗ El servidor respondió con estado HTTP ${response.status} tras varios intentos. Hacé clic en 'Reintentar Lote' para continuar desde donde quedó.`,
                     "log-error"
                 );
-                progressStatusText.innerText = "Pausa por timeout de red";
-                subtextStatus.innerText = "Reintento disponible";
-                pauseBtn.style.display = "none";
-                startBtn.style.display = "block";
-                startBtn.innerText = "Reintentar Lote";
+                if (progressStatusText) progressStatusText.innerText = "Pausa por timeout de red";
+                if (subtextStatus) subtextStatus.innerText = "Reintento disponible";
+                if (pauseBtn) pauseBtn.style.display = "none";
+                if (startBtn) {
+                    startBtn.style.display = "block";
+                    startBtn.innerText = "Reintentar Lote";
+                }
                 isRunning = false;
                 return;
             }
@@ -1322,11 +1381,13 @@
 
             if (data.status === 'blocked_by_time') {
                 addLog(data.message, "log-warning");
-                progressStatusText.innerText = "Retenido (Esperando 18:00 hs)";
-                subtextStatus.innerText = "Bloqueo horario";
-                pauseBtn.style.display = "none";
-                startBtn.style.display = "block";
-                startBtn.innerText = "Iniciar (Requiere Forzar)";
+                if (progressStatusText) progressStatusText.innerText = "Retenido (Esperando 18:00 hs)";
+                if (subtextStatus) subtextStatus.innerText = "Bloqueo horario";
+                if (pauseBtn) pauseBtn.style.display = "none";
+                if (startBtn) {
+                    startBtn.style.display = "block";
+                    startBtn.innerText = "Iniciar (Requiere Forzar)";
+                }
                 isRunning = false;
                 return;
             }
@@ -1342,28 +1403,30 @@
                 if (typeof data.failed_count === 'number') {
                     errores = data.failed_count;
                 }
-                procesadosEl.innerText = procesados;
-                pendientesEl.innerText = totalPendientes;
-                erroresEl.innerText = errores;
+                if (procesadosEl) procesadosEl.innerText = procesados;
+                if (pendientesEl) pendientesEl.innerText = totalPendientes;
+                if (erroresEl) erroresEl.innerText = errores;
                 let enviadosTotales = (typeof data.sent_total === 'number') ? data.sent_total : (enviadosHistoricos + procesados);
                 updateRadialFromGlobal(enviadosTotales, totalPendientes);
 
                 if (totalPendientes === 0) {
                     addLog("✨ ¡Procesamiento masivo finalizado exitosamente!", "log-success");
-                    progressStatusText.innerText = "¡Procesamiento completo!";
-                    subtextStatus.innerText = "Finalizado";
-                    pauseBtn.style.display = "none";
-                    startBtn.style.display = "block";
-                    startBtn.disabled = true;
-                    startBtn.innerText = "Finalizado";
-                    progressPercentText.innerText = "100%";
-                    progressFill.style.strokeDashoffset = 0;
+                    if (progressStatusText) progressStatusText.innerText = "¡Procesamiento completo!";
+                    if (subtextStatus) subtextStatus.innerText = "Finalizado";
+                    if (pauseBtn) pauseBtn.style.display = "none";
+                    if (startBtn) {
+                        startBtn.style.display = "block";
+                        startBtn.disabled = true;
+                        startBtn.innerText = "Finalizado";
+                    }
+                    if (progressPercentText) progressPercentText.innerText = "100%";
+                    if (progressFill) progressFill.style.strokeDashoffset = 0;
                     isRunning = false;
                     return;
                 }
 
-                progressStatusText.innerText = "Sincronizando con lote PostgreSQL activo...";
-                subtextStatus.innerText = "Coordinando PG";
+                if (progressStatusText) progressStatusText.innerText = "Sincronizando con lote PostgreSQL activo...";
+                if (subtextStatus) subtextStatus.innerText = "Coordinando PG";
                 if (!isPaused) {
                     setTimeout(processNextBatch, 2000);
                 }
@@ -1391,33 +1454,36 @@
                 pendientesSinIntentarInicial = restantesSinIntentar;
                 totalPendientes = nuevosPendientes;
                 
-                procesadosEl.innerText = procesados;
-                erroresEl.innerText = errores;
-                pendientesEl.innerText = nuevosPendientes;
+                if (procesadosEl) procesadosEl.innerText = procesados;
+                if (erroresEl) erroresEl.innerText = errores;
+                if (pendientesEl) pendientesEl.innerText = nuevosPendientes;
 
-                if (batchProcessed > 0) {
+                if (statProcesadosItem && batchProcessed > 0) {
                     statProcesadosItem.classList.add('bounce-active');
                     setTimeout(() => statProcesadosItem.classList.remove('bounce-active'), 400);
                 }
-                if (batchErrors > 0) {
+                if (statErroresItem && batchErrors > 0) {
                     statErroresItem.classList.add('bounce-active');
                     setTimeout(() => statErroresItem.classList.remove('bounce-active'), 400);
                 }
-                
-                statPendientesItem.classList.add('bounce-active');
-                setTimeout(() => statPendientesItem.classList.remove('bounce-active'), 400);
+                if (statPendientesItem) {
+                    statPendientesItem.classList.add('bounce-active');
+                    setTimeout(() => statPendientesItem.classList.remove('bounce-active'), 400);
+                }
                 
                 if (retryFailedMode) {
                     intentadosReintentoSesion += (batchProcessed + batchErrors);
                     let targetTotal = Math.max(1, intentadosReintentoSesion + restantesReintento);
                     let percent = Math.min(100, (intentadosReintentoSesion / targetTotal) * 100);
-                    progressPercentText.innerText = `${Math.round(percent)}%`;
-                    progressFill.style.strokeDashoffset = circumference - (percent / 100) * circumference;
+                    if (progressPercentText) progressPercentText.innerText = `${Math.round(percent)}%`;
+                    if (progressFill) progressFill.style.strokeDashoffset = circumference - (percent / 100) * circumference;
                 } else {
                     let enviadosTotales = (typeof data.sent_total === 'number') ? data.sent_total : (enviadosHistoricos + procesados);
                     updateRadialFromGlobal(enviadosTotales, nuevosPendientes);
                 }
-                progressStatusText.innerText = `Enviados en sesión: ${procesados} | Restantes en tanda: ${restantesModoActual}`;
+                if (progressStatusText) {
+                    progressStatusText.innerText = `Enviados en sesión: ${procesados} | Restantes en tanda: ${restantesModoActual}`;
+                }
 
                 const hasRecentLogsPayload = Array.isArray(data.recent_logs) && data.recent_logs.length > 0;
                 (data.logs || []).forEach(msg => {
@@ -1443,14 +1509,16 @@
                     }
                 } else if (nuevosPendientes === 0) {
                     addLog("✨ ¡Procesamiento masivo finalizado exitosamente!", "log-success");
-                    progressStatusText.innerText = "¡Procesamiento completo!";
-                    subtextStatus.innerText = "Finalizado";
-                    pauseBtn.style.display = "none";
-                    startBtn.style.display = "block";
-                    startBtn.disabled = true;
-                    startBtn.innerText = "Finalizado";
-                    progressPercentText.innerText = "100%";
-                    progressFill.style.strokeDashoffset = 0;
+                    if (progressStatusText) progressStatusText.innerText = "¡Procesamiento completo!";
+                    if (subtextStatus) subtextStatus.innerText = "Finalizado";
+                    if (pauseBtn) pauseBtn.style.display = "none";
+                    if (startBtn) {
+                        startBtn.style.display = "block";
+                        startBtn.disabled = true;
+                        startBtn.innerText = "Finalizado";
+                    }
+                    if (progressPercentText) progressPercentText.innerText = "100%";
+                    if (progressFill) progressFill.style.strokeDashoffset = 0;
                     retryAfterId = 0;
                     intentadosReintentoSesion = 0;
                     isRunning = false;
@@ -1460,25 +1528,29 @@
                         `ℹ️ Tanda finalizada. Se enviaron ${procesados} certificado(s). Quedan ${fallidosTotales || nuevosPendientes} con incidencia de correo (podés corregirlos en 'Incidencias Asistencia / Email' o pulsar Reintentar Fallidos).`,
                         "log-warning"
                     );
-                    progressStatusText.innerText = `Finalizado (${fallidosTotales || nuevosPendientes} con incidencia)`;
-                    subtextStatus.innerText = "Con incidencias";
-                    progressPercentText.innerText = "100%";
-                    progressFill.style.strokeDashoffset = 0;
-                    pauseBtn.style.display = "none";
-                    startBtn.style.display = "block";
-                    startBtn.disabled = false;
-                    retryFailedMode = true;
-                    retryAfterId = 0;
-                    intentadosReintentoSesion = 0;
-                    startBtn.innerText = `🔄 Reintentar Fallidos (${fallidosTotales || nuevosPendientes})`;
+                    if (progressStatusText) progressStatusText.innerText = `Finalizado (${fallidosTotales || nuevosPendientes} con incidencia)`;
+                    if (subtextStatus) subtextStatus.innerText = "Con incidencias";
+                    if (progressPercentText) progressPercentText.innerText = "100%";
+                    if (progressFill) progressFill.style.strokeDashoffset = 0;
+                    if (pauseBtn) pauseBtn.style.display = "none";
+                    if (startBtn) {
+                        startBtn.style.display = "block";
+                        startBtn.disabled = false;
+                        retryFailedMode = true;
+                        retryAfterId = 0;
+                        intentadosReintentoSesion = 0;
+                        startBtn.innerText = `🔄 Reintentar Fallidos (${fallidosTotales || nuevosPendientes})`;
+                    }
                     isRunning = false;
                 }
             } else {
                 addLog("Error en el lote: " + (data.message || "Error desconocido"), "log-error");
-                progressStatusText.innerText = "Error en lote";
-                pauseBtn.style.display = "none";
-                startBtn.style.display = "block";
-                startBtn.innerText = "Reintentar Lote";
+                if (progressStatusText) progressStatusText.innerText = "Error en lote";
+                if (pauseBtn) pauseBtn.style.display = "none";
+                if (startBtn) {
+                    startBtn.style.display = "block";
+                    startBtn.innerText = "Reintentar Lote";
+                }
                 isRunning = false;
             }
         } catch (e) {
@@ -1493,15 +1565,20 @@
             }
 
             addLog("Error de conexión al servidor: " + e.message, "log-error");
-            progressStatusText.innerText = "Error de conexión";
-            pauseBtn.style.display = "none";
-            startBtn.style.display = "block";
-            startBtn.innerText = "Reintentar Lote";
+            if (progressStatusText) progressStatusText.innerText = "Error de conexión";
+            if (pauseBtn) pauseBtn.style.display = "none";
+            if (startBtn) {
+                startBtn.style.display = "block";
+                startBtn.innerText = "Reintentar Lote";
+            }
             isRunning = false;
         }
     }
 
     function addLog(msg, className = "", customTimestamp = null) {
+        const box = logBox || document.getElementById('log-box');
+        if (!box) return;
+
         const entryDiv = document.createElement('div');
         entryDiv.className = "log-entry " + className;
         
@@ -1516,8 +1593,8 @@
         entryDiv.appendChild(timeSpan);
         entryDiv.appendChild(textSpan);
         
-        logBox.appendChild(entryDiv);
-        logBox.scrollTop = logBox.scrollHeight;
+        box.appendChild(entryDiv);
+        box.scrollTop = box.scrollHeight;
     }
 </script>
 {% endblock %}

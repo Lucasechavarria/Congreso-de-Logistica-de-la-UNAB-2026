@@ -469,8 +469,11 @@
             <span class="metric-badge metric-badge-creados">
                 🆕 <strong>{{ resultado.creados }}</strong> Creados Nuevos
             </span>
+            <span class="metric-badge" style="background: rgba(148, 163, 184, 0.18); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.35);">
+                🛡️ <strong>{{ resultado.sin_cambios }}</strong> Verificados (Sin Cambios)
+            </span>
             <span class="metric-badge metric-badge-actualizados">
-                🔄 <strong>{{ resultado.actualizados }}</strong> Ya Existentes Actualizados
+                🔄 <strong>{{ resultado.actualizados }}</strong> Modificados / Actualizados
             </span>
             <span class="metric-badge metric-badge-asistencias">
                 ✅ <strong>{{ resultado.asistencias_otorgadas }}</strong> Asistencias Otorgadas Hoy
@@ -532,6 +535,8 @@
                         <td>
                             {% if item.accion == 'creado' %}
                                 <span class="badge-accion-creado">Nuevo Creado</span>
+                            {% elif item.accion == 'sin_cambios' %}
+                                <span style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid rgba(148, 163, 184, 0.35);">🛡️ Verificado (Sin Cambios)</span>
                             {% else %}
                                 <span class="badge-accion-actualizado">Existente Actualizado</span>
                             {% endif %}

@@ -428,7 +428,8 @@ def preacreditacion_masiva_view(request):
                     f"✅ ¡Preacreditación Procesada con Éxito! "
                     f"Total filas: {resultado['total_procesados']} | "
                     f"Nuevos registrados: {resultado['creados']} | "
-                    f"Actualizados: {resultado['actualizados']} | "
+                    f"Sin cambios (verificados): {resultado.get('sin_cambios', 0)} | "
+                    f"Actualizados con cambios: {resultado['actualizados']} | "
                     f"Asistencias otorgadas: {resultado['asistencias_otorgadas']} | "
                     f"Certificados encolados: {resultado['certificados_encolados']}."
                 )

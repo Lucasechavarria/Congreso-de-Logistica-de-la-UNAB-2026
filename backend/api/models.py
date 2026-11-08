@@ -320,10 +320,18 @@ class PersonalEmpresa(models.Model):
                 asistente = Asistente.objects.filter(email=self.email).first()
 
             if not asistente:
-                email_asistente = self.email or f"acreditado_{self.dni}@empresa.temp"
+                email_valido = False
+                if self.email and '@' in self.email:
+                    try:
+                        from django.core.validators import validate_email
+                        validate_email(self.email)
+                        email_valido = True
+                    except Exception:
+                        email_valido = False
+                email_asistente = self.email if email_valido else f"acreditado_{self.dni}@empresa.temp"
                 asistente = Asistente.objects.create(
                     first_name=self.nombre,
-                    last_name=self.apellido,
+                    last_name=self.apellido or "-",
                     email=email_asistente,
                     dni=self.dni,
                     phone=self.telefono,
@@ -333,7 +341,8 @@ class PersonalEmpresa(models.Model):
                 )
             else:
                 asistente.first_name = self.nombre
-                asistente.last_name = self.apellido
+                if self.apellido:
+                    asistente.last_name = self.apellido
                 if self.telefono and not asistente.phone:
                     asistente.phone = self.telefono
                 asistente.empresa_vinculada = self.empresa
@@ -426,6 +435,16 @@ class Asistente(models.Model):
     def nombre_completo(self):
         return f"{self.first_name} {self.last_name}"
 
+    def clean_fields(self, exclude=None):
+        """Limpia y trunca el DNI antes de validar la longitud máxima de 8 caracteres."""
+        if self.dni and (exclude is None or 'dni' not in exclude):
+            dni_limpio = str(re.sub(r'\D', '', str(self.dni)))
+            if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
+                self.dni = dni_limpio[:8]
+            elif len(dni_limpio) > 8:
+                self.dni = dni_limpio[:8]
+        super().clean_fields(exclude=exclude)
+
     def clean(self):
         """Valida que el DNI tenga 7 u 8 dígitos numéricos (DNI argentinos válidos)"""
         super().clean()
@@ -436,6 +455,8 @@ class Asistente(models.Model):
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
                 # Eliminar el último carácter si es cero en un DNI de 9 dígitos
                 dni_limpio = dni_limpio[0:8]
+            elif len(dni_limpio) > 8:
+                dni_limpio = dni_limpio[:8]
             # Validar que tenga entre 7 y 8 dígitos
             if len(dni_limpio) not in (7, 8) or not dni_limpio.isdigit():
                 raise ValidationError({
@@ -446,6 +467,12 @@ class Asistente(models.Model):
 
     def save(self, *args, **kwargs):
         """Limpia y valida el DNI antes de guardar"""
+        if self.dni:
+            dni_limpio = str(re.sub(r'\D', '', str(self.dni)))
+            if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
+                self.dni = dni_limpio[:8]
+            elif len(dni_limpio) > 8:
+                self.dni = dni_limpio[:8]
         self.full_clean()
         super().save(*args, **kwargs)
 

@@ -136,14 +136,28 @@ def task_enviar_confirmacion_asistencia(self, asistente_id, inscripcion_id=None)
 
 
 @shared_task(bind=True)
-def task_procesar_cola_certificados_lote(self, batch_size=10, forzar=False, delay_seconds=2):
+def task_procesar_cola_certificados_lote(self, batch_size=5, forzar=False, delay_seconds=1, reintentar_fallidos=False):
     """
     Procesa un lote controlado de certificados pendientes para emisión y envío.
-    Regla de seguridad: Si forzar=False, bloquea el envío antes de las 18:00 hs (hora oficial Argentina GMT-3).
-    Aplica una pausa configurable entre envíos para proteger CPU de Pillow y SMTP.
+    Coordina mediante pg_try_advisory_lock y select_for_update(skip_locked=True) en PostgreSQL
+    para no colisionar con la consola web (/admin/certificate-queue/) ni con otros workers.
     """
+    from django.core.mail import get_connection
+    from .services import sincronizar_certificados_asistencia
+    from .scheduler import (
+        es_horario_habilitado_certificados,
+        acquire_certificate_queue_lock,
+        reclamar_lote_certificados,
+        is_web_console_priority_active,
+    )
+
+    try:
+        sincronizar_certificados_asistencia()
+    except Exception as sync_err:
+        logger.warning(f"[CERTIFICADOS BATCH] Error sincronizando asistencias: {sync_err}")
+
     ahora_local = timezone.localtime(timezone.now())
-    if not forzar and ahora_local.hour < 18:
+    if not forzar and not es_horario_habilitado_certificados(ahora_local):
         msg = f"Envío bloqueado preventivamente: La hora actual ({ahora_local.strftime('%H:%M:%S')}) es anterior a las 18:00 hs oficial."
         logger.warning(f"[CERTIFICADOS BATCH] {msg}")
         return {
@@ -152,55 +166,153 @@ def task_procesar_cola_certificados_lote(self, batch_size=10, forzar=False, dela
             'processed': 0,
             'errors': 0,
             'remaining': Certificado.objects.filter(email_enviado=False).count(),
+            'remaining_unattempted': Certificado.objects.filter(email_enviado=False, intentos=0).count(),
+            'failed_count': Certificado.objects.filter(email_enviado=False, intentos__gt=0).count(),
             'logs': [msg]
         }
 
-    certificados = list(Certificado.objects.filter(email_enviado=False).order_by('id')[:batch_size])
-    logs = []
-    processed = 0
-    errors = 0
+    if not forzar and is_web_console_priority_active():
+        return {
+            'status': 'busy_web_or_worker',
+            'processed': 0,
+            'errors': 0,
+            'remaining': Certificado.objects.filter(email_enviado=False).count(),
+            'remaining_unattempted': Certificado.objects.filter(email_enviado=False, intentos=0).count(),
+            'failed_count': Certificado.objects.filter(email_enviado=False, intentos__gt=0).count(),
+            'logs': ['⏳ Consola web con prioridad activa; cediendo ejecución.']
+        }
 
-    logger.info(f"[CERTIFICADOS BATCH] Iniciando procesamiento de lote ({len(certificados)} certificados, delay={delay_seconds}s)...")
+    with acquire_certificate_queue_lock() as acquired:
+        if not acquired:
+            return {
+                'status': 'busy_web_or_worker',
+                'processed': 0,
+                'errors': 0,
+                'remaining': Certificado.objects.filter(email_enviado=False).count(),
+                'remaining_unattempted': Certificado.objects.filter(email_enviado=False, intentos=0).count(),
+                'failed_count': Certificado.objects.filter(email_enviado=False, intentos__gt=0).count(),
+                'logs': ['⏳ Consola web u otro worker activo en PostgreSQL; cediendo prioridad.']
+            }
 
-    for cert in certificados:
-        destinatario = getattr(cert.asistente, 'email', '') or f"Asistente #{cert.asistente_id}"
+        certificados = reclamar_lote_certificados(
+            batch_size=batch_size,
+            reintentar_fallidos=reintentar_fallidos,
+            after_id=0,
+            max_intentos_auto=3 if reintentar_fallidos else None,
+        )
+
+        logs = []
+        processed = 0
+        errors = 0
+
+        if not certificados:
+            remaining = Certificado.objects.filter(email_enviado=False).count()
+            return {
+                'status': 'ok',
+                'processed': 0,
+                'errors': 0,
+                'remaining': remaining,
+                'remaining_unattempted': Certificado.objects.filter(email_enviado=False, intentos=0).count(),
+                'failed_count': Certificado.objects.filter(email_enviado=False, intentos__gt=0).count(),
+                'logs': []
+            }
+
+        logger.info(f"[CERTIFICADOS BATCH] Iniciando procesamiento de lote ({len(certificados)} certificados, delay={delay_seconds}s)...")
+        batch_start = time.monotonic()
+        MAX_BATCH_SECONDS = 12.0
+
+        smtp_conn = None
+        smtp_open_failed = False
         try:
-            result = send_certificate_email(cert)
-            success = result[0] if isinstance(result, tuple) else bool(result)
-            if success:
-                logs.append(f"✓ Certificado enviado con éxito a {destinatario}")
-                processed += 1
-            else:
-                motivo = result[1] if isinstance(result, tuple) and len(result) > 1 else "Error en el transporte SMTP"
-                logs.append(f"✗ Error al enviar a {destinatario}: {motivo}")
-                errors += 1
-        except Exception as e:
-            logs.append(f"✗ Excepción con {destinatario}: {str(e)}")
-            errors += 1
+            smtp_conn = get_connection(fail_silently=False)
+            smtp_conn.open()
+        except Exception as conn_err:
+            logger.warning(f"[CERTIFICADOS BATCH] No se pudo pre-abrir conexión SMTP: {conn_err}")
+            smtp_conn = None
+            smtp_open_failed = True
 
-        if delay_seconds > 0:
-            time.sleep(delay_seconds)
+        try:
+            for idx, cert in enumerate(certificados):
+                if (time.monotonic() - batch_start) >= MAX_BATCH_SECONDS:
+                    break
 
-    remaining = Certificado.objects.filter(email_enviado=False).count()
-    return {
-        'status': 'ok',
-        'processed': processed,
-        'errors': errors,
-        'remaining': remaining,
-        'logs': logs
-    }
+                try:
+                    cert.refresh_from_db(fields=['email_enviado', 'intentos'])
+                    if cert.email_enviado:
+                        processed += 1
+                        continue
+                except Exception:
+                    pass
+
+                destinatario = getattr(cert.asistente, 'email', '') or f"Asistente #{cert.asistente_id}"
+                try:
+                    result = send_certificate_email(cert, connection=smtp_conn)
+                    success = result[0] if isinstance(result, tuple) else bool(result)
+                    if success:
+                        logs.append(f"✓ Certificado enviado con éxito a {destinatario}")
+                        processed += 1
+                    else:
+                        motivo = result[1] if isinstance(result, tuple) and len(result) > 1 else "Error en el transporte SMTP"
+                        logs.append(f"✗ Error al enviar a {destinatario}: {motivo}")
+                        errors += 1
+                        es_error_smtp = "Fallo en PDF o SMTP" in str(motivo)
+                        if smtp_open_failed and es_error_smtp:
+                            break
+                        if (
+                            smtp_conn is not None
+                            and es_error_smtp
+                            and idx < len(certificados) - 1
+                            and (time.monotonic() - batch_start) < MAX_BATCH_SECONDS
+                        ):
+                            try:
+                                smtp_conn.close()
+                                smtp_conn.open()
+                            except Exception:
+                                smtp_conn = None
+                                break
+                except Exception as e:
+                    logs.append(f"✗ Excepción con {destinatario}: {str(e)}")
+                    errors += 1
+                    if smtp_open_failed:
+                        break
+
+                if delay_seconds > 0 and idx < len(certificados) - 1:
+                    if (time.monotonic() - batch_start + delay_seconds) < MAX_BATCH_SECONDS:
+                        time.sleep(delay_seconds)
+        finally:
+            if smtp_conn is not None:
+                try:
+                    smtp_conn.close()
+                except Exception:
+                    pass
+
+        remaining = Certificado.objects.filter(email_enviado=False).count()
+        remaining_unattempted = Certificado.objects.filter(email_enviado=False, intentos=0).count()
+        failed_count = Certificado.objects.filter(email_enviado=False, intentos__gt=0).count()
+        return {
+            'status': 'ok',
+            'processed': processed,
+            'errors': errors,
+            'remaining': remaining,
+            'remaining_unattempted': remaining_unattempted,
+            'failed_count': failed_count,
+            'logs': logs
+        }
 
 
 @shared_task(bind=True)
-def task_ejecutar_respaldo_programado(self):
+def task_ejecutar_respaldo_programado(self, manual=False):
     """
-    Tarea programada por Celery Beat para generar el respaldo completo (.zip)
-    y enviarlo automáticamente por correo a las casillas personal e institucional.
+    Los respaldos programados automáticos fueron eliminados por decisión de administración.
+    Solo ejecuta si se invoca explícitamente con manual=True.
     """
+    if not manual:
+        logger.info("[BACKUP TASK] Ejecución automática omitida: los respaldos del sistema son exclusivamente manuales.")
+        return {'status': 'skipped', 'ok': False, 'reason': 'manual_only'}
     from .backup_service import ejecutar_respaldo_programado
     try:
         resultado = ejecutar_respaldo_programado()
-        logger.info(f"[BACKUP TASK] Respaldo finalizado: {resultado.get('status')} - {resultado.get('archivo')}")
+        logger.info(f"[BACKUP TASK] Respaldo manual finalizado: {resultado.get('status')} - {resultado.get('archivo')}")
         return resultado
     except Exception as exc:
         logger.error(f"[BACKUP TASK] Error crítico ejecutando respaldo: {exc}")

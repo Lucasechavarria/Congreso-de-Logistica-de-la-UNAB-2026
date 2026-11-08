@@ -59,6 +59,110 @@ def confirm_asistencia(inscripcion: Inscripcion) -> Tuple[Certificado, bool]:
         return certificado, email_success
 
 
+def sincronizar_certificados_asistencia() -> int:
+    """
+    Garantiza que toda Inscripcion con asistencia_confirmada=True en la edición activa
+    tenga su registro Certificado correspondiente en la cola si el asistente aún no
+    posee certificado registrado para la edición activa (o sin edición asignada).
+    Además normaliza certificados con edicion=None hacia la edición activa sin duplicarlos.
+    Retorna la cantidad de certificados nuevos encolados.
+    """
+    from django.db.models import Q
+    from .models import PersonalEmpresa
+    edicion_activa = Edicion.objects.filter(activa=True).first()
+    if not edicion_activa:
+        return 0
+
+    # 1. Normalizar certificados existentes con edicion=None asignándoles edicion_activa
+    # siempre que no exista ya otro certificado con (asistente_id, edicion_activa, tipo_certificado)
+    certs_sin_edicion = list(
+        Certificado.objects.filter(edicion__isnull=True).values('id', 'asistente_id', 'tipo_certificado')
+    )
+    if certs_sin_edicion:
+        existentes_activa = set(
+            Certificado.objects.filter(
+                edicion=edicion_activa,
+                asistente_id__in=[c['asistente_id'] for c in certs_sin_edicion],
+            ).values_list('asistente_id', 'tipo_certificado')
+        )
+        ids_a_normalizar = []
+        for c in certs_sin_edicion:
+            key = (c['asistente_id'], c['tipo_certificado'])
+            if key not in existentes_activa:
+                ids_a_normalizar.append(c['id'])
+                existentes_activa.add(key)
+        if ids_a_normalizar:
+            Certificado.objects.filter(id__in=ids_a_normalizar).update(edicion=edicion_activa)
+
+    # 2. Asegurar que PersonalEmpresa acreditado en la edición activa tenga su Inscripcion confirmada (filtrado en SQL)
+    asistentes_ya_confirmados_qs = Inscripcion.objects.filter(
+        edicion=edicion_activa,
+        asistencia_confirmada=True,
+    ).values_list('asistente_id', flat=True)
+
+    personal_acreditado = list(
+        PersonalEmpresa.objects.filter(
+            acreditado=True,
+            asistente__isnull=False,
+        )
+        .filter(Q(empresa__edicion=edicion_activa) | Q(empresa__edicion__isnull=True))
+        .exclude(asistente_id__in=asistentes_ya_confirmados_qs)
+        .select_related('asistente', 'empresa')
+    )
+    for p in personal_acreditado:
+        insc, _ = Inscripcion.objects.get_or_create(
+            asistente=p.asistente,
+            edicion=edicion_activa,
+            defaults={'empresa': p.empresa}
+        )
+        if not insc.asistencia_confirmada:
+            insc.asistencia_confirmada = True
+            insc.fecha_confirmacion = p.fecha_acreditacion or timezone.now()
+            insc.save(update_fields=['asistencia_confirmada', 'fecha_confirmacion'])
+
+    # 3. Filtrar en SQL únicamente las inscripciones confirmadas que aún no tienen certificado
+    # (incluyendo tanto edicion=edicion_activa como edicion__isnull=True, enviados o pendientes)
+    asistentes_con_cert_qs = Certificado.objects.filter(
+        Q(edicion=edicion_activa) | Q(edicion__isnull=True)
+    ).values_list('asistente_id', flat=True)
+
+    inscripciones_sin_cert = list(
+        Inscripcion.objects.filter(
+            edicion=edicion_activa,
+            asistencia_confirmada=True,
+        )
+        .exclude(asistente_id__in=asistentes_con_cert_qs)
+        .select_related('asistente')
+    )
+    if not inscripciones_sin_cert:
+        return 0
+
+    asistentes_con_cert = set()
+    nuevos = 0
+    for insc in inscripciones_sin_cert:
+        asistente = insc.asistente
+        if not asistente or asistente.id in asistentes_con_cert:
+            continue
+
+        tipo_cert = Certificado.TipoCertificado.ASISTENCIA
+        if getattr(asistente, 'disertante_vinculado_id', None):
+            tipo_cert = Certificado.TipoCertificado.DISERTANTE
+        elif getattr(asistente, 'empresa_vinculada_id', None):
+            tipo_cert = Certificado.TipoCertificado.EMPRESA
+
+        _, created = Certificado.objects.get_or_create(
+            asistente=asistente,
+            edicion=edicion_activa,
+            tipo_certificado=tipo_cert,
+            defaults={'email_enviado': False}
+        )
+        if created:
+            nuevos += 1
+        asistentes_con_cert.add(asistente.id)
+
+    return nuevos
+
+
 def create_empresa_and_notify(data: Dict[str, Any]) -> Tuple[Empresa, bool]:
     """
     Servicio transaccional para procesar el registro de una empresa

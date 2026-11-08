@@ -191,6 +191,7 @@ EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = 465
 EMAIL_USE_SSL = True
 EMAIL_USE_TLS = False
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'congresologisticaytransporte@unab.edu.ar')
 
 # Contraseña de aplicación oficial activa (pavtiulxqbyazxbn)
@@ -246,8 +247,9 @@ if os.getenv('DJANGO_ENV') == 'development':
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # =================== CONFIGURACIÓN DE CELERY ===================
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+_default_redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', _default_redis_url)
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', _default_redis_url)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -271,34 +273,14 @@ except Exception:
 
 from celery.schedules import crontab
 
-# =================== RESPALDOS PROGRAMADOS DEL SISTEMA (CELERY BEAT) ===================
+# =================== COLA AUTOMÁTICA DE CERTIFICADOS (CELERY BEAT) ===================
 # Zona horaria oficial del evento: America/Argentina/Buenos_Aires (GMT-3)
-# Envía el paquete .zip completo (Excel + JSON + SQL) por email a las casillas personal e institucional:
-# 1. Viernes 6 de Noviembre a las 23:59 hs
-# 2. Sábado 7 de Noviembre a las 06:00 hs
-# 3. Sábado 7 de Noviembre a las 10:00 hs
-# 4. Sábado 7 de Noviembre a las 14:00 hs
-# 5. Sábado 7 de Noviembre a las 18:00 hs
+# Los respaldos del sistema (.zip con Excel + JSON + SQL) son exclusivamente manuales desde /admin/respaldos/.
 CELERY_BEAT_SCHEDULE = {
-    'respaldo-sistema-viernes-2359': {
-        'task': 'api.tasks.task_ejecutar_respaldo_programado',
-        'schedule': crontab(minute=59, hour=23, day_of_month=6, month_of_year=11),
-    },
-    'respaldo-sistema-sabado-0600': {
-        'task': 'api.tasks.task_ejecutar_respaldo_programado',
-        'schedule': crontab(minute=0, hour=6, day_of_month=7, month_of_year=11),
-    },
-    'respaldo-sistema-sabado-1000': {
-        'task': 'api.tasks.task_ejecutar_respaldo_programado',
-        'schedule': crontab(minute=0, hour=10, day_of_month=7, month_of_year=11),
-    },
-    'respaldo-sistema-sabado-1400': {
-        'task': 'api.tasks.task_ejecutar_respaldo_programado',
-        'schedule': crontab(minute=0, hour=14, day_of_month=7, month_of_year=11),
-    },
-    'respaldo-sistema-sabado-1800': {
-        'task': 'api.tasks.task_ejecutar_respaldo_programado',
-        'schedule': crontab(minute=0, hour=18, day_of_month=7, month_of_year=11),
+    'procesar-cola-certificados-post-18hs': {
+        'task': 'api.tasks.task_procesar_cola_certificados_lote',
+        'schedule': crontab(minute='*/3'),
+        'kwargs': {'batch_size': 5, 'forzar': False, 'delay_seconds': 1},
     },
 }
 

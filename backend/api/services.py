@@ -833,17 +833,47 @@ def generar_plantilla_preacreditacion_staff_empresas() -> bytes:
     return output.getvalue()
 
 
-def _resolver_categoria_participante(tipo_raw: str, empresa_raw: str, cargo_raw: str) -> str:
-    """Clasifica el participante en VISITANTE, DISERTANTE o EMPRESA."""
-    t = (tipo_raw or '').upper().strip()
-    c = (cargo_raw or '').upper().strip()
-    e = (empresa_raw or '').strip()
+CORPORATE_REGEX = re.compile(
+    r'\b(S\.?A\.?|S\.?R\.?L\.?|S\.?A\.?S\.?|INC\.?|LLC|STAND|SPONSOR|EXPOSITOR)\b',
+    re.IGNORECASE
+)
 
-    if any(k in t for k in ['DISERT', 'SPEAKER', 'PONENTE', 'CONFERENC']) or any(k in c for k in ['DISERT', 'SPEAKER', 'PONENTE']):
-        return 'DISERTANTE'
-    if e or any(k in t for k in ['EMPRESA', 'STAND', 'SPONSOR', 'EXPOSITOR']):
-        return 'EMPRESA'
-    return 'VISITANTE'
+KEYWORDS_ACADEMICAS = [
+    'TECNIC', 'LICENCIATUR', 'INGENIER', 'CARRERA', 'AUTOMATIZA', 'CIENCIA',
+    'DATO', 'PRODUCTO', 'DESARROLLO', 'DATA SCIENCE', 'LOGISTICA', 'LOGÍSTICA', 'ESTUDIANTE',
+    'ALUMNO', 'DOCENTE', 'PROFESOR', 'COORDINADOR', 'ASISTENTE G', 'SUPLENTE',
+    'UNAB', 'UNDELTA', 'UNIVERSIDAD', 'FACULTAD', 'ESCUELA', 'CURSO', 'TUTOR',
+    'SECUNDARI', 'VISITANTE', 'PARTICIPANTE', 'GENERAL'
+]
+
+
+def _resolver_categoria_participante(tipo_raw: str, empresa_raw: str, cargo_raw: str) -> Tuple[str, str, str]:
+    """
+    Clasifica el participante en VISITANTE, DISERTANTE o EMPRESA.
+    Retorna una tupla: (categoria, nombre_empresa_limpio, cargo_o_carrera_limpio).
+    """
+    t = (tipo_raw or '').upper().strip()
+    c = (cargo_raw or '').strip()
+    e = (empresa_raw or '').strip()
+    c_up = c.upper()
+    e_up = e.upper()
+
+    if any(k in t for k in ['DISERT', 'SPEAKER', 'PONENTE', 'CONFERENC']) or any(k in c_up for k in ['DISERT', 'SPEAKER', 'PONENTE']):
+        return 'DISERTANTE', '', (c or 'DISERTANTE')
+
+    if any(k in t for k in ['EMPRESA', 'STAND', 'SPONSOR', 'EXPOSITOR']):
+        return 'EMPRESA', (e or 'Empresa Expositora'), (c or 'EMPRESA')
+
+    val_empresa = e or c
+    val_emp_up = val_empresa.upper()
+
+    if any(k in val_emp_up for k in KEYWORDS_ACADEMICAS) and not CORPORATE_REGEX.search(val_emp_up):
+        return 'VISITANTE', '', val_empresa
+
+    if CORPORATE_REGEX.search(val_emp_up) or val_empresa:
+        return 'EMPRESA', val_empresa, (c if c != val_empresa else 'EMPRESA')
+
+    return 'VISITANTE', '', (c or 'VISITANTE')
 
 
 def _resolver_empresa_preacreditada(
@@ -890,16 +920,27 @@ def _upsert_asistente_preacreditado(
     email_final: str,
     telefono_raw: str,
     categoria: str,
-    empresa_obj: Empresa | None
+    empresa_obj: Empresa | None,
+    grupo_raw: str = "",
+    cargo_raw: str = ""
 ) -> Tuple[Asistente, str]:
-    """Crea o actualiza el registro en Asistente por DNI o Email."""
-    asistente = Asistente.objects.filter(dni=dni_limpio).first()
+    """Crea o actualiza el registro en Asistente por DNI, Email o Nombre/Apellido."""
+    asistente = None
+    if dni_limpio:
+        asistente = Asistente.objects.filter(dni=dni_limpio).first()
     if not asistente and email_final and not email_final.startswith('sin-email'):
-        asistente = Asistente.objects.filter(email=email_final).first()
+        asistente = Asistente.objects.filter(email__iexact=email_final).first()
+    if not asistente and nombre_tit and apellido_tit:
+        asistente = Asistente.objects.filter(
+            first_name__iexact=nombre_tit,
+            last_name__iexact=apellido_tit
+        ).first()
 
     profile_type = Asistente.ProfileType.VISITOR
     if categoria == 'DISERTANTE':
         profile_type = Asistente.ProfileType.PROFESSIONAL
+
+    comision_val = f"Grupo {grupo_raw.strip()}" if grupo_raw else None
 
     if asistente:
         asistente.first_name = nombre_tit
@@ -913,23 +954,72 @@ def _upsert_asistente_preacreditado(
             asistente.email = email_final
         if empresa_obj:
             asistente.empresa_vinculada = empresa_obj
+        if comision_val:
+            asistente.comision = comision_val
         asistente.rol_especifico = categoria
         asistente.terminos_aceptados = True
         asistente.save()
         return asistente, "actualizado"
 
     asistente = Asistente.objects.create(
-        dni=dni_limpio,
+        dni=dni_limpio if dni_limpio else None,
         first_name=nombre_tit,
         last_name=apellido_tit,
         email=email_final,
         phone=telefono_raw,
         profile_type=profile_type,
         empresa_vinculada=empresa_obj,
+        comision=comision_val,
         rol_especifico=categoria,
         terminos_aceptados=True
     )
     return asistente, "creado"
+
+
+def _sincronizar_personal_empresa(
+    empresa_obj: Empresa,
+    data_fila: Dict[str, Any],
+    asistente: Asistente,
+    marcar_asistencia: bool
+) -> None:
+    """Crea o actualiza el registro en PersonalEmpresa evitando duplicados."""
+    from .models import PersonalEmpresa
+
+    dni_limpio = data_fila['dni_limpio']
+    p_emp = None
+    if asistente:
+        p_emp = PersonalEmpresa.objects.filter(empresa=empresa_obj, asistente=asistente).first()
+    if not p_emp and dni_limpio:
+        p_emp = PersonalEmpresa.objects.filter(empresa=empresa_obj, dni=dni_limpio).first()
+    if not p_emp and data_fila['email_final'] and not data_fila['email_final'].startswith('sin-email'):
+        p_emp = PersonalEmpresa.objects.filter(empresa=empresa_obj, email__iexact=data_fila['email_final']).first()
+    if not p_emp:
+        p_emp = PersonalEmpresa.objects.filter(
+            empresa=empresa_obj,
+            nombre__iexact=data_fila['nombre_tit'],
+            apellido__iexact=data_fila['apellido_tit']
+        ).first()
+
+    # Si no hay DNI provisto, generar un código numérico de 8 dígitos único (rango 90M+)
+    dni_empresa = dni_limpio or (asistente.dni if asistente and asistente.dni else str(90000000 + asistente.id))
+
+    defaults = {
+        'nombre': data_fila['nombre_tit'],
+        'apellido': data_fila['apellido_tit'],
+        'dni': dni_empresa,
+        'cargo': data_fila['cargo_raw'] or 'Personal de Empresa',
+        'email': data_fila['email_final'] if not data_fila['email_final'].startswith('sin-email') else '',
+        'telefono': data_fila['telefono_raw'] or '',
+        'acreditado': marcar_asistencia,
+        'fecha_acreditacion': timezone.now() if marcar_asistencia else None,
+        'asistente': asistente,
+    }
+    if p_emp:
+        for k, v in defaults.items():
+            setattr(p_emp, k, v)
+        p_emp.save()
+    else:
+        PersonalEmpresa.objects.create(empresa=empresa_obj, **defaults)
 
 
 def _procesar_fila_preacreditacion(
@@ -941,15 +1031,17 @@ def _procesar_fila_preacreditacion(
     empresas_afectadas_ids: set
 ) -> Dict[str, Any]:
     """Procesa una fila unitaria de preacreditación dentro de la transacción."""
-    from .models import PersonalEmpresa, Acreditacion
+    from .models import Acreditacion
 
-    categoria = _resolver_categoria_participante(
+    categoria, nom_empresa, cargo_limpio = _resolver_categoria_participante(
         data_fila['tipo_raw'], data_fila['empresa_raw'], data_fila['cargo_raw']
     )
+    data_fila['cargo_raw'] = cargo_limpio
+
     empresa_obj = None
     if categoria == 'EMPRESA':
         empresa_obj = _resolver_empresa_preacreditada(
-            data_fila['empresa_raw'], edicion_activa, empresas_cache,
+            nom_empresa, edicion_activa, empresas_cache,
             f"{data_fila['nombre_tit']} {data_fila['apellido_tit']}", data_fila['email_final']
         )
         if empresa_obj:
@@ -957,7 +1049,8 @@ def _procesar_fila_preacreditacion(
 
     asistente, accion = _upsert_asistente_preacreditado(
         data_fila['dni_limpio'], data_fila['nombre_tit'], data_fila['apellido_tit'],
-        data_fila['email_final'], data_fila['telefono_raw'], categoria, empresa_obj
+        data_fila['email_final'], data_fila['telefono_raw'], categoria, empresa_obj,
+        data_fila.get('grupo_raw', ''), cargo_limpio
     )
 
     inscripcion, _ = Inscripcion.objects.get_or_create(
@@ -988,20 +1081,7 @@ def _procesar_fila_preacreditacion(
         )
 
     if categoria == 'EMPRESA' and empresa_obj:
-        PersonalEmpresa.objects.update_or_create(
-            empresa=empresa_obj,
-            dni=data_fila['dni_limpio'],
-            defaults={
-                'nombre': data_fila['nombre_tit'],
-                'apellido': data_fila['apellido_tit'],
-                'cargo': data_fila['cargo_raw'] or 'Personal de Empresa',
-                'email': data_fila['email_final'] if not data_fila['email_final'].startswith('sin-email') else '',
-                'telefono': data_fila['telefono_raw'],
-                'acreditado': marcar_asistencia,
-                'fecha_acreditacion': timezone.now() if marcar_asistencia else None,
-                'asistente': asistente,
-            }
-        )
+        _sincronizar_personal_empresa(empresa_obj, data_fila, asistente, marcar_asistencia)
 
     tipo_cert = Certificado.TipoCertificado.ASISTENCIA
     if categoria == 'EMPRESA':
@@ -1025,14 +1105,16 @@ def _procesar_fila_preacreditacion(
         except Exception:
             pass
 
+    dni_display = data_fila['dni_limpio'] or (asistente.dni if asistente and asistente.dni else '-')
+
     return {
         'fila': data_fila['row_num'],
-        'dni': data_fila['dni_limpio'],
+        'dni': dni_display,
         'nombre': f"{data_fila['nombre_tit']} {data_fila['apellido_tit']}".strip(),
         'email': data_fila['email_final'],
         'tipo': categoria,
         'empresa': empresa_obj.nombre_empresa if empresa_obj else '-',
-        'cargo': data_fila['cargo_raw'] or '-',
+        'cargo': cargo_limpio or '-',
         'accion': accion,
         'asistencia_nueva': asistencia_nueva,
         'cert_creado': cert_creado,
@@ -1078,10 +1160,11 @@ def procesar_preacreditacion_masiva_staff_empresas(
     col_telefono = next((c for c in df.columns if any(k in c for k in ['TELEFONO', 'CELULAR', 'PHONE'])), None)
     col_tipo = next((c for c in df.columns if any(k in c for k in ['TIPO', 'ROL', 'PERFIL', 'CATEGORIA'])), None)
     col_empresa = next((c for c in df.columns if any(k in c for k in ['EMPRESA', 'SPONSOR', 'STAND'])), None)
-    col_cargo = next((c for c in df.columns if any(k in c for k in ['CARGO', 'PUESTO', 'FUNCION'])), None)
+    col_cargo = next((c for c in df.columns if any(k in c for k in ['CARGO', 'PUESTO', 'FUNCION', 'CARRERA'])), None)
+    col_grupo = next((c for c in df.columns if any(k in c for k in ['GRUPO', 'COMISION', 'CURSO'])), None)
 
-    if not col_dni and not (col_nombre or col_apellido):
-        raise ValueError("La planilla requiere al menos columnas: DNI, Nombre y Apellido.")
+    if not col_dni and not (col_nombre or col_apellido) and not col_email:
+        raise ValueError("La planilla requiere al menos columnas identificatorias (DNI, Email o Nombre/Apellido).")
 
     edicion_activa = Edicion.objects.filter(id=edicion_id).first() if edicion_id else Edicion.objects.filter(activa=True).first()
     if not edicion_activa:
@@ -1113,22 +1196,33 @@ def procesar_preacreditacion_masiva_staff_empresas(
             dni_limpio = re.sub(r'\D', '', dni_raw)
             if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
                 dni_limpio = dni_limpio[:8]
-            if not dni_limpio:
-                errores.append(f"Fila {row_num}: DNI ausente o inválido ('{dni_raw}').")
+
+            if dni_limpio and len(dni_limpio) not in (7, 8):
+                errores.append(f"Fila {row_num}: DNI con longitud inválida ('{dni_raw}'). Debe tener 7 u 8 dígitos.")
                 continue
 
-            email_final = email_raw if (email_raw and EMAIL_REGEX.match(email_raw)) else f"sin-email-{dni_limpio}@sin-email.congreso.unab"
+            if not dni_limpio and not (nombre_raw or apellido_raw) and not email_raw:
+                errores.append(f"Fila {row_num}: Fila sin datos identificatorios.")
+                continue
+
+            if email_raw and EMAIL_REGEX.match(email_raw):
+                email_final = email_raw
+            elif dni_limpio:
+                email_final = f"sin-email-{dni_limpio}@sin-email.congreso.unab"
+            else:
+                email_final = f"sin-email-fila{row_num}@sin-email.congreso.unab"
 
             fila_datos = {
                 'row_num': row_num,
                 'dni_limpio': dni_limpio,
-                'nombre_tit': (nombre_raw or f"Participante {dni_limpio}").title(),
+                'nombre_tit': (nombre_raw or f"Participante {row_num}").title(),
                 'apellido_tit': apellido_raw.title() if apellido_raw else "",
                 'email_final': email_final,
                 'telefono_raw': sanitize_cell_text(row[col_telefono]) if col_telefono and pd.notna(row[col_telefono]) else "",
                 'tipo_raw': sanitize_cell_text(row[col_tipo]) if col_tipo and pd.notna(row[col_tipo]) else "",
                 'empresa_raw': sanitize_cell_text(row[col_empresa]) if col_empresa and pd.notna(row[col_empresa]) else "",
                 'cargo_raw': sanitize_cell_text(row[col_cargo]) if col_cargo and pd.notna(row[col_cargo]) else "",
+                'grupo_raw': sanitize_cell_text(row[col_grupo]) if col_grupo and pd.notna(row[col_grupo]) else "",
             }
 
             res_fila = _procesar_fila_preacreditacion(

@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FormInput,
   FormSelect,
@@ -18,14 +18,15 @@ import {
   Building2,
   Users,
   CheckCircle,
-  Zap
+  Zap,
+  Calendar,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Esquema de validación para registro rápido
 const registroRapidoSchema = z.object({
   nombre_completo: z.string().min(3, "El nombre es requerido"),
-  dni: z.string().regex(/^\d{7,8}$/, "DNI inválido, debe tener 8 dígitos"),
+  dni: z.string().regex(/^\d{7,8}$/, "DNI inválido, debe tener 7 u 8 dígitos"),
   email: z.string().email("Email inválido"),
   tipo_inscripcion: z.enum(["INDIVIDUAL", "EMPRESA", "GRUPO"], {
     required_error: "Debes seleccionar un tipo",
@@ -40,7 +41,10 @@ export default function RegistroRapido() {
   const [showModal, setShowModal] = useState(false);
   const [asistente, setAsistente] = useState<any>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+
+  const dniParam = searchParams.get("dni") ? searchParams.get("dni")!.replace(/\D/g, "").slice(0, 8) : "";
 
   const {
     register,
@@ -52,8 +56,19 @@ export default function RegistroRapido() {
     resolver: zodResolver(registroRapidoSchema),
     defaultValues: {
       tipo_inscripcion: "INDIVIDUAL",
+      dni: dniParam,
     },
   });
+
+  useEffect(() => {
+    const param = searchParams.get("dni");
+    if (param) {
+      const clean = param.replace(/\D/g, "").slice(0, 8);
+      if (clean) {
+        setValue("dni", clean);
+      }
+    }
+  }, [searchParams, setValue]);
 
   const tipoInscripcion = watch("tipo_inscripcion");
 
@@ -142,32 +157,53 @@ export default function RegistroRapido() {
   return (
     <div className="form-bg-gradient py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
-        {/* Modal de confirmación modernizado */}
+        {/* Modal de confirmación modernizado con Catppuccin Glassmorphism */}
         {showModal && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={handleCloseModal}
           >
             <div
-              className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center transform animate-in slide-in-from-bottom-4 duration-300"
+              className="bg-[#2d1854]/95 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8 max-w-md w-full text-center text-white transform animate-in slide-in-from-bottom-4 duration-300"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mx-auto flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+              <div className="mx-auto flex items-center justify-center w-20 h-20 bg-emerald-500/20 border border-emerald-500/40 rounded-full mb-4 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <CheckCircle className="w-10 h-10 text-emerald-400" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Registro Completado!</h2>
-              <p className="text-slate-600 mb-6 leading-relaxed">
+              <h2 className="text-2xl font-extrabold mb-2 text-glow">¡Registro Completado!</h2>
+              <p className="text-purple-200/90 text-sm mb-4 leading-relaxed">
                 {asistente?.nombre_completo}, tu asistencia ha sido confirmada exitosamente.
               </p>
-              <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-violet-800">
-                  <strong>Email:</strong> {asistente?.email}<br />
-                  <strong>Tipo:</strong> {asistente?.tipo_inscripcion}
+              <div className="bg-slate-900/40 border border-white/10 rounded-2xl p-4 mb-6 text-left space-y-1.5">
+                <p className="text-xs text-purple-200">
+                  <span className="font-bold text-white">Email:</span> {asistente?.email}
+                </p>
+                <p className="text-xs text-purple-200">
+                  <span className="font-bold text-white">DNI:</span> {asistente?.dni}
+                </p>
+                <p className="text-xs text-emerald-300 pt-2 border-t border-white/5 font-medium">
+                  ✉️ Tu certificado oficial de asistencia será emitido y enviado a tu correo al finalizar la jornada.
                 </p>
               </div>
-              <FormButton onClick={handleCloseModal} fullWidth>
-                Continuar
-              </FormButton>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate("/programa")}
+                  className="w-full py-4 rounded-2xl text-white font-extrabold text-sm bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 border border-white/10 btn-shimmer"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Ver Programa del Congreso
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="w-full py-3.5 rounded-2xl font-bold bg-white/10 hover:bg-white/20 active:scale-[0.98] transition-all duration-200 text-sm border border-white/10 flex items-center justify-center gap-2 text-purple-100"
+                >
+                  🏁 Finalizar
+                </button>
+              </div>
             </div>
           </div>
         )}

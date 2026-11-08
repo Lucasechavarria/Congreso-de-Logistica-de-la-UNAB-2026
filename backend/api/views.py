@@ -5,10 +5,12 @@ from . import services, selectors
 from .security import DNIVerificationThrottle, FormRegistrationThrottle, sanitize_xss_payload
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from django.db import transaction
+from django.db import transaction, models
+from django.core.exceptions import ValidationError
 from .models import (
     Disertante, Inscripcion, Programa, Certificado, Asistente, Empresa, PersonalEmpresa,
-    MiembroGrupo, PostulacionDisertante, Edicion, InscripcionPrensa, DetalleDocente, DetalleEstudiante
+    MiembroGrupo, PostulacionDisertante, Edicion, InscripcionPrensa, DetalleDocente, DetalleEstudiante,
+    Acreditacion
 )
 from .serializers import (
     EdicionSerializer, DisertanteSerializer, EmpresaSerializer, 
@@ -18,7 +20,7 @@ from .serializers import (
     CargaPreacreditacionExcelSerializer
 )
 from django.utils import timezone
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
@@ -365,156 +367,362 @@ class RegistroViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             print(f"[ERROR] Error inesperado en RegistroViewSet: {str(e)}")
             return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado al procesar su inscripción. Por favor intente nuevamente.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+def get_client_ip(request):
+    """
+    Extrae y valida de manera segura la dirección IP de origen (IPv4 o IPv6).
+    Evita fallos por puertos adjuntos o headers no estándares.
+    """
+    import ipaddress
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        raw_ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        raw_ip = request.META.get('REMOTE_ADDR', '')
+    
+    if raw_ip:
+        if ':' in raw_ip and not raw_ip.startswith('['):
+            parts = raw_ip.split(':')
+            if len(parts) == 2 and parts[1].isdigit():
+                raw_ip = parts[0]
+        try:
+            ipaddress.ip_address(raw_ip)
+            return raw_ip
+        except ValueError:
+            return None
+    return None
+
+def is_provisional_phone(phone: str) -> bool:
+    """
+    Verifica si un número de teléfono es provisorio o inválido.
+    """
+    if not phone:
+        return True
+    p = re.sub(r'\D', '', str(phone))
+    return not p or p == '1111111111' or len(p) < 8
+
+def is_provisional_email(email: str) -> bool:
+    """
+    Verifica si un correo es provisorio (dominios temporales o formato inválido).
+    No rechaza correos reales que incluyan palabras como 'temperley'.
+    """
+    if not email:
+        return True
+    clean = email.strip().lower()
+    if "@" not in clean:
+        return True
+    if clean.endswith('.temp') or '@empresa.temp' in clean or '@unab.temp' in clean:
+        return True
+    if re.search(r'@(?:[a-zA-Z0-9-]+\.)*temp$', clean):
+        return True
+    if not re.match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', clean):
+        return True
+    return False
+
 class VerificarDNIView(views.APIView):
     """
     Vista para verificar si un DNI está registrado y confirmar asistencia.
     Soporta flujos en dos etapas:
-    1. check_only=True: Devuelve los datos detallados del asistente sin confirmar asistencia.
-    2. confirmar=True (o default): Actualiza datos si se proveen y confirma asistencia.
+    1. check_only=True: Devuelve los datos detallados del asistente sin confirmar asistencia,
+       incluyendo flags de datos provisorios (is_provisional_phone, is_provisional_email).
+    2. confirmar=True (o default): Actualiza datos si se proveen y confirma asistencia
+       atómica con bloqueo a nivel de fila (select_for_update), crea registro en Acreditacion
+       y sincroniza PersonalEmpresa.
     """
     permission_classes = [AllowAny]
     throttle_classes = [DNIVerificationThrottle]
 
     @sanitize_xss_payload
     def post(self, request, *args, **kwargs):
-        raw_dni = request.data.get('dni')
-        if not raw_dni:
-            return Response({'status': 'error', 'message': 'No se proporcionó DNI.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            raw_dni = request.data.get('dni')
+            if not raw_dni:
+                return Response({'status': 'error', 'message': 'No se proporcionó DNI.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Sanitizar y normalizar DNI: eliminar puntos, espacios o caracteres no numéricos
-        dni = re.sub(r'\D', '', str(raw_dni))
-        if not dni:
-            return Response({'status': 'error', 'message': 'El DNI provisto no contiene dígitos válidos.'}, status=status.HTTP_400_BAD_REQUEST)
+            # Sanitizar y normalizar DNI: eliminar puntos, espacios o caracteres no numéricos
+            dni = re.sub(r'\D', '', str(raw_dni))
+            if len(dni) == 9 and dni.endswith('0'):
+                dni = dni[:8]
+            if not dni:
+                return Response({'status': 'error', 'message': 'El DNI provisto no contiene dígitos válidos.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. Capa de Selectores: Buscar la información requerida
-        edicion_activa = selectors.get_active_edition()
-        if not edicion_activa:
-            return Response({'status': 'error', 'message': 'No hay una edición activa configurada.'}, status=status.HTTP_400_BAD_REQUEST)
+            # 1. Capa de Selectores: Buscar la información requerida
+            edicion_activa = selectors.get_active_edition()
+            if not edicion_activa:
+                return Response({'status': 'error', 'message': 'No hay una edición activa configurada.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        asistente = selectors.get_asistente_by_dni(dni)
-        if not asistente:
-            return Response({'status': 'error', 'message': 'DNI no encontrado en el listado de registrados.'}, status=status.HTTP_404_NOT_FOUND)
+            asistente = selectors.get_asistente_by_dni(dni)
+            if not asistente:
+                return Response({
+                    'status': 'error',
+                    'code': 'NOT_REGISTERED',
+                    'message': 'DNI no encontrado en el listado de registrados.'
+                }, status=status.HTTP_404_NOT_FOUND)
 
-        inscripcion = selectors.get_inscripcion_for_edition(asistente, edicion_activa)
-        if not inscripcion:
-            return Response({
-                'status': 'error', 
-                'message': f'El asistente está registrado en el sistema pero no tiene inscripción para la edición activa ({edicion_activa.nombre}).'
-            }, status=status.HTTP_403_FORBIDDEN)
-            
-        if inscripcion.asistencia_confirmada:
-            fecha_confirmacion_str = inscripcion.fecha_confirmacion.strftime("%d/%m/%Y a las %H:%M:%S") if inscripcion.fecha_confirmacion else "fecha desconocida"
-            return Response({
-                'status': 'error',
-                'message': f'La asistencia ya fue confirmada el {fecha_confirmacion_str}.',
-            }, status=status.HTTP_409_CONFLICT)
+            # 2. Control de Rechazos previos (Disertante / Empresa) - acotados a la edición activa
+            if asistente.disertante_vinculado and getattr(asistente.disertante_vinculado, 'estado', None) == 'RECHAZADO':
+                dis_edicion_id = getattr(asistente.disertante_vinculado, 'edicion_id', None)
+                if dis_edicion_id is None or dis_edicion_id == edicion_activa.id:
+                    return Response({
+                        'status': 'error',
+                        'code': 'REGISTRATION_REJECTED',
+                        'message': 'Tu registro de disertante figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
+                    }, status=status.HTTP_403_FORBIDDEN)
 
-        # Determinar si solo es chequeo de datos
-        check_only = request.data.get('check_only', False)
+            postulacion = PostulacionDisertante.objects.filter(dni=dni, edicion=edicion_activa, estado='RECHAZADO').first()
+            if postulacion:
+                return Response({
+                    'status': 'error',
+                    'code': 'REGISTRATION_REJECTED',
+                    'message': 'Tu postulación de disertante figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
+                }, status=status.HTTP_403_FORBIDDEN)
 
-        if check_only:
-            # Obtener datos de institución y carrera de los detalles de perfil
-            institution = ""
-            career = ""
-            if asistente.profile_type == Asistente.ProfileType.TEACHER:
-                detalle = getattr(asistente, 'detalle_docente', None)
-                if detalle:
-                    institution = detalle.institution
-                    career = detalle.career_taught
-            else:
-                detalle = getattr(asistente, 'detalle_estudiante', None)
-                if detalle:
-                    institution = detalle.institution
-                    career = detalle.career
+            if asistente.empresa_vinculada and getattr(asistente.empresa_vinculada, 'estado', None) == 'RECHAZADA':
+                emp_edicion_id = getattr(asistente.empresa_vinculada, 'edicion_id', None)
+                if emp_edicion_id is None or emp_edicion_id == edicion_activa.id:
+                    return Response({
+                        'status': 'error',
+                        'code': 'REGISTRATION_REJECTED',
+                        'message': 'La empresa asociada a tu registro figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
+                    }, status=status.HTTP_403_FORBIDDEN)
+
+            if PersonalEmpresa.objects.filter(
+                Q(asistente=asistente) | Q(dni=asistente.dni),
+                empresa__edicion=edicion_activa,
+                empresa__estado='RECHAZADA'
+            ).exists():
+                return Response({
+                    'status': 'error',
+                    'code': 'REGISTRATION_REJECTED',
+                    'message': 'La empresa vinculada a tu acreditación figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 3. Transacción atómica con bloqueo a nivel de fila (select_for_update)
+            with transaction.atomic():
+                inscripcion = Inscripcion.objects.select_for_update().filter(
+                    asistente=asistente,
+                    edicion=edicion_activa
+                ).first()
+
+                if not inscripcion:
+                    return Response({
+                        'status': 'error',
+                        'code': 'NOT_REGISTERED',
+                        'message': f'El asistente está registrado pero no tiene inscripción activa para la edición {edicion_activa.nombre}.'
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                if inscripcion.empresa and inscripcion.empresa.estado == 'RECHAZADA':
+                    return Response({
+                        'status': 'error',
+                        'code': 'REGISTRATION_REJECTED',
+                        'message': 'La empresa asociada a tu inscripción figura con estado rechazado. Por favor, acercate a la coordinación en recepción para verificar tu situación.'
+                    }, status=status.HTTP_403_FORBIDDEN)
+
+                pantalla, subtitulo, nombre_vinculado = selectors.resolve_qr_screen_data(asistente)
+
+                # Caso 2: Ya Acreditado (HTTP 409 con hora local de Argentina)
+                if inscripcion.asistencia_confirmada:
+                    fecha_conf = timezone.localtime(inscripcion.fecha_confirmacion) if inscripcion.fecha_confirmacion else None
+                    fecha_legible = fecha_conf.strftime("%d/%m/%Y") if fecha_conf else "hoy"
+                    hora_legible = fecha_conf.strftime("%H:%M hs") if fecha_conf else ""
+                    
+                    msg = f'La asistencia ya fue confirmada el {fecha_legible} a las {hora_legible}.' if hora_legible else f'La asistencia ya fue confirmada el {fecha_legible}.'
+
+                    return Response({
+                        'status': 'already_accredited',
+                        'code': 'ALREADY_ACCREDITED',
+                        'message': msg,
+                        'hora_acreditacion': hora_legible,
+                        'fecha_acreditacion': fecha_legible,
+                        'asistente': {
+                            'id': asistente.id,
+                            'nombre_completo': asistente.nombre_completo,
+                            'first_name': asistente.first_name,
+                            'last_name': asistente.last_name,
+                            'email': asistente.email,
+                            'phone': asistente.phone or "",
+                            'dni': asistente.dni,
+                            'profile_type': asistente.profile_type,
+                        },
+                        'pantalla': {
+                            'tipo': pantalla,
+                            'subtitulo': subtitulo,
+                            'nombre_vinculado': nombre_vinculado,
+                        }
+                    }, status=status.HTTP_409_CONFLICT)
+
+                # Determinar si solo es chequeo de datos
+                check_only = request.data.get('check_only', False)
+
+                # Flags de datos provisorios
+                provisional_phone = is_provisional_phone(asistente.phone)
+                provisional_email = is_provisional_email(asistente.email)
+
+                if check_only:
+                    institution = ""
+                    career = ""
+                    if asistente.profile_type == Asistente.ProfileType.TEACHER:
+                        detalle = getattr(asistente, 'detalle_docente', None)
+                        if detalle:
+                            institution = detalle.institution
+                            career = detalle.career_taught
+                    else:
+                        detalle = getattr(asistente, 'detalle_estudiante', None)
+                        if detalle:
+                            institution = detalle.institution
+                            career = detalle.career
+
+                    asistente_data = {
+                        'id': asistente.id,
+                        'first_name': asistente.first_name,
+                        'last_name': asistente.last_name,
+                        'nombre_completo': asistente.nombre_completo,
+                        'email': asistente.email,
+                        'phone': asistente.phone or "",
+                        'dni': asistente.dni,
+                        'profile_type': asistente.profile_type,
+                        'institution': institution or "",
+                        'career': career or "",
+                        'is_provisional_phone': provisional_phone,
+                        'is_provisional_email': provisional_email,
+                    }
+
+                    return Response({
+                        'status': 'pending_confirmation',
+                        'asistente': asistente_data,
+                        'is_provisional_phone': provisional_phone,
+                        'is_provisional_email': provisional_email,
+                        'pantalla': {
+                            'tipo': pantalla,
+                            'subtitulo': subtitulo,
+                            'nombre_vinculado': nombre_vinculado,
+                        }
+                    }, status=status.HTTP_200_OK)
+
+                # Si es para confirmar, opcionalmente actualizamos datos primero y confirmamos de forma atómica
+                first_name = request.data.get('first_name')
+                last_name = request.data.get('last_name')
+                email = request.data.get('email')
+                phone = request.data.get('phone')
+                institution = request.data.get('institution')
+                career = request.data.get('career')
+
+                if any([first_name, last_name, email, phone, institution, career]):
+                    if first_name:
+                        asistente.first_name = " ".join(first_name.strip().split())
+                    if last_name:
+                        asistente.last_name = " ".join(last_name.strip().split())
+                    if phone:
+                        asistente.phone = phone.strip()
+                    
+                    if email:
+                        email_limpio = email.strip().lower()
+                        # Reemplazar eñes y tildes comunes
+                        email_limpio = email_limpio.replace("ñ", "n").replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                        if Asistente.objects.filter(email=email_limpio).exclude(id=asistente.id).exists():
+                            return Response({
+                                'status': 'error', 
+                                'message': 'El correo electrónico ya está registrado para otro asistente.'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                        asistente.email = email_limpio
+                    
+                    asistente.save()
+
+                    # Actualizar detalles del perfil
+                    if asistente.profile_type == Asistente.ProfileType.TEACHER:
+                        detalle, _ = DetalleDocente.objects.get_or_create(asistente=asistente)
+                        if institution is not None:
+                            detalle.institution = institution.strip()
+                        if career is not None:
+                            detalle.career_taught = career.strip()
+                        detalle.save()
+                    elif asistente.profile_type in [Asistente.ProfileType.STUDENT, Asistente.ProfileType.GRADUADO]:
+                        detalle, _ = DetalleEstudiante.objects.get_or_create(asistente=asistente)
+                        if institution is not None:
+                            detalle.institution = institution.strip()
+                        if career is not None:
+                            detalle.career = career.strip()
+                        detalle.save()
+
+                # Re-evaluar datos provisorios antes de acreditar
+                provisional_phone_post = is_provisional_phone(asistente.phone)
+                provisional_email_post = is_provisional_email(asistente.email)
+                if provisional_phone_post or provisional_email_post:
+                    return Response({
+                        'status': 'error',
+                        'code': 'PROVISIONAL_DATA_REQUIRED',
+                        'message': 'Se requiere actualizar los datos provisorios (teléfono o correo electrónico) antes de confirmar la acreditación.',
+                        'is_provisional_phone': provisional_phone_post,
+                        'is_provisional_email': provisional_email_post,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # 4. Capa de Servicios: Confirmación transaccional, encolado de certificado y envío de confirmación de asistencia
+                certificado, email_success = services.confirm_asistencia(inscripcion)
+
+                ip_origen = get_client_ip(request)
+
+                metodo = request.data.get('metodo', 'QR_ESTATICO_MESA')
+                if metodo not in dict(Acreditacion.METODO_CHOICES):
+                    metodo = 'QR_ESTATICO_MESA'
+
+                # Crear registro de auditoría en Acreditacion
+                Acreditacion.objects.create(
+                    inscripcion=inscripcion,
+                    fecha_acreditacion=inscripcion.fecha_confirmacion or timezone.now(),
+                    metodo=metodo,
+                    es_reingreso=False,
+                    observaciones=request.data.get('observaciones', 'Acreditación confirmada vía web'),
+                    ip_origen=ip_origen,
+                )
+
+                # Sincronizar PersonalEmpresa si el asistente pertenece a una empresa vinculada
+                now = inscripcion.fecha_confirmacion or timezone.now()
+                update_fields_emp = {
+                    'acreditado': True,
+                    'fecha_acreditacion': now,
+                    'asistente': asistente,
+                }
+                if asistente.email and not is_provisional_email(asistente.email):
+                    update_fields_emp['email'] = asistente.email
+                if asistente.phone and not is_provisional_phone(asistente.phone):
+                    update_fields_emp['telefono'] = asistente.phone
+                if asistente.first_name:
+                    update_fields_emp['nombre'] = asistente.first_name
+                if asistente.last_name:
+                    update_fields_emp['apellido'] = asistente.last_name
+
+                PersonalEmpresa.objects.filter(
+                    Q(asistente=asistente) | Q(dni=asistente.dni),
+                    empresa__edicion=edicion_activa
+                ).update(**update_fields_emp)
+
+            # 5. Capa de Selectores: Determinar tipo de pantalla para visualización QR
+            pantalla, subtitulo, nombre_vinculado = selectors.resolve_qr_screen_data(asistente)
 
             asistente_data = {
-                'id': asistente.id,
-                'first_name': asistente.first_name,
-                'last_name': asistente.last_name,
+                'nombre_completo': asistente.nombre_completo,
                 'email': asistente.email,
-                'phone': asistente.phone or "",
                 'dni': asistente.dni,
                 'profile_type': asistente.profile_type,
-                'institution': institution or "",
-                'career': career or "",
             }
+
+            msg = 'Asistencia confirmada con éxito.' if email_success else 'Asistencia confirmada con éxito (email no configurado).'
 
             return Response({
-                'status': 'pending_confirmation',
+                'status': 'success',
+                'message': msg,
                 'asistente': asistente_data,
+                'pantalla': {
+                    'tipo': pantalla,
+                    'subtitulo': subtitulo,
+                    'nombre_vinculado': nombre_vinculado,
+                }
             }, status=status.HTTP_200_OK)
 
-        # Si es para confirmar, opcionalmente actualizamos datos primero y confirmamos de forma atómica
-        first_name = request.data.get('first_name')
-        last_name = request.data.get('last_name')
-        email = request.data.get('email')
-        phone = request.data.get('phone')
-        institution = request.data.get('institution')
-        career = request.data.get('career')
-
-        with transaction.atomic():
-            if any([first_name, last_name, email, phone, institution, career]):
-                if first_name:
-                    asistente.first_name = " ".join(first_name.strip().split())
-                if last_name:
-                    asistente.last_name = " ".join(last_name.strip().split())
-                if phone:
-                    asistente.phone = phone.strip()
-                
-                if email:
-                    email_limpio = email.strip().lower()
-                    # Reemplazar eñes y tildes comunes
-                    email_limpio = email_limpio.replace("ñ", "n").replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
-                    if Asistente.objects.filter(email=email_limpio).exclude(id=asistente.id).exists():
-                        return Response({
-                            'status': 'error', 
-                            'message': 'El correo electrónico ya está registrado para otro asistente.'
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                    asistente.email = email_limpio
-                
-                asistente.save()
-
-                # Actualizar detalles del perfil
-                if asistente.profile_type == Asistente.ProfileType.TEACHER:
-                    detalle, _ = DetalleDocente.objects.get_or_create(asistente=asistente)
-                    if institution is not None:
-                        detalle.institution = institution.strip()
-                    if career is not None:
-                        detalle.career_taught = career.strip()
-                    detalle.save()
-                elif asistente.profile_type == Asistente.ProfileType.STUDENT:
-                    detalle, _ = DetalleEstudiante.objects.get_or_create(asistente=asistente)
-                    if institution is not None:
-                        detalle.institution = institution.strip()
-                    if career is not None:
-                        detalle.career = career.strip()
-                    detalle.save()
-
-            # 2. Capa de Servicios: Confirmación transaccional, encolado de certificado y envío de confirmación de asistencia
-            certificado, email_success = services.confirm_asistencia(inscripcion)
-
-        # 3. Capa de Selectores: Determinar tipo de pantalla para visualización QR
-        pantalla, subtitulo, nombre_vinculado = selectors.resolve_qr_screen_data(asistente)
-
-        asistente_data = {
-            'nombre_completo': f"{asistente.first_name} {asistente.last_name}",
-            'email': asistente.email,
-            'dni': asistente.dni,
-            'profile_type': asistente.profile_type,
-        }
-
-        msg = 'Asistencia confirmada con éxito.' if email_success else 'Asistencia confirmada con éxito (email no configurado).'
-
-        return Response({
-            'status': 'success',
-            'message': msg,
-            'asistente': asistente_data,
-            'pantalla': {
-                'tipo': pantalla,
-                'subtitulo': subtitulo,
-                'nombre_vinculado': nombre_vinculado,
-            }
-        }, status=status.HTTP_200_OK)
+        except (ValidationError, serializers.ValidationError) as ve:
+            msg = ve.detail if hasattr(ve, 'detail') else (ve.message_dict if hasattr(ve, 'message_dict') else str(ve))
+            return Response({'status': 'error', 'message': msg}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'status': 'error', 'message': f'Error al verificar DNI: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """
@@ -533,8 +741,39 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 serializer.is_valid(raise_exception=True)
                 inscripcion = serializer.save()
                 
+                ya_acreditado = bool(inscripcion.asistencia_confirmada)
+
                 # Acreditar asistencia y encolar certificado para el cierre de jornada (envía Email 2: Confirmación de Asistencia)
                 certificado, email_success = services.confirm_asistencia(inscripcion)
+
+                ip_origen = get_client_ip(request)
+
+                # Registrar auditoría en Acreditacion
+                Acreditacion.objects.create(
+                    inscripcion=inscripcion,
+                    fecha_acreditacion=inscripcion.fecha_confirmacion or timezone.now(),
+                    metodo='IN_SITU',
+                    es_reingreso=ya_acreditado,
+                    observaciones='Reingreso / Acreditación repetida por Registro Rápido' if ya_acreditado else 'Acreditación automática por Registro Rápido',
+                    ip_origen=ip_origen,
+                )
+
+                # Sincronizar PersonalEmpresa si aplica
+                update_fields_rr = {
+                    'acreditado': True,
+                    'fecha_acreditacion': inscripcion.fecha_confirmacion or timezone.now(),
+                    'asistente': inscripcion.asistente,
+                }
+                if inscripcion.asistente:
+                    if inscripcion.asistente.email and not is_provisional_email(inscripcion.asistente.email):
+                        update_fields_rr['email'] = inscripcion.asistente.email
+                    if inscripcion.asistente.phone and not is_provisional_phone(inscripcion.asistente.phone):
+                        update_fields_rr['telefono'] = inscripcion.asistente.phone
+
+                PersonalEmpresa.objects.filter(
+                    Q(asistente=inscripcion.asistente) | Q(dni=inscripcion.asistente.dni),
+                    empresa__edicion=inscripcion.edicion
+                ).update(**update_fields_rr)
             
             headers = self.get_success_headers(serializer.data)
             msg = 'Registro completado y asistencia confirmada. Te enviamos la confirmación por correo y recibirás tu certificado oficial al finalizar la jornada.'
@@ -542,8 +781,9 @@ class RegistroRapidoView(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 'status': 'success', 
                 'message': msg
             }, status=status.HTTP_201_CREATED, headers=headers)
-        except serializers.ValidationError as e:
-            return Response({'status': 'error', 'message': e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValidationError, serializers.ValidationError) as e:
+            msg = e.detail if hasattr(e, 'detail') else (e.message_dict if hasattr(e, 'message_dict') else str(e))
+            return Response({'status': 'error', 'message': msg}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': f'Ha ocurrido un error inesperado: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

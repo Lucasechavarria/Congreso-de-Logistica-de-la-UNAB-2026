@@ -450,10 +450,6 @@ class Asistente(models.Model):
         super().save(*args, **kwargs)
 
     @property
-    def nombre_completo(self):
-        return f"{self.first_name} {self.last_name}"
-    
-    @property
     def es_representante_grupo(self):
         """Verifica si este asistente es representante de un grupo"""
         return self.profile_type == self.ProfileType.GROUP_REPRESENTATIVE
@@ -697,6 +693,56 @@ class Inscripcion(models.Model):
         unique_together = ('asistente', 'edicion')
         verbose_name = "Inscripción"
         verbose_name_plural = "Inscripciones"
+
+class Acreditacion(models.Model):
+    METODO_CHOICES = [
+        ('QR_ESTATICO_MESA', 'QR Estático en Mesa/Tótem'),
+        ('MANUAL_DNI', 'Ingreso Manual DNI'),
+        ('IN_SITU', 'Inscripción In-Situ'),
+    ]
+
+    inscripcion = models.ForeignKey(
+        'Inscripcion',
+        on_delete=models.CASCADE,
+        related_name='acreditaciones',
+        verbose_name="Inscripción"
+    )
+    fecha_acreditacion = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        verbose_name="Fecha y Hora de Acreditación"
+    )
+    metodo = models.CharField(
+        max_length=30,
+        choices=METODO_CHOICES,
+        default='QR_ESTATICO_MESA',
+        verbose_name="Método de Acreditación"
+    )
+    es_reingreso = models.BooleanField(
+        default=False,
+        verbose_name="¿Es Reingreso?"
+    )
+    observaciones = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name="Observaciones"
+    )
+    ip_origen = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name="IP de Origen"
+    )
+
+    class Meta:
+        verbose_name = "Acreditación"
+        verbose_name_plural = "Acreditaciones"
+        ordering = ['-fecha_acreditacion']
+
+    def __str__(self):
+        fecha_local = timezone.localtime(self.fecha_acreditacion) if self.fecha_acreditacion else None
+        fecha_str = fecha_local.strftime('%d/%m/%Y %H:%M') if fecha_local else ''
+        return f"Acreditación #{self.id} - {self.inscripcion.asistente} ({fecha_str})"
 
 class Dashboard(models.Model):
     class Meta:

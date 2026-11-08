@@ -1,0 +1,575 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<!-- Cargar Tema de Diseño Oscuro Global Compartido -->
+<link rel="stylesheet" href="{% static 'admin/css/admin_dark_theme.css' %}">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --bg: var(--dark-bg);
+        --card: var(--dark-card);
+        --p: var(--color-primary);
+        --b: var(--border-soft);
+        --txt: var(--text-primary);
+        --neon-cyan: var(--color-secondary);
+        --neon-magenta: var(--color-accent);
+    }
+
+    body {
+        background: var(--bg) !important;
+        color: var(--txt) !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    #content {
+        background: var(--bg) !important;
+        padding: 25px !important;
+    }
+
+    .preacred-container {
+        max-width: 1100px;
+        margin: 20px auto;
+        padding: 35px;
+        background: var(--card);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-radius: 16px;
+        border: 1px solid var(--b);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .preacred-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .preacred-header h2 {
+        color: #fff;
+        font-weight: 800;
+        font-size: 24px;
+        margin: 0 0 6px 0;
+        letter-spacing: 0.5px;
+        text-shadow: 0 0 10px rgba(167, 139, 250, 0.35);
+    }
+
+    .preacred-header p {
+        color: var(--text-secondary);
+        font-size: 13.5px;
+        margin: 0;
+        max-width: 700px;
+        line-height: 1.5;
+    }
+
+    .btn-download-template {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #4f46e5, #6366f1);
+        color: #ffffff !important;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 10px 18px;
+        border-radius: 8px;
+        text-decoration: none !important;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.35);
+        transition: all 0.2s ease;
+    }
+    .btn-download-template:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.1);
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.55);
+    }
+
+    /* Resumen de Métricas Superiores */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 30px;
+    }
+
+    .kpi-card {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--b);
+        border-radius: 12px;
+        padding: 18px 20px;
+        text-align: center;
+        transition: transform 0.2s ease;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(167, 139, 250, 0.3);
+    }
+
+    .kpi-val {
+        display: block;
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--neon-cyan);
+        text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+    }
+    .kpi-lbl {
+        font-size: 11px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        margin-top: 5px;
+    }
+
+    /* Caja de Subida (Dropzone) */
+    .upload-card {
+        background: rgba(11, 15, 25, 0.8);
+        border: 2px dashed rgba(167, 139, 250, 0.35);
+        border-radius: 14px;
+        padding: 30px;
+        margin-bottom: 30px;
+        transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .upload-card:hover {
+        border-color: var(--color-primary);
+        background: rgba(15, 23, 42, 0.9);
+    }
+
+    .dropzone-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .dropzone-icon {
+        font-size: 42px;
+        margin-bottom: 12px;
+        filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.4));
+    }
+
+    .file-input-wrapper {
+        margin: 15px 0;
+    }
+
+    .file-input-custom {
+        display: none;
+    }
+
+    .file-label-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        font-weight: 600;
+        padding: 9px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-block;
+        transition: all 0.2s ease;
+    }
+    .file-label-btn:hover {
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    .file-chosen-name {
+        font-family: 'Fira Code', monospace;
+        font-size: 13px;
+        color: #38bdf8;
+        margin-top: 8px;
+    }
+
+    /* Opciones y Switches */
+    .options-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin: 25px 0 20px 0;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .option-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .option-item input[type="checkbox"] {
+        margin-top: 3px;
+        width: 17px;
+        height: 17px;
+        accent-color: var(--color-primary);
+        cursor: pointer;
+    }
+
+    .option-text strong {
+        display: block;
+        font-size: 13px;
+        color: #f1f5f9;
+        margin-bottom: 2px;
+    }
+    .option-text span {
+        font-size: 11.5px;
+        color: var(--text-secondary);
+        line-height: 1.35;
+        display: block;
+    }
+
+    .btn-submit-upload {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, var(--color-primary), #818cf8);
+        color: #0f0724;
+        border: none;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 15px rgba(167, 139, 250, 0.35);
+    }
+    .btn-submit-upload:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 22px rgba(167, 139, 250, 0.55);
+    }
+
+    /* Panel de Resultados */
+    .results-panel {
+        margin-top: 35px;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.45);
+    }
+
+    .results-title {
+        color: #34d399;
+        font-size: 18px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+    }
+
+    .metrics-summary-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 22px;
+    }
+
+    .metric-badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .metric-badge-creados { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35); }
+    .metric-badge-actualizados { background: rgba(59, 130, 246, 0.18); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.35); }
+    .metric-badge-asistencias { background: rgba(245, 158, 11, 0.18); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .metric-badge-certificados { background: rgba(217, 70, 239, 0.18); color: #e879f9; border: 1px solid rgba(217, 70, 239, 0.35); }
+
+    /* Tabla de Resultados */
+    .results-table-wrapper {
+        overflow-x: auto;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+    }
+
+    .results-table th {
+        background: #111827;
+        color: #94a3b8;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+    }
+
+    .results-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        vertical-align: middle;
+    }
+
+    .badge-accion-creado {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 10.5px;
+        text-transform: uppercase;
+    }
+
+    .badge-accion-actualizado {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 10.5px;
+        text-transform: uppercase;
+    }
+
+    .badge-tipo-visitante {
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 10.5px;
+        text-transform: uppercase;
+    }
+
+    .badge-tipo-disertante {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 10.5px;
+        text-transform: uppercase;
+    }
+
+    .badge-tipo-empresa {
+        background: rgba(167, 139, 250, 0.2);
+        color: #c4b5fd;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 10.5px;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="preacred-container dark-theme-container">
+    
+    <!-- Encabezado con Botón de Plantilla Oficial -->
+    <div class="preacred-header">
+        <div>
+            <h2>🏢 Preacreditación Masiva de Visitantes, Disertantes y Empresas</h2>
+            <p>
+                Importe planillas con nóminas de participantes (<strong>Visitantes</strong>, <strong>Disertantes</strong> o personal de <strong>Empresas</strong>/stands). 
+                El sistema detecta automáticamente si la persona ya existe para <strong>otorgarle la asistencia</strong> o si es nueva para <strong>darla de alta y acreditarla de inmediato</strong> con su certificado correspondiente encolado.
+            </p>
+        </div>
+        <div>
+            <a href="?descargar_plantilla=1" class="btn-download-template" title="Descargar planilla Excel de ejemplo">
+                📥 Descargar Plantilla Oficial (.xlsx)
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Estadísticas Globales -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-val" style="color: #38bdf8;">{{ edicion_activa.nombre|default:"Sin Edición Activa" }}</span>
+            <span class="kpi-lbl">Edición Vigente</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-val" style="color: #60a5fa;">{{ total_visitantes }}</span>
+            <span class="kpi-lbl">Visitantes Registrados</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-val" style="color: #fbbf24;">{{ total_disertantes }}</span>
+            <span class="kpi-lbl">Disertantes Registrados</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-val" style="color: #a78bfa;">{{ total_personal_emp }}</span>
+            <span class="kpi-lbl">Personal de Empresas</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-val" style="color: #34d399;">{{ total_acreditados_emp }}</span>
+            <span class="kpi-lbl">Acreditados Empresa</span>
+        </div>
+    </div>
+
+    <!-- Formulario de Carga Masiva -->
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="upload-card">
+            <div class="dropzone-inner">
+                <div class="dropzone-icon">📤</div>
+                <h3 style="color: #fff; margin: 0 0 8px 0; font-size: 17px; font-weight: 700;">
+                    Seleccione o arrastre la planilla de Visitantes / Disertantes / Empresas
+                </h3>
+                <p style="color: #94a3b8; font-size: 12.5px; margin: 0 0 15px 0;">
+                    Formatos soportados: <strong>.xlsx, .xls, .csv</strong> (Máximo 10 MB). Columnas reconocidas: <code>DNI</code>, <code>Nombre</code>, <code>Apellido</code>, <code>Email</code>, <code>Teléfono</code>, <code>Tipo</code> (VISITANTE / DISERTANTE / EMPRESA), <code>Empresa</code>, <code>Cargo</code>.
+                </p>
+
+                <div class="file-input-wrapper">
+                    <label for="id_archivo_masivo" class="file-label-btn">Examinar archivo en su PC</label>
+                    <input type="file" name="archivo" id="id_archivo_masivo" class="file-input-custom" accept=".xlsx, .xls, .csv" required onchange="mostrarNombreArchivo(this)" />
+                    <div id="file-name-display" class="file-chosen-name" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- Opciones Avanzadas de Procesamiento -->
+            <div class="options-grid">
+                <label class="option-item">
+                    <input type="checkbox" name="marcar_asistencia" checked />
+                    <div class="option-text">
+                        <strong>✓ Confirmar Asistencia Inmediata (Preacreditar)</strong>
+                        <span>Otorga la asistencia confirmada en la edición activa, sincroniza PersonalEmpresa con acreditado=True y asegura el certificado en cola.</span>
+                    </div>
+                </label>
+                <label class="option-item">
+                    <input type="checkbox" name="enviar_email" />
+                    <div class="option-text">
+                        <strong>✉️ Enviar Email de Confirmación de Asistencia</strong>
+                        <span>Despacha el correo institucional de confirmación a cada asistente que cuente con dirección de email real.</span>
+                    </div>
+                </label>
+            </div>
+
+            <button type="submit" class="btn-submit-upload">
+                🚀 Procesar Preacreditación y Otorgar Asistencias
+            </button>
+        </div>
+    </form>
+
+    <!-- Resumen de Procesamiento (Si hubo POST exitoso) -->
+    {% if resultado %}
+    <div class="results-panel">
+        <div class="results-title">
+            <span>✓ Preacreditación Procesada Exitosamente</span>
+        </div>
+
+        <div class="metrics-summary-bar">
+            <span class="metric-badge metric-badge-creados">
+                🆕 <strong>{{ resultado.creados }}</strong> Creados Nuevos
+            </span>
+            <span class="metric-badge metric-badge-actualizados">
+                🔄 <strong>{{ resultado.actualizados }}</strong> Ya Existentes Actualizados
+            </span>
+            <span class="metric-badge metric-badge-asistencias">
+                ✅ <strong>{{ resultado.asistencias_otorgadas }}</strong> Asistencias Otorgadas Hoy
+            </span>
+            <span class="metric-badge metric-badge-certificados">
+                🎓 <strong>{{ resultado.certificados_encolados }}</strong> Certificados Encolados
+            </span>
+        </div>
+
+        {% if resultado.errores %}
+            <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
+                <strong style="color: #f87171; display: block; margin-bottom: 6px;">⚠️ Avisos en filas:</strong>
+                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #fca5a5;">
+                    {% for err in resultado.errores %}
+                        <li>{{ err }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <h4 style="color: #fff; font-size: 14px; margin: 0 0 12px 0;">
+            Detalle de Participantes Procesados (Primeros {{ resultado.resumen_filas|length }}):
+        </h4>
+
+        <div class="results-table-wrapper">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Fila</th>
+                        <th>DNI</th>
+                        <th>Nombre y Apellido</th>
+                        <th>Tipo</th>
+                        <th>Empresa Vinculada</th>
+                        <th>Cargo</th>
+                        <th>Acción en Sistema</th>
+                        <th>Asistencia</th>
+                        <th>Certificado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in resultado.resumen_filas %}
+                    <tr>
+                        <td class="font-mono">#{{ item.fila }}</td>
+                        <td class="font-mono">{{ item.dni }}</td>
+                        <td><strong>{{ item.nombre }}</strong></td>
+                        <td>
+                            {% if item.tipo == 'VISITANTE' %}
+                                <span class="badge-tipo-visitante">Visitante</span>
+                            {% elif item.tipo == 'DISERTANTE' %}
+                                <span class="badge-tipo-disertante">Disertante</span>
+                            {% elif item.tipo == 'EMPRESA' %}
+                                <span class="badge-tipo-empresa">Empresa</span>
+                            {% else %}
+                                <span class="badge-tipo-visitante">{{ item.tipo }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.empresa }}</td>
+                        <td style="color: #94a3b8;">{{ item.cargo }}</td>
+                        <td>
+                            {% if item.accion == 'creado' %}
+                                <span class="badge-accion-creado">Nuevo Creado</span>
+                            {% else %}
+                                <span class="badge-accion-actualizado">Existente Actualizado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="color: #34d399; font-weight: 700;">✓ {{ item.asistencia }}</span>
+                        </td>
+                        <td>
+                            <span style="font-family: 'Fira Code', monospace; font-size: 11px; color: #a78bfa;">{{ item.certificado }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; color: #94a3b8; padding: 20px;">
+                            No se generaron registros detallados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+    function mostrarNombreArchivo(input) {
+        const display = document.getElementById('file-name-display');
+        if (!display) return;
+        if (input.files && input.files.length > 0) {
+            display.innerText = "📄 Archivo seleccionado: " + input.files[0].name + " (" + Math.round(input.files[0].size / 1024) + " KB)";
+            display.style.display = "block";
+        } else {
+            display.innerText = "";
+            display.style.display = "none";
+        }
+    }
+</script>
+{% endblock %}
+

@@ -871,12 +871,12 @@ def send_group_confirmation_emails(representante):
         'total_fallidos': total_fallidos
     }
 
-def send_certificate_email(certificado_instance):
+def send_certificate_email(certificado_instance, connection=None):
     """
     Genera el certificado en memoria y lo envía únicamente al email registrado del participante
     (sin enviar copia a CONGRESO_EMAIL para no saturar la casilla del evento).
     Registra tanto éxitos como errores en LogEnvioEmail para su gestión desde el Admin.
-    Soporta los tipos ASISTENCIA, DISERTANTE y EMPRESA.
+    Soporta los tipos ASISTENCIA, DISERTANTE y EMPRESA, y permite reutilizar una conexión SMTP opcional.
     """
     asistente = certificado_instance.asistente
     tipo = getattr(certificado_instance, 'tipo_certificado', 'ASISTENCIA')
@@ -942,12 +942,16 @@ def send_certificate_email(certificado_instance):
             target_name = asistente.empresa_vinculada.nombre_empresa.replace(" ", "_")
 
         # 3. Crear el email SOLO hacia el email registrado en la BBDD (sin BCC a CONGRESO_EMAIL)
+        if connection is not None and getattr(connection, 'fail_silently', False):
+            connection.fail_silently = False
+
         email = EmailMultiAlternatives(
             subject=subject,
             body=body,
             from_email=f"Congreso de Logística UNAB <{CONGRESO_EMAIL}>",
             to=[destinatario_email],
-            bcc=[]
+            bcc=[],
+            connection=connection
         )
         email.attach(
             f'{filename_prefix}_{target_name}.pdf',
@@ -955,7 +959,9 @@ def send_certificate_email(certificado_instance):
             'application/pdf'
         )
         # Enviar el email
-        email.send(fail_silently=False)
+        sent_count = email.send(fail_silently=False)
+        if type(sent_count) is int and sent_count == 0:
+            raise RuntimeError("El servidor SMTP no aceptó el mensaje (0 enviados).")
 
         # --- Marcar como enviado ---
         certificado_instance.email_enviado = True

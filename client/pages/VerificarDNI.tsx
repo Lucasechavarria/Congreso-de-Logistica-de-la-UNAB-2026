@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
+  CheckCircle2,
   AlertCircle,
   Loader2,
   Shield,
@@ -16,7 +16,9 @@ import {
   ArrowLeft,
   Check,
   RefreshCw,
-  WifiOff,
+  Clock,
+  Calendar,
+  Zap,
 } from "lucide-react";
 import { API_HOST } from "@/lib/api";
 
@@ -46,16 +48,27 @@ interface VerificacionResult {
   message: string;
 }
 
+interface AlreadyAccreditedData {
+  message: string;
+  hora_acreditacion: string;
+  fecha_acreditacion: string;
+  asistente: AsistenteData;
+  pantalla: PantallaData;
+}
+
 interface AsistenteDetails {
   id: number;
   first_name: string;
   last_name: string;
+  nombre_completo?: string;
   email: string;
   phone: string;
   dni: string;
   profile_type: string;
   institution: string;
   career: string;
+  is_provisional_phone?: boolean;
+  is_provisional_email?: boolean;
 }
 
 // ─── Config de cada pantalla ──────────────────────────────────────────────────
@@ -120,8 +133,74 @@ const PANTALLA_CONFIG: Record<
   },
 };
 
+// Helper con timeout seguro para entornos móviles y redes inestables
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 8000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      throw new Error("La solicitud demoró más de 8 segundos. Verificá tu señal de internet y volvé a intentar.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+// Helper para extraer mensajes de error legibles desde la API
+function formatErrorMessage(data: unknown, fallback: string): string {
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  if (typeof data === "object" && data !== null) {
+    const record = data as Record<string, unknown>;
+    if (typeof record.message === "string") return record.message;
+    if (typeof record.error === "string") return record.error;
+    if (typeof record.detail === "string") return record.detail;
+    if (typeof record.message === "object" && record.message !== null) {
+      if (Array.isArray(record.message)) {
+        return record.message.join(", ");
+      }
+      return Object.entries(record.message as Record<string, unknown>)
+        .map(([field, val]) => `${field}: ${Array.isArray(val) ? val.join(", ") : String(val)}`)
+        .join(" | ");
+    }
+  }
+  return fallback;
+}
+
+// Helpers para detección certera de datos provisorios
+function isProvisionalEmailAddress(email?: string): boolean {
+  if (!email) return true;
+  const clean = email.trim().toLowerCase();
+  if (!clean.includes("@")) return true;
+  if (clean.endsWith(".temp") || clean.includes("@empresa.temp") || clean.includes("@unab.temp")) return true;
+  if (/@(?:[a-zA-Z0-9-]+\.)*temp$/.test(clean)) return true;
+  if (!/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(clean)) return true;
+  return false;
+}
+
+function isProvisionalPhoneNumber(phone?: string): boolean {
+  if (!phone) return true;
+  const digits = phone.replace(/\D/g, "");
+  if (!digits || digits === "1111111111" || digits.length < 8) return true;
+  return false;
+}
+
 // ─── Pantalla de éxito ────────────────────────────────────────────────────────
-function PantallaExito({ result }: { result: VerificacionResult }) {
+function PantallaExito({
+  result,
+  onReset,
+}: {
+  result: VerificacionResult;
+  onReset: () => void;
+}) {
+  const navigate = useNavigate();
   const tipo = result.pantalla.tipo;
   const cfg = PANTALLA_CONFIG[tipo] ?? PANTALLA_CONFIG["GENERAL"];
 
@@ -183,7 +262,7 @@ function PantallaExito({ result }: { result: VerificacionResult }) {
             <div className="border-t border-white/10 my-6" />
 
             {/* Footer instrucción para colaborador */}
-            <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 text-center border border-white/5 space-y-1">
+            <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 text-center border border-white/5 space-y-1 mb-6">
               <Shield className="w-6 h-6 text-purple-400 mx-auto mb-1" />
               <p className="text-sm font-semibold text-purple-100">
                 ¡Acreditación exitosa!
@@ -196,12 +275,31 @@ function PantallaExito({ result }: { result: VerificacionResult }) {
               </p>
             </div>
             
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-6 w-full py-3.5 rounded-2xl font-bold bg-white/10 hover:bg-white/20 active:scale-[0.98] transition-all duration-200 text-sm border border-white/10 flex items-center justify-center gap-2"
-            >
-              Registrar nuevo DNI
-            </button>
+            {/* Botones de navegación requeridos */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => navigate("/programa")}
+                className="w-full py-4 rounded-2xl text-white font-extrabold text-sm bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 border border-white/10 btn-shimmer"
+              >
+                <Calendar className="w-4 h-4" />
+                Ver Programa del Congreso
+              </button>
+
+              <button
+                onClick={() => navigate("/")}
+                className="w-full py-3.5 rounded-2xl font-bold bg-white/10 hover:bg-white/20 active:scale-[0.98] transition-all duration-200 text-sm border border-white/10 flex items-center justify-center gap-2 text-purple-100"
+              >
+                🏁 Finalizar
+              </button>
+
+              <button
+                onClick={onReset}
+                className="w-full py-2.5 rounded-2xl text-xs font-semibold text-purple-300/80 hover:text-white transition-all duration-200 flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Acreditar otro asistente
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -209,35 +307,155 @@ function PantallaExito({ result }: { result: VerificacionResult }) {
   );
 }
 
-// Helper con timeout seguro para entornos móviles y redes inestables
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 8000) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    return response;
-  } catch (error: any) {
-    if (error.name === "AbortError") {
-      throw new Error("La solicitud demoró más de 8 segundos. Verificá tu señal de internet y volvé a intentar.");
-    }
-    throw error;
-  } finally {
-    clearTimeout(id);
-  }
+// ─── Pantalla Ya Acreditado (Caso 2 - HTTP 409) ────────────────────────────────
+function PantallaYaAcreditado({
+  data,
+  onReset,
+}: {
+  data: AlreadyAccreditedData;
+  onReset: () => void;
+}) {
+  const navigate = useNavigate();
+  const tipo = data.pantalla?.tipo ?? "GENERAL";
+  const cfg = PANTALLA_CONFIG[tipo] ?? PANTALLA_CONFIG["GENERAL"];
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-[#2d1854] to-slate-950 p-4">
+      {/* Orbes decorativos */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 -left-32 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl orb-float" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full bg-purple-500/10 blur-3xl orb-float-delay" />
+      </div>
+
+      <div className="relative w-full max-w-md mx-auto animate-fade-in-up">
+        {/* Card principal Glassmorphism */}
+        <div className="bg-[#2d1854]/45 backdrop-blur-xl rounded-3xl shadow-3xl overflow-hidden border border-amber-500/20 text-white">
+          {/* Header con gradiente ámbar/púrpura */}
+          <div className="bg-gradient-to-br from-amber-600 via-purple-700 to-[#2d1854] px-8 pt-10 pb-12 text-center relative">
+            {/* Ícono animado */}
+            <div className="inline-flex items-center justify-center w-28 h-28 rounded-full bg-amber-500/20 backdrop-blur-sm border-4 border-amber-400/30 mb-4 animate-gentle-pulse shadow-[0_0_25px_rgba(245,158,11,0.3)]">
+              <Clock className="w-16 h-16 text-amber-300" />
+            </div>
+
+            {/* Título */}
+            <h1 className="text-3xl font-extrabold text-white tracking-tight text-glow">
+              🕒 ¡Ya te encontrás acreditado!
+            </h1>
+
+            {/* Badge de tipo */}
+            <span className={`inline-block mt-3 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase ${cfg.badgeBg}`}>
+              {cfg.badge}
+            </span>
+
+            {/* Ola decorativa */}
+            <div className="absolute bottom-0 left-0 right-0">
+              <svg viewBox="0 0 400 24" fill="none" className="w-full">
+                <path
+                  d="M0 24 Q100 0 200 12 Q300 24 400 8 L400 24 Z"
+                  fill="#2d1854"
+                  fillOpacity="0.45"
+                />
+              </svg>
+            </div>
+          </div>
+
+          {/* Contenido */}
+          <div className="px-8 pb-8 pt-6">
+            {/* Nombre del asistente */}
+            <div className="text-center mb-6">
+              <p className="text-2xl font-extrabold text-white tracking-tight">
+                {data.asistente.nombre_completo}
+              </p>
+              {data.pantalla.subtitulo && (
+                <p className="mt-1 text-sm font-semibold text-purple-200">
+                  {data.pantalla.subtitulo}
+                </p>
+              )}
+              <p className="text-xs text-purple-300/70 mt-1">
+                DNI: {data.asistente.dni}
+              </p>
+            </div>
+
+            {/* Badge destacado de confirmación con hora */}
+            <div className="bg-gradient-to-r from-amber-500/15 to-purple-500/15 border border-amber-500/30 rounded-2xl p-4 text-center mb-6 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+              <div className="flex items-center justify-center gap-2 text-amber-300 font-extrabold text-base mb-1">
+                <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                <span>Asistencia confirmada</span>
+              </div>
+              <p className="text-sm text-purple-100 font-medium">
+                {(() => {
+                  if (!data.hora_acreditacion) return data.message;
+                  const now = new Date();
+                  const day = String(now.getDate()).padStart(2, "0");
+                  const month = String(now.getMonth() + 1).padStart(2, "0");
+                  const year = String(now.getFullYear());
+                  const todayStr = `${day}/${month}/${year}`;
+                  if (!data.fecha_acreditacion || data.fecha_acreditacion === todayStr) {
+                    return `Confirmaste tu asistencia hoy a las ${data.hora_acreditacion}`;
+                  }
+                  return `Confirmaste tu asistencia el ${data.fecha_acreditacion} a las ${data.hora_acreditacion}`;
+                })()}
+              </p>
+              {data.fecha_acreditacion && (
+                <span className="inline-block mt-2 text-[11px] font-semibold text-amber-200/80 bg-black/20 px-3 py-1 rounded-full border border-amber-500/20">
+                  Fecha: {data.fecha_acreditacion}
+                </span>
+              )}
+            </div>
+
+            {/* Aviso de credencial y certificado */}
+            <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 text-center border border-white/5 space-y-1 mb-6">
+              <p className="text-xs text-purple-200/90 leading-relaxed">
+                Tu credencial digital ya está habilitada para todas las salas del congreso.
+              </p>
+              <p className="text-xs text-emerald-300 font-medium bg-emerald-500/10 border border-emerald-500/20 rounded-xl py-1 px-2 mt-2">
+                ✉️ Tu certificado oficial será enviado por correo al cierre de la jornada.
+              </p>
+            </div>
+
+            {/* Botones requeridos por el usuario */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => navigate("/programa")}
+                className="w-full py-4 rounded-2xl text-white font-extrabold text-sm bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 border border-white/10 btn-shimmer"
+              >
+                <Calendar className="w-4 h-4" />
+                Ver Programa del Congreso
+              </button>
+
+              <button
+                onClick={() => navigate("/")}
+                className="w-full py-3.5 rounded-2xl font-bold bg-white/10 hover:bg-white/20 active:scale-[0.98] transition-all duration-200 text-sm border border-white/10 flex items-center justify-center gap-2 text-purple-100"
+              >
+                🏁 Finalizar
+              </button>
+
+              <button
+                onClick={onReset}
+                className="w-full py-2.5 rounded-2xl text-xs font-semibold text-purple-300/80 hover:text-white transition-all duration-200 flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Verificar otro DNI
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function VerificarDNI() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [step, setStep] = useState<"input_dni" | "verify_details" | "edit_details" | "success">("input_dni");
+  const [step, setStep] = useState<"input_dni" | "verify_details" | "edit_details" | "success" | "already_accredited">("input_dni");
   const [dni, setDni] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [showRejectedModal, setShowRejectedModal] = useState<boolean>(false);
+  const [rejectedMsg, setRejectedMsg] = useState<string>("");
 
   // Precargar DNI si viene en los query params (ej: /verificar-dni?dni=12345678)
   useEffect(() => {
@@ -262,15 +480,55 @@ export default function VerificarDNI() {
   });
 
   const [result, setResult] = useState<VerificacionResult | null>(null);
+  const [alreadyAccreditedData, setAlreadyAccreditedData] = useState<AlreadyAccreditedData | null>(null);
 
   // Validar si el teléfono es provisional/genérico
   const isPhoneGeneric = asistenteDetails 
-    ? (asistenteDetails.phone === "1111111111" || !asistenteDetails.phone.trim()) 
+    ? Boolean(asistenteDetails.is_provisional_phone ?? isProvisionalPhoneNumber(asistenteDetails.phone))
     : false;
 
+  // Validar si el correo es provisional/genérico
+  const isEmailProvisional = asistenteDetails
+    ? Boolean(asistenteDetails.is_provisional_email ?? isProvisionalEmailAddress(asistenteDetails.email))
+    : false;
+
+  const hasProvisionalData = isPhoneGeneric || isEmailProvisional;
+
+  const handleReset = () => {
+    setStep("input_dni");
+    setDni("");
+    setErrorMsg("");
+    setAsistenteDetails(null);
+    setResult(null);
+    setAlreadyAccreditedData(null);
+    setShowModal(false);
+    setShowRejectedModal(false);
+    setRejectedMsg("");
+  };
+
+  const handleAlreadyAccreditedResponse = (data: any) => {
+    setAlreadyAccreditedData({
+      message: data.message || "La asistencia ya fue confirmada.",
+      hora_acreditacion: data.hora_acreditacion || "",
+      fecha_acreditacion: data.fecha_acreditacion || "",
+      asistente: data.asistente || {
+        nombre_completo: "Asistente",
+        dni: dni.trim(),
+        email: "",
+        profile_type: "VISITOR",
+      },
+      pantalla: data.pantalla || {
+        tipo: "GENERAL",
+        subtitulo: "",
+        nombre_vinculado: "",
+      },
+    });
+    setStep("already_accredited");
+  };
+
   // Paso 1: Buscar DNI en modo check_only
-  const handleCheckDni = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCheckDni = async (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault();
     setErrorMsg("");
 
     if (!dni.trim()) {
@@ -292,27 +550,34 @@ export default function VerificarDNI() {
 
       const data = await response.json();
 
-      if (response.status === 404) {
+      if (response.status === 404 || data.code === "NOT_REGISTERED") {
         setShowModal(true);
         return;
       }
-      if (response.status === 409) {
-        setErrorMsg(data.message || "La asistencia ya fue confirmada.");
+      if (response.status === 409 || data.code === "ALREADY_ACCREDITED") {
+        handleAlreadyAccreditedResponse(data);
+        return;
+      }
+      if (response.status === 403 && data.code === "REGISTRATION_REJECTED") {
+        setRejectedMsg(formatErrorMessage(data, "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción."));
+        setShowRejectedModal(true);
         return;
       }
       if (!response.ok) {
-        throw new Error(data.message || "Error desconocido");
+        throw new Error(formatErrorMessage(data, "Error al verificar DNI."));
       }
 
       if (data.status === "pending_confirmation") {
         setAsistenteDetails(data.asistente);
+        const emailTemp = Boolean(data.asistente.is_provisional_email ?? isProvisionalEmailAddress(data.asistente.email));
+        const phoneTemp = Boolean(data.asistente.is_provisional_phone ?? isProvisionalPhoneNumber(data.asistente.phone));
         setEditFields({
-          first_name: data.asistente.first_name,
-          last_name: data.asistente.last_name,
-          email: data.asistente.email,
-          phone: data.asistente.phone,
-          institution: data.asistente.institution,
-          career: data.asistente.career,
+          first_name: data.asistente.first_name || "",
+          last_name: data.asistente.last_name || "",
+          email: emailTemp ? "" : (data.asistente.email || ""),
+          phone: phoneTemp ? "" : (data.asistente.phone || ""),
+          institution: data.asistente.institution || "",
+          career: data.asistente.career || "",
         });
         setStep("verify_details");
       }
@@ -327,8 +592,8 @@ export default function VerificarDNI() {
 
   // Paso 2: Confirmar datos directamente sin cambios
   const handleConfirmDirect = async () => {
-    if (isPhoneGeneric) {
-      setErrorMsg("Por favor, modificá tus datos e ingresá un teléfono real.");
+    if (hasProvisionalData) {
+      setErrorMsg("Por favor, modificá tus datos e ingresá información de contacto real.");
       return;
     }
 
@@ -343,8 +608,17 @@ export default function VerificarDNI() {
 
       const data = await response.json();
 
+      if (response.status === 409 || data.code === "ALREADY_ACCREDITED") {
+        handleAlreadyAccreditedResponse(data);
+        return;
+      }
+      if (response.status === 403 && data.code === "REGISTRATION_REJECTED") {
+        setRejectedMsg(formatErrorMessage(data, "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción."));
+        setShowRejectedModal(true);
+        return;
+      }
       if (!response.ok) {
-        throw new Error(data.message || "Error desconocido");
+        throw new Error(formatErrorMessage(data, "Error al confirmar asistencia."));
       }
 
       setResult(data as VerificacionResult);
@@ -371,12 +645,12 @@ export default function VerificarDNI() {
       setErrorMsg("El apellido no puede estar vacío");
       return;
     }
-    if (!editFields.email.trim()) {
-      setErrorMsg("El correo electrónico no puede estar vacío");
+    if (isProvisionalEmailAddress(editFields.email)) {
+      setErrorMsg("Por favor, ingresá un correo electrónico válido y no provisorio (ej: usuario@gmail.com) para recibir tu certificado digital.");
       return;
     }
-    if (!editFields.phone.trim() || editFields.phone.trim() === "1111111111") {
-      setErrorMsg("Por favor, ingresá un número de teléfono real. El teléfono genérico no es válido.");
+    if (isProvisionalPhoneNumber(editFields.phone)) {
+      setErrorMsg("Por favor, ingresá un número de celular real (mínimo 8 dígitos). El teléfono provisorio no es válido.");
       return;
     }
 
@@ -399,8 +673,17 @@ export default function VerificarDNI() {
 
       const data = await response.json();
 
+      if (response.status === 409 || data.code === "ALREADY_ACCREDITED") {
+        handleAlreadyAccreditedResponse(data);
+        return;
+      }
+      if (response.status === 403 && data.code === "REGISTRATION_REJECTED") {
+        setRejectedMsg(formatErrorMessage(data, "Tu registro figura con estado rechazado. Por favor, consultá en la mesa de recepción."));
+        setShowRejectedModal(true);
+        return;
+      }
       if (!response.ok) {
-        throw new Error(data.message || "Error al actualizar y confirmar.");
+        throw new Error(formatErrorMessage(data, "Error al actualizar y confirmar."));
       }
 
       setResult(data as VerificacionResult);
@@ -416,7 +699,12 @@ export default function VerificarDNI() {
 
   // ── Pantalla de éxito ──
   if (step === "success" && result) {
-    return <PantallaExito result={result} />;
+    return <PantallaExito result={result} onReset={handleReset} />;
+  }
+
+  // ── Pantalla Ya Acreditado (Caso 2 - 409) ──
+  if (step === "already_accredited" && alreadyAccreditedData) {
+    return <PantallaYaAcreditado data={alreadyAccreditedData} onReset={handleReset} />;
   }
 
   // ── Formulario de ingreso de DNI ──
@@ -453,49 +741,39 @@ export default function VerificarDNI() {
               </div>
             </div>
 
-            {/* Form */}
-            <div className="px-8 pb-8 pt-6">
-              <p className="text-purple-200/80 text-sm text-center mb-6 leading-relaxed">
-                Ingresá tu DNI (sin puntos ni espacios) para verificar tus datos y confirmar tu ingreso al evento.
-              </p>
-
-              <form onSubmit={handleCheckDni} className="space-y-4">
+            {/* Formulario */}
+            <div className="p-8">
+              <form onSubmit={handleCheckDni} className="space-y-6">
                 <div>
-                  <label
-                    htmlFor="dni"
-                    className="block text-xs font-bold uppercase tracking-wider text-purple-200 mb-2"
-                  >
-                    Número de DNI
+                  <label className="block text-xs font-bold uppercase tracking-wider text-purple-300 mb-2">
+                    Número de Documento (DNI)
                   </label>
-                  <input
-                    id="dni"
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="Ej: 12345678"
-                    value={dni}
-                    onChange={(e) =>
-                      setDni(e.target.value.replace(/\D/g, "").slice(0, 8))
-                    }
-                    maxLength={8}
-                    autoFocus
-                    className="w-full px-4 py-3.5 text-2xl text-center font-extrabold tracking-widest rounded-2xl border border-white/10 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20 outline-none transition-all duration-200 bg-slate-950/40 text-white placeholder:font-normal placeholder:tracking-normal placeholder:text-purple-300/40 placeholder:text-lg"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={8}
+                      value={dni}
+                      onChange={(e) => setDni(e.target.value.replace(/\D/g, ""))}
+                      placeholder="Ej: 12345678"
+                      disabled={loading}
+                      className="w-full px-5 py-4 text-xl tracking-wider text-center font-mono rounded-2xl border border-white/10 bg-slate-950/40 text-white placeholder-purple-300/30 outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 shadow-inner"
+                      autoFocus
+                    />
+                  </div>
                 </div>
 
                 {errorMsg && (
-                  <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
-                    {errorMsg.includes("segundos") || errorMsg.includes("internet") ? (
-                      <WifiOff className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                    )}
+                  <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-sm text-red-200 leading-relaxed animate-shake">
+                    <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="text-sm text-red-200 leading-relaxed">{errorMsg}</p>
-                      {(errorMsg.includes("segundos") || errorMsg.includes("internet")) && (
+                      <p>{errorMsg}</p>
+                      {errorMsg.includes("8 segundos") && (
                         <button
                           type="button"
-                          onClick={(e) => handleCheckDni(e)}
-                          className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-200 underline underline-offset-2"
+                          onClick={handleCheckDni}
+                          className="mt-2 text-xs font-bold text-red-300 hover:text-white underline flex items-center gap-1"
                         >
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                           Reintentar ahora
@@ -532,33 +810,75 @@ export default function VerificarDNI() {
           </div>
         </div>
 
-        {/* Modal DNI no encontrado */}
+        {/* Modal DNI no registrado (Caso 4: Redirección a Inscripción Rápida con DNI) */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-[#2d1854]/90 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center text-white animate-fade-in-up">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-500/15 border border-red-500/30 mb-4 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-gentle-pulse">
-                <AlertCircle className="w-10 h-10 text-red-400" />
+            <div className="bg-[#2d1854]/95 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center text-white animate-fade-in-up">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-amber-500/15 border border-amber-500/30 mb-4 shadow-[0_0_15px_rgba(245,158,11,0.2)] animate-gentle-pulse">
+                <AlertCircle className="w-10 h-10 text-amber-400" />
               </div>
               <h2 className="text-2xl font-extrabold mb-2 text-glow">
                 DNI no registrado
               </h2>
               <p className="text-purple-200/80 text-sm mb-6 leading-relaxed">
-                No encontramos tu DNI en nuestro listado de pre-inscriptos de 2026. Completá tu inscripción in-situ antes de acreditar tu ingreso.
+                No encontramos el DNI <span className="font-bold text-white">{dni}</span> en nuestro listado de pre-inscriptos de 2026. Podés completar tu acreditación exprés ahora mismo.
               </p>
+
+              {/* Botón primario: Inscripción Rápida */}
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  navigate(`/registro-rapido?dni=${encodeURIComponent(dni.trim())}`);
+                }}
+                className="w-full py-4 rounded-2xl text-white font-extrabold bg-gradient-to-r from-amber-500 via-orange-600 to-purple-700 hover:from-amber-400 hover:to-purple-600 transition-all duration-200 shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 btn-shimmer"
+              >
+                <Zap className="w-5 h-5 text-yellow-300" />
+                ⚡ Inscripción Rápida
+              </button>
+
               <button
                 onClick={() => {
                   setShowModal(false);
                   navigate("/seleccion-registro");
                 }}
-                className="w-full py-4 rounded-2xl text-white font-extrabold bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 transition-all duration-200 shadow-lg shadow-purple-500/25"
+                className="w-full mt-3 py-2.5 rounded-2xl font-bold text-xs text-purple-200 bg-white/5 hover:bg-white/10 transition-all duration-200 border border-white/5"
               >
-                Inscribirse ahora
+                Otras opciones de registro
               </button>
+
               <button
                 onClick={() => setShowModal(false)}
-                className="w-full mt-3 py-2.5 rounded-2xl font-bold text-purple-300 hover:text-white transition-all duration-200 text-sm"
+                className="w-full mt-2 py-2 rounded-2xl font-bold text-purple-300 hover:text-white transition-all duration-200 text-xs"
               >
-                Cerrar
+                Volver a intentar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Rechazado */}
+        {showRejectedModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-[#2d1854]/95 border border-red-500/30 backdrop-blur-xl rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center text-white animate-fade-in-up">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-500/20 border border-red-500/40 mb-4 shadow-[0_0_20px_rgba(239,68,68,0.3)] animate-gentle-pulse">
+                <AlertCircle className="w-10 h-10 text-red-400" />
+              </div>
+              <h2 className="text-2xl font-extrabold mb-2 text-glow text-red-300">
+                Registro no habilitado
+              </h2>
+              <p className="text-purple-200/90 text-sm mb-6 leading-relaxed">
+                {rejectedMsg || "Tu registro figura con estado rechazado. Por favor, acercate a la coordinación en la mesa de recepción para verificar tu situación."}
+              </p>
+
+              <button
+                onClick={() => {
+                  setShowRejectedModal(false);
+                  setStep("input_dni");
+                  setDni("");
+                }}
+                className="w-full py-3.5 rounded-2xl text-white font-bold bg-white/10 hover:bg-white/20 transition-all duration-200 border border-white/10"
+              >
+                Entendido
               </button>
             </div>
           </div>
@@ -569,6 +889,16 @@ export default function VerificarDNI() {
 
   // ── Paso 2: Confirmación Intermedia de Datos (Glassmorphism & Lilac Style) ──
   if (step === "verify_details" && asistenteDetails) {
+    // Texto dinámico para datos provisorios
+    let provisionalWarningText = "";
+    if (isPhoneGeneric && isEmailProvisional) {
+      provisionalWarningText = "⚠️ Tu teléfono y correo actual son provisorios. Actualizalos para recibir tu certificado oficial al cierre de la jornada.";
+    } else if (isPhoneGeneric) {
+      provisionalWarningText = "⚠️ Tu teléfono actual es provisorio. Actualizalo para recibir tu certificado oficial al cierre de la jornada.";
+    } else if (isEmailProvisional) {
+      provisionalWarningText = "⚠️ Tu correo actual es provisorio. Actualizalo para recibir tu certificado oficial al cierre de la jornada.";
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-[#2d1854] to-slate-950 p-4">
         {/* Orbes decorativos */}
@@ -588,25 +918,25 @@ export default function VerificarDNI() {
               Confirmá que tus datos personales sean correctos antes de realizar la acreditación.
             </p>
 
-            {/* Banner de Advertencia de Certificados (Color Naranja/Amarillo translúcido) */}
+            {/* Banner de Advertencia de Certificados */}
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-amber-200 text-sm flex items-start gap-3 shadow-[0_0_15px_rgba(245,158,11,0.05)] mb-6 leading-relaxed">
               <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-bold text-amber-300">⚠️ Importante para tu Certificado</p>
                 <p className="mt-1 text-xs text-amber-200/90">
-                  Revisá que tu Nombre, Apellido y Email estén correctamente escritos. Cualquier error tipográfico provocará que tu certificado digital de asistencia se emita con errores o falle su envío automático.
+                  Revisá que tu Nombre, Apellido y Email estén correctamente escritos. Cualquier error tipográfico provocará que tu certificado digital de asistencia se emita con errores o falle su entrega.
                 </p>
               </div>
             </div>
 
-            {/* Control de Teléfono Genérico o Datos Incompletos */}
-            {isPhoneGeneric && (
+            {/* Caso 3: Control de Datos Provisorios Detectados */}
+            {hasProvisionalData && (
               <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 text-rose-200 text-sm flex items-start gap-3 shadow-[0_0_15px_rgba(244,63,94,0.05)] mb-6 leading-relaxed animate-gentle-pulse">
                 <AlertCircle className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-bold text-rose-300">🚨 Celular Provisional Detectado</p>
-                  <p className="mt-1 text-xs text-rose-200/90">
-                    Tu registro posee el teléfono genérico de prueba <strong>'1111111111'</strong>. Hacé clic en <strong>Modificar Datos</strong> e ingresá tu número real para poder confirmar tu asistencia.
+                  <p className="font-bold text-rose-300">🚨 Datos Provisorios Detectados</p>
+                  <p className="mt-1 text-xs text-rose-200/90 font-medium">
+                    {provisionalWarningText}
                   </p>
                 </div>
               </div>
@@ -633,8 +963,8 @@ export default function VerificarDNI() {
                 <div>
                   <span className="block text-[10px] font-bold uppercase tracking-wider text-purple-300/60">Celular</span>
                   {isPhoneGeneric ? (
-                    <span className="text-sm font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg inline-block">
-                      1111111111 (Prueba)
+                    <span className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg inline-block">
+                      {asistenteDetails.phone || "No especificado"} (Provisorio)
                     </span>
                   ) : (
                     <span className="text-base font-bold text-white">{asistenteDetails.phone || "No especificado"}</span>
@@ -644,7 +974,13 @@ export default function VerificarDNI() {
 
               <div>
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-purple-300/60">Correo electrónico</span>
-                <span className="text-base font-bold text-white block truncate">{asistenteDetails.email}</span>
+                {isEmailProvisional ? (
+                  <span className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg inline-block mt-0.5">
+                    {asistenteDetails.email || "No especificado"} (Provisorio)
+                  </span>
+                ) : (
+                  <span className="text-base font-bold text-white block truncate">{asistenteDetails.email}</span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-3">
@@ -668,42 +1004,62 @@ export default function VerificarDNI() {
 
             {/* Botones de acción */}
             <div className="flex flex-col gap-3">
-              {isPhoneGeneric ? (
-                <div className="text-center text-xs text-rose-400/90 font-bold bg-rose-500/5 py-3 rounded-2xl border border-rose-500/20 mb-1">
-                  🔒 El check-in directo está bloqueado hasta actualizar tu celular.
-                </div>
+              {hasProvisionalData ? (
+                <>
+                  <div className="text-center text-xs text-rose-400 font-bold bg-rose-500/10 py-3 rounded-2xl border border-rose-500/20">
+                    🔒 La confirmación directa está bloqueada hasta actualizar tus datos provisorios.
+                  </div>
+
+                  <button
+                    onClick={() => setStep("edit_details")}
+                    className="w-full py-4 rounded-2xl text-white font-extrabold text-base bg-gradient-to-r from-amber-500 via-orange-600 to-purple-700 hover:from-amber-400 hover:to-purple-600 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 btn-shimmer border border-white/10"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                    Actualizar Datos para Acreditarme
+                  </button>
+
+                  <button
+                    onClick={() => setStep("input_dni")}
+                    className="w-full py-3 rounded-2xl font-bold bg-white/5 hover:bg-white/10 active:scale-[0.98] transition-all duration-200 text-sm border border-white/5 flex items-center justify-center gap-2 text-purple-200"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Volver
+                  </button>
+                </>
               ) : (
-                <button
-                  onClick={handleConfirmDirect}
-                  disabled={loading}
-                  className="w-full py-4 rounded-2xl text-white font-extrabold text-base bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 btn-shimmer border border-white/10"
-                >
-                  {loading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Check className="w-5 h-5" />
-                  )}
-                  Sí, mis datos son correctos (Confirmar)
-                </button>
+                <>
+                  <button
+                    onClick={handleConfirmDirect}
+                    disabled={loading}
+                    className="w-full py-4 rounded-2xl text-white font-extrabold text-base bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 btn-shimmer border border-white/10"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Check className="w-5 h-5" />
+                    )}
+                    Sí, mis datos son correctos (Confirmar)
+                  </button>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setStep("input_dni")}
+                      className="flex-1 py-3.5 rounded-2xl font-bold bg-white/5 hover:bg-white/10 active:scale-[0.98] transition-all duration-200 text-sm border border-white/5 flex items-center justify-center gap-2 text-purple-200"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Volver
+                    </button>
+
+                    <button
+                      onClick={() => setStep("edit_details")}
+                      className="flex-1 py-3.5 rounded-2xl font-bold active:scale-[0.98] transition-all duration-200 text-sm flex items-center justify-center gap-2 bg-purple-500/20 hover:bg-purple-500/35 text-purple-100 border border-purple-500/30"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Modificar Datos
+                    </button>
+                  </div>
+                </>
               )}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setStep("input_dni")}
-                  className="flex-1 py-3.5 rounded-2xl font-bold bg-white/5 hover:bg-white/10 active:scale-[0.98] transition-all duration-200 text-sm border border-white/5 flex items-center justify-center gap-2 text-purple-200"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Volver
-                </button>
-
-                <button
-                  onClick={() => setStep("edit_details")}
-                  className="flex-1 py-3.5 rounded-2xl font-bold bg-purple-500/20 hover:bg-purple-500/35 active:scale-[0.98] transition-all duration-200 text-sm border border-purple-500/30 flex items-center justify-center gap-2 text-purple-100 shadow-[0_0_15px_rgba(167,139,250,0.1)]"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Modificar Datos
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -713,6 +1069,11 @@ export default function VerificarDNI() {
 
   // ── Paso 3: Formulario de Modificación Fluida ──
   if (step === "edit_details" && asistenteDetails) {
+    const emailHasContent = editFields.email.trim().length > 0;
+    const phoneHasContent = editFields.phone.trim().length > 0;
+    const isEmailInvalid = emailHasContent && isProvisionalEmailAddress(editFields.email);
+    const isPhoneInvalid = phoneHasContent && isProvisionalPhoneNumber(editFields.phone);
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-[#2d1854] to-slate-950 p-4">
         {/* Orbes decorativos */}
@@ -729,7 +1090,7 @@ export default function VerificarDNI() {
               Editar Información
             </h2>
             <p className="text-purple-200/80 text-sm mb-6 leading-relaxed">
-              Modificá los campos necesarios para tu acreditación y certificado digital.
+              Modificá los campos necesarios para tu acreditación y certificado digital oficial.
             </p>
 
             <form onSubmit={handleConfirmWithEdit} className="space-y-4">
@@ -757,34 +1118,49 @@ export default function VerificarDNI() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1.5">Correo Electrónico</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1.5">
+                  Correo Electrónico {isEmailInvalid ? "(Inválido)" : !emailHasContent ? "(Requerido)" : ""}
+                </label>
                 <input
                   type="email"
                   value={editFields.email}
                   onChange={(e) => setEditFields({ ...editFields, email: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-white/10 bg-slate-950/40 text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
                   placeholder="ejemplo@correo.com"
+                  className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-all duration-200 ${
+                    isEmailInvalid
+                      ? "border-rose-500/80 focus:ring-4 focus:ring-rose-500/20 bg-rose-950/20 shadow-[0_0_12px_rgba(244,63,94,0.35)] font-bold placeholder:text-rose-300/40 text-white"
+                      : "border-white/10 bg-slate-950/40 text-white focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                  }`}
                 />
+                {isEmailInvalid ? (
+                  <span className="block text-[10px] font-semibold text-rose-300 mt-1.5">
+                    ⚠️ Se requiere un correo real para recibir tu certificado digital (ej: tu.nombre@gmail.com).
+                  </span>
+                ) : (
+                  <span className="block text-[10px] text-purple-300/60 mt-1">
+                    ✉️ Enviaremos tu certificado oficial a esta casilla al cierre de la jornada.
+                  </span>
+                )}
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1.5">
-                  Número de Celular {editFields.phone === "1111111111" && "(Corregir)"}
+                  Número de Celular {isPhoneInvalid ? "(Inválido)" : !phoneHasContent ? "(Requerido)" : ""}
                 </label>
                 <input
                   type="tel"
-                  value={editFields.phone === "1111111111" ? "" : editFields.phone}
+                  value={editFields.phone}
                   onChange={(e) => setEditFields({ ...editFields, phone: e.target.value.replace(/\D/g, "") })}
-                  placeholder="Ej: 1123456789 (Sin guiones)"
+                  placeholder="Ej: 1123456789 (Mínimo 8 dígitos)"
                   className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-all duration-200 ${
-                    editFields.phone === "1111111111" || !editFields.phone.trim()
-                      ? "border-rose-500/80 focus:ring-4 focus:ring-rose-500/20 bg-rose-950/20 shadow-[0_0_12px_rgba(244,63,94,0.35)] animate-pulse-ring font-bold placeholder:text-rose-300/40"
+                    isPhoneInvalid
+                      ? "border-rose-500/80 focus:ring-4 focus:ring-rose-500/20 bg-rose-950/20 shadow-[0_0_12px_rgba(244,63,94,0.35)] font-bold placeholder:text-rose-300/40 text-white"
                       : "border-white/10 bg-slate-950/40 text-white focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
                   }`}
                 />
-                {(editFields.phone === "1111111111" || !editFields.phone.trim()) && (
+                {isPhoneInvalid && (
                   <span className="block text-[10px] font-semibold text-rose-300 mt-1.5">
-                    ⚠️ Se requiere un número celular real para continuar.
+                    ⚠️ Se requiere un número celular real (mínimo 8 dígitos numéricos).
                   </span>
                 )}
               </div>
@@ -813,7 +1189,7 @@ export default function VerificarDNI() {
               </div>
 
               {errorMsg && (
-                <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mt-4 leading-relaxed">
+                <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mt-4 leading-relaxed animate-shake">
                   <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-red-200">{errorMsg}</p>
                 </div>
@@ -831,7 +1207,7 @@ export default function VerificarDNI() {
 
                 <button
                   type="submit"
-                  disabled={loading || editFields.phone === "1111111111" || !editFields.phone.trim()}
+                  disabled={loading}
                   className="flex-1 py-3.5 rounded-2xl text-white font-extrabold text-sm bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 btn-shimmer border border-white/10"
                 >
                   {loading ? (

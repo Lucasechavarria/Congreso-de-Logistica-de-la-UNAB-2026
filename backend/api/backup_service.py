@@ -1,16 +1,96 @@
 import os
+import math
 import shutil
 import zipfile
 import logging
 import subprocess
-from datetime import datetime
+from datetime import datetime, date, time as dt_time
+from decimal import Decimal
 from django.conf import settings
+from django.db import connection
 from django.utils import timezone
 from django.apps import apps
 from django.core.management import call_command
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+
+def _generar_sql_snapshot_fallback(sql_path: str) -> bool:
+    """
+    Genera un volcado SQL compatible con PostgreSQL consultando directamente las tablas
+    y filas mediante connection.cursor() cuando pg_dump no está instalado en el contenedor/VPS
+    o falla por incompatibilidad de versión. Garantiza que el paquete .zip manual siempre
+    contenga el archivo .sql además de .xlsx y .json (incluyendo tablas intermedias ManyToMany).
+    """
+    def _sql_literal(val):
+        if val is None:
+            return "NULL"
+        if isinstance(val, bool):
+            return "TRUE" if val else "FALSE"
+        if isinstance(val, float):
+            if math.isnan(val) or math.isinf(val):
+                return "NULL"
+            return str(val)
+        if isinstance(val, (int, Decimal)):
+            return str(val)
+        if isinstance(val, (datetime, date, dt_time)):
+            return "'" + val.isoformat().replace("'", "''") + "'"
+        if isinstance(val, (bytes, memoryview)):
+            return "'\\x" + bytes(val).hex() + "'"
+        s = str(val).replace("\x00", "").replace("'", "''")
+        return f"'{s}'"
+
+    custom_apps = {'api', 'bolsa_trabajo', 'auth'}
+    models_to_dump = []
+    seen_tables = set()
+    for app_config in apps.get_app_configs():
+        if app_config.label in custom_apps:
+            for model in app_config.get_models(include_auto_created=True):
+                if model._meta.managed and not model._meta.proxy:
+                    tbl = model._meta.db_table
+                    if tbl not in seen_tables:
+                        seen_tables.add(tbl)
+                        models_to_dump.append(model)
+
+    try:
+        with open(sql_path, 'w', encoding='utf-8') as f:
+            f.write("-- =====================================================================\n")
+            f.write("-- PostgreSQL Data Snapshot - 2º Congreso de Logística y Transporte UNaB\n")
+            f.write(f"-- Generado manualmente: {timezone.localtime(timezone.now()).isoformat()}\n")
+            f.write("-- =====================================================================\n")
+            f.write("SET client_encoding = 'UTF8';\n")
+            f.write("BEGIN;\n\n")
+            with connection.cursor() as cursor:
+                for model in models_to_dump:
+                    table = model._meta.db_table
+                    cols = [field.column for field in model._meta.concrete_fields]
+                    if not cols:
+                        continue
+                    quoted_table = connection.ops.quote_name(table)
+                    quoted_cols = ", ".join(connection.ops.quote_name(c) for c in cols)
+                    try:
+                        cursor.execute(f"SELECT {quoted_cols} FROM {quoted_table}")
+                        rows = cursor.fetchall()
+                    except Exception as tbl_err:
+                        f.write(f"-- Tabla omitida ({table}): {tbl_err}\n\n")
+                        continue
+                    f.write(f"-- Tabla: {table} ({len(rows)} registros)\n")
+                    for row in rows:
+                        vals_sql = ", ".join(_sql_literal(v) for v in row)
+                        f.write(f"INSERT INTO {quoted_table} ({quoted_cols}) VALUES ({vals_sql});\n")
+                    pk_field = model._meta.pk
+                    if pk_field and pk_field.column == 'id' and rows:
+                        f.write(
+                            f"-- Sincronización de secuencia PostgreSQL para {table}\n"
+                            f"-- SELECT setval(pg_get_serial_sequence('{table}', 'id'), COALESCE((SELECT MAX(id) FROM {quoted_table}), 1), true);\n"
+                        )
+                    f.write("\n")
+            f.write("COMMIT;\n")
+        return os.path.exists(sql_path) and os.path.getsize(sql_path) > 0
+    except Exception as exc:
+        logger.error(f"[BACKUP] Error generando snapshot SQL por cursor: {exc}")
+        return False
 
 
 def generar_paquete_backup() -> tuple[str, str, int]:
@@ -90,36 +170,50 @@ def generar_paquete_backup() -> tuple[str, str, int]:
         logger.error(f"[BACKUP] Error al generar dump JSON: {e}")
 
     # -------------------------------------------------------------
-    # 3. Snapshot de Base de Datos (PostgreSQL pg_dump o copia SQLite)
+    # 3. Snapshot de Base de Datos (PostgreSQL pg_dump o fallback SQL por cursor)
     # -------------------------------------------------------------
     db_engine = settings.DATABASES['default']['ENGINE']
+    sql_path = os.path.join(temp_dir, f"{nombre_base}_postgres.sql")
+    sql_generado = False
+
     if 'postgresql' in db_engine:
-        sql_path = os.path.join(temp_dir, f"{nombre_base}_postgres.sql")
-        try:
-            db_conf = settings.DATABASES['default']
-            cmd = ['pg_dump']
-            if db_conf.get('HOST'):
-                cmd.extend(['-h', db_conf['HOST']])
-            if db_conf.get('PORT'):
-                cmd.extend(['-p', str(db_conf['PORT'])])
-            if db_conf.get('USER'):
-                cmd.extend(['-U', db_conf['USER']])
-            cmd.extend(['-f', sql_path, db_conf['NAME']])
-            
-            env = os.environ.copy()
-            if db_conf.get('PASSWORD'):
-                env['PGPASSWORD'] = db_conf['PASSWORD']
-                
-            res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=120)
-            if res.returncode == 0 and os.path.exists(sql_path):
-                archivos_para_zip.append(sql_path)
-                logger.info(f"[BACKUP] pg_dump SQL generado: {sql_path}")
-            else:
-                logger.warning(f"[BACKUP] pg_dump finalizó con advertencia/error ({res.stderr[:200]}). Continuando con Excel y JSON.")
-        except Exception as e:
-            logger.warning(f"[BACKUP] No se pudo ejecutar pg_dump directo ({e}). Continuando con dumpdata y Excel.")
-    elif 'sqlite3' in db_engine:
-        sqlite_file = settings.DATABASES['default']['NAME']
+        db_conf = settings.DATABASES['default']
+        configured_port = str(db_conf.get('PORT') or '5432')
+        ports_to_try = ['5432', '6432'] if configured_port == '6432' else [configured_port]
+        env = os.environ.copy()
+        if db_conf.get('PASSWORD'):
+            env['PGPASSWORD'] = db_conf['PASSWORD']
+
+        for pg_port in ports_to_try:
+            try:
+                cmd = ['pg_dump']
+                if db_conf.get('HOST'):
+                    cmd.extend(['-h', db_conf['HOST']])
+                if pg_port:
+                    cmd.extend(['-p', pg_port])
+                if db_conf.get('USER'):
+                    cmd.extend(['-U', db_conf['USER']])
+                cmd.extend(['-f', sql_path, db_conf['NAME']])
+
+                res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=60)
+                if res.returncode == 0 and os.path.exists(sql_path) and os.path.getsize(sql_path) > 0:
+                    archivos_para_zip.append(sql_path)
+                    sql_generado = True
+                    logger.info(f"[BACKUP] pg_dump SQL generado en puerto {pg_port}: {sql_path}")
+                    break
+                else:
+                    logger.warning(f"[BACKUP] pg_dump (puerto {pg_port}) finalizó con advertencia ({res.stderr[:200]}).")
+            except Exception as e:
+                logger.warning(f"[BACKUP] pg_dump no disponible en puerto {pg_port} ({e}).")
+                break
+
+    if not sql_generado:
+        if _generar_sql_snapshot_fallback(sql_path):
+            archivos_para_zip.append(sql_path)
+            logger.info(f"[BACKUP] Snapshot SQL generado por cursor: {sql_path}")
+
+    if 'sqlite3' in db_engine:
+        sqlite_file = str(settings.DATABASES['default']['NAME'])
         if os.path.exists(sqlite_file):
             sqlite_copy = os.path.join(temp_dir, f"{nombre_base}.sqlite3")
             try:
@@ -149,7 +243,27 @@ def generar_paquete_backup() -> tuple[str, str, int]:
 
     size_bytes = os.path.getsize(zip_path)
     logger.info(f"[BACKUP] Paquete ZIP generado con éxito: {zip_path} ({round(size_bytes / 1024, 1)} KB)")
-    
+
+    # Rotación: conservar únicamente los últimos 10 archivos backup_congreso_*.zip
+    try:
+        existing_zips = [
+            f for f in os.listdir(backups_dir)
+            if f.startswith('backup_congreso_') and f.endswith('.zip')
+        ]
+        existing_zips.sort(
+            key=lambda x: os.path.getmtime(os.path.join(backups_dir, x)),
+            reverse=True
+        )
+        for old_zip in existing_zips[10:]:
+            old_zip_path = os.path.join(backups_dir, old_zip)
+            try:
+                os.remove(old_zip_path)
+                logger.info(f"[BACKUP] Archivo antiguo eliminado por rotación: {old_zip}")
+            except OSError as del_err:
+                logger.warning(f"[BACKUP] No se pudo eliminar archivo antiguo {old_zip}: {del_err}")
+    except Exception as rot_err:
+        logger.warning(f"[BACKUP] Error durante la rotación de backups: {rot_err}")
+
     return zip_path, zip_filename, size_bytes
 
 
@@ -165,21 +279,21 @@ def enviar_backup_por_email(zip_path: str, zip_name: str, emails: list[str]) -> 
     if not emails:
         return logs
 
-    asunto = f"📦 [RESPALDO AUTOMÁTICO] Base de Datos y Planillas - {zip_name}"
+    asunto = f"📦 [RESPALDO DEL SISTEMA] Base de Datos PostgreSQL y Planillas - {zip_name}"
     cuerpo_texto = (
-        f"Se adjunta el paquete de respaldo automático generado para el 2º Congreso de Logística UNAB 2026.\n\n"
+        f"Se adjunta el paquete de respaldo manual generado para el 2º Congreso de Logística UNAB 2026.\n\n"
         f"Archivo: {zip_name}\n"
         f"Contenido del ZIP:\n"
         f" - Libro Excel consolidado multi-hoja (.xlsx) con todas las tablas del congreso\n"
         f" - Volcado estructural portable en JSON (.json)\n"
-        f" - Snapshot crudo de la base de datos (.sql / .sqlite3)\n\n"
+        f" - Snapshot completo de la base de datos PostgreSQL (.sql)\n\n"
         f"Podés guardar este archivo directamente en tu Google Drive haciendo clic en el icono 'Guardar en Drive' dentro de Gmail/Workspace."
     )
 
     cuerpo_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-        <h2 style="color: #4f46e5; margin-top: 0;">📦 Respaldo Automático del Congreso UNAB 2026</h2>
-        <p>Adjunto encontrarás el paquete completo de respaldo correspondiente al corte programado:</p>
+        <h2 style="color: #4f46e5; margin-top: 0;">📦 Respaldo del Congreso UNAB 2026</h2>
+        <p>Adjunto encontrarás el paquete completo de respaldo generado desde el Centro de Respaldos:</p>
         <ul style="background: #f8fafc; padding: 15px 30px; border-radius: 6px; color: #334155; line-height: 1.6;">
             <li><strong>Archivo:</strong> <code>{zip_name}</code></li>
             <li><strong>Contenido:</strong> Excel (.xlsx) con todas las tablas + Dump JSON portable + Snapshot SQL</li>
@@ -220,8 +334,8 @@ def enviar_backup_por_email(zip_path: str, zip_name: str, emails: list[str]) -> 
 
 def ejecutar_respaldo_programado(destinos_forzados: list[str] | None = None) -> dict:
     """
-    Orquesta la ejecución completa del respaldo del sistema:
-    1. Obtiene la configuración desde la base de datos (ConfiguracionRespaldo).
+    Orquesta la generación manual del respaldo del sistema y su envío por correo:
+    1. Obtiene las casillas desde la base de datos (ConfiguracionRespaldo).
     2. Genera el paquete .zip con fecha y hora (Excel + JSON + SQL).
     3. Envía copia por email con el .zip adjunto a las casillas personal e institucional.
     4. Actualiza la auditoría en la base de datos.
@@ -229,9 +343,6 @@ def ejecutar_respaldo_programado(destinos_forzados: list[str] | None = None) -> 
     from .models import ConfiguracionRespaldo
 
     config = ConfiguracionRespaldo.get_solo()
-    if not config.activo and destinos_forzados is None:
-        logger.info("[BACKUP] Respaldo automático desactivado en la configuración.")
-        return {'status': 'inactive', 'message': 'Respaldo automático desactivado.'}
 
     # 1. Generar paquete ZIP local
     try:
@@ -247,24 +358,29 @@ def ejecutar_respaldo_programado(destinos_forzados: list[str] | None = None) -> 
     logs_resultado = []
     logs_resultado.append(f"✓ Archivo local generado: {zip_name} ({round(size_bytes / 1024, 1)} KB)")
 
-    # 2. Determinar destinatarios
+    # 2. Determinar destinatarios (manual: siempre usa destinos_forzados o las casillas configuradas)
     if destinos_forzados is not None:
         email_destinos = destinos_forzados
-    elif config.enviar_por_email:
+    else:
         email_destinos = []
         if config.email_personal and config.email_personal.strip():
             email_destinos.append(config.email_personal.strip())
         if config.email_institucional and config.email_institucional.strip():
             email_destinos.append(config.email_institucional.strip())
-    else:
-        email_destinos = []
 
     # 3. Enviar por correo electrónico
+    emails_exitosos = []
+    emails_fallidos = []
     if email_destinos:
         logs_email = enviar_backup_por_email(zip_path, zip_name, email_destinos)
         logs_resultado.extend(logs_email)
+        for line in logs_email:
+            if line.startswith("✓") and " adjunto a " in line:
+                emails_exitosos.append(line.split(" adjunto a ", 1)[1].strip())
+            elif line.startswith("✗"):
+                emails_fallidos.append(line)
     else:
-        logs_resultado.append("ℹ️ Envío por email desactivado. El archivo quedó guardado en el servidor local.")
+        logs_resultado.append("ℹ️ No se especificaron destinatarios de email. El archivo quedó guardado en el servidor local.")
 
     # 4. Actualizar auditoría en base de datos
     estado_texto = "\n".join(logs_resultado)
@@ -279,7 +395,8 @@ def ejecutar_respaldo_programado(destinos_forzados: list[str] | None = None) -> 
         'archivo': zip_name,
         'zip_path': zip_path,
         'size_bytes': size_bytes,
-        'emails_enviados': email_destinos,
+        'emails_enviados': emails_exitosos,
+        'emails_fallidos': emails_fallidos,
         'reporte': estado_texto,
         'logs': logs_resultado
     }

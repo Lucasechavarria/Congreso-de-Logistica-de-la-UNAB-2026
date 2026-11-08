@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - error-de-url
+      - feature/acreditacion-qr-certificados-batch
+      - feature/certificate-queue-resilience-and-failed-list
   workflow_dispatch:
 
 jobs:
@@ -75,7 +77,12 @@ jobs:
         run: |
           mkdir -p /var/www/congreso/client/dist
           mkdir -p /var/www/congreso/backend/static
+          mkdir -p /var/www/congreso/backend/backups
+          mkdir -p /var/www/congreso/backend/media
+          mkdir -p /var/www/congreso/backend/private_media/certificados
           sudo chown -R $(whoami):$(whoami) /var/www/congreso/
+          sudo chmod 777 /var/www/congreso/backend/backups || true
+          sudo chmod -R 775 /var/www/congreso/backend/media /var/www/congreso/backend/private_media || true
 
       - name: Deploy Frontend
         run: |
@@ -97,6 +104,7 @@ jobs:
             --exclude='static' \
             --exclude='media' \
             --exclude='private_media' \
+            --exclude='backups' \
             --exclude='*.sock' \
             --exclude='*.ctl' \
             --exclude='__pycache__/' \
@@ -130,6 +138,19 @@ jobs:
 
       - name: Restart Services
         run: |
+          if [ -f /etc/systemd/system/congreso.service ]; then
+            if grep -q -- "--timeout" /etc/systemd/system/congreso.service; then
+              sudo sed -i 's/--timeout [0-9]\+/--timeout 120/g' /etc/systemd/system/congreso.service || true
+            else
+              sudo sed -i 's/gunicorn /gunicorn --timeout 120 /g' /etc/systemd/system/congreso.service || true
+            fi
+            sudo systemctl daemon-reload || true
+          fi
+          mkdir -p /var/www/congreso/backend/backups
+          sudo chmod 777 /var/www/congreso/backend/backups || true
+          # Asegurar cron de ventana controlada de certificados cada 5 minutos y eliminar cualquier cron antiguo de respaldo automático (idempotente)
+          CRON_CMD="*/5 * * * * cd /var/www/congreso/backend && /var/www/congreso/backend/venv/bin/python -c \"import os, django; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings'); os.environ['DISABLE_INTERNAL_SCHEDULER']='1'; django.setup(); from api.scheduler import ejecutar_ventana_cron_scheduler; ejecutar_ventana_cron_scheduler()\" >> /tmp/congreso_scheduler.log 2>&1"
+          (crontab -l 2>/dev/null | grep -v "ejecutar_ciclo_scheduler" | grep -v "ejecutar_ventana_cron_scheduler" | grep -v "generar_respaldo" | grep -v "backup_to_gdrive"; echo "$CRON_CMD") | crontab - || true
           sudo pkill -9 gunicorn || true
           sudo rm -f /var/www/congreso/backend/congreso.sock || true
           sudo systemctl restart congreso

@@ -1,0 +1,16 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+  <li style="margin-right: 8px;">
+    <a href="{% url 'admin:admin-preacreditacion-masiva' %}" class="button" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff !important; font-weight: 700; font-size: 13px; border-radius: 8px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #4338ca; box-shadow: 0 2px 4px rgba(79,70,229,0.25); text-decoration: none; transition: all 0.2s ease;">
+      <span style="font-size: 14px;">🏢</span> Preacreditación Staff/Empresas
+    </a>
+  </li>
+  <li style="margin-right: 8px;">
+    <a href="import-excel/" class="button" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff !important; font-weight: 700; font-size: 13px; border-radius: 8px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #065f46; box-shadow: 0 2px 4px rgba(5,150,105,0.25); text-decoration: none; transition: all 0.2s ease;">
+      <span style="font-size: 14px;">📥</span> Cargar Asistentes (.xlsx)
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}
+

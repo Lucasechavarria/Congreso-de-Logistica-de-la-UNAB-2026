@@ -2162,12 +2162,12 @@ class PreacreditacionMasivaStaffEmpresasTests(TestCase):
         from django.core.files.uploadedfile import SimpleUploadedFile
         from api.models import Asistente, Inscripcion, Empresa, PersonalEmpresa, Certificado, Acreditacion
 
-        # 1. Crear un asistente pre-existente en el sistema (por ejemplo, registrado online pero sin asistencia)
+        # 1. Crear un asistente pre-existente en el sistema (por ejemplo, registrado online como visitante pero sin asistencia)
         asistente_existente = Asistente.objects.create(
             first_name="María",
-            last_name="Staff",
+            last_name="Visitante",
             dni="30111222",
-            email="maria.staff@unab.edu.ar",
+            email="maria.visitante@unab.edu.ar",
             profile_type=Asistente.ProfileType.VISITOR
         )
         insc_previa = Inscripcion.objects.create(
@@ -2176,19 +2176,30 @@ class PreacreditacionMasivaStaffEmpresasTests(TestCase):
             asistencia_confirmada=False
         )
 
-        # 2. Armar planilla Excel en memoria:
-        # - Fila 1: María Staff (ya en sistema) -> debe recibir rol STAFF, confirmar asistencia y encolar cert ASISTENCIA
-        # - Fila 2: Lucas Nuevo (no está en sistema) -> debe crearse, asociarse a "Logística Sur S.A.", confirmar asistencia y cert EMPRESA
+        # 2. Armar planilla Excel con las 3 categorías:
+        # - Fila 1: María Visitante (ya en sistema) -> VISITANTE, confirma asistencia y cert ASISTENCIA
+        # - Fila 2: Dra. Silvina Disertante (nueva) -> DISERTANTE, crea asistente con rol DISERTANTE y cert DISERTANTE
+        # - Fila 3: Lucas Nuevo (no está en sistema) -> EMPRESA, asocia a "Logística Sur S.A.", confirma asistencia y cert EMPRESA
         data = [
             {
                 "DNI": "30111222",
                 "Nombre": "María Elena",
-                "Apellido": "Staff",
-                "Email": "maria.staff@unab.edu.ar",
+                "Apellido": "Visitante",
+                "Email": "maria.visitante@unab.edu.ar",
                 "Teléfono": "1144556677",
-                "Tipo": "STAFF",
+                "Tipo": "VISITANTE",
                 "Empresa": "",
-                "Cargo": "Coordinadora de Acreditación"
+                "Cargo": ""
+            },
+            {
+                "DNI": "28999111",
+                "Nombre": "Silvina",
+                "Apellido": "Gómez",
+                "Email": "silvina.gomez@investigacion.edu.ar",
+                "Teléfono": "1155667788",
+                "Tipo": "DISERTANTE",
+                "Empresa": "",
+                "Cargo": "Conferencista Principal"
             },
             {
                 "DNI": "38999888",
@@ -2220,10 +2231,10 @@ class PreacreditacionMasivaStaffEmpresasTests(TestCase):
         })
         self.assertEqual(res.status_code, 200)
 
-        # 3. Verificaciones sobre el asistente existente (María Staff)
+        # 3. Verificaciones sobre el asistente existente (María Visitante)
         asistente_existente.refresh_from_db()
         self.assertEqual(asistente_existente.first_name, "María Elena")
-        self.assertEqual(asistente_existente.rol_especifico, "STAFF")
+        self.assertEqual(asistente_existente.rol_especifico, "VISITANTE")
         self.assertEqual(asistente_existente.phone, "1144556677")
 
         insc_previa.refresh_from_db()
@@ -2236,12 +2247,22 @@ class PreacreditacionMasivaStaffEmpresasTests(TestCase):
         self.assertEqual(cert_maria.tipo_certificado, Certificado.TipoCertificado.ASISTENCIA)
         self.assertFalse(cert_maria.email_enviado)
 
-        # 4. Verificaciones sobre el asistente nuevo (Lucas Nuevo)
+        # 4. Verificaciones sobre la disertante (Silvina Gómez)
+        asistente_silvina = Asistente.objects.filter(dni="28999111").first()
+        self.assertIsNotNone(asistente_silvina)
+        self.assertEqual(asistente_silvina.rol_especifico, "DISERTANTE")
+        self.assertEqual(asistente_silvina.profile_type, Asistente.ProfileType.PROFESSIONAL)
+        cert_silvina = Certificado.objects.filter(asistente=asistente_silvina, edicion=self.edicion).first()
+        self.assertIsNotNone(cert_silvina)
+        self.assertEqual(cert_silvina.tipo_certificado, Certificado.TipoCertificado.DISERTANTE)
+
+        # 5. Verificaciones sobre el personal de empresa (Lucas Nuevo)
         asistente_lucas = Asistente.objects.filter(dni="38999888").first()
         self.assertIsNotNone(asistente_lucas)
         self.assertEqual(asistente_lucas.first_name, "Lucas")
         self.assertEqual(asistente_lucas.last_name, "Nuevo")
         self.assertEqual(asistente_lucas.email, "lucas@logisticasur.com")
+        self.assertEqual(asistente_lucas.rol_especifico, "EMPRESA")
 
         # Empresa creada o vinculada
         empresa_sur = Empresa.objects.filter(nombre_empresa="Logística Sur S.A.").first()

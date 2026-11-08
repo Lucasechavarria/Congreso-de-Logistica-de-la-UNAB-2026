@@ -439,17 +439,19 @@ def preacreditacion_masiva_view(request):
 
     # Métricas actuales para contexto
     edicion_activa = Edicion.objects.filter(activa=True).first()
-    total_staff = Asistente.objects.filter(rol_especifico='STAFF').count()
+    total_visitantes = Asistente.objects.filter(profile_type=Asistente.ProfileType.VISITOR).count()
+    total_disertantes = Asistente.objects.filter(rol_especifico='DISERTANTE').count()
     total_personal_emp = PersonalEmpresa.objects.count()
     total_acreditados_emp = PersonalEmpresa.objects.filter(acreditado=True).count()
 
     context = {
         **admin.site.each_context(request),
-        'title': 'Preacreditación Masiva de Personal de Empresas y Staff',
+        'title': 'Preacreditación Masiva de Visitantes, Disertantes y Empresas',
         'resultado': resultado,
         'error_general': error_general,
         'edicion_activa': edicion_activa,
-        'total_staff': total_staff,
+        'total_visitantes': total_visitantes,
+        'total_disertantes': total_disertantes,
         'total_personal_emp': total_personal_emp,
         'total_acreditados_emp': total_acreditados_emp,
     }
@@ -1187,6 +1189,7 @@ admin.site.add_action(export_to_excel_action)
 admin.site.index_title = format_html(
     'Admin Congreso - <a href="/admin/dashboard/" style="color: #a78bfa; text-decoration: underline;">Dashboard</a> | '
     '<a href="/admin/broadcast/" style="color: #fbbf24; text-decoration: underline;">Comunicaciones Masivas</a> | '
+    '<a href="/admin/preacreditacion-masiva/" style="color: #c084fc; text-decoration: underline; font-weight: bold;">🏢 Preacreditación Masiva</a> | '
     '<a href="/admin/api/asistente/import-excel/" style="color: #4ade80; text-decoration: underline; font-weight: bold;">Carga Masiva Excel</a> | '
     '<a href="/admin/respaldos/" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">📦 Respaldos del Sistema</a> | '
     '<a href="/admin/certificate-queue/" style="color: #4ade80; text-decoration: underline;">Cola Certificados</a> | '

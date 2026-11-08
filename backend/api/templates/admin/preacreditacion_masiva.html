@@ -339,7 +339,17 @@
         text-transform: uppercase;
     }
 
-    .badge-tipo-staff {
+    .badge-tipo-visitante {
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 10.5px;
+        text-transform: uppercase;
+    }
+
+    .badge-tipo-disertante {
         background: rgba(245, 158, 11, 0.2);
         color: #fbbf24;
         padding: 2px 8px;
@@ -367,10 +377,10 @@
     <!-- Encabezado con Botón de Plantilla Oficial -->
     <div class="preacred-header">
         <div>
-            <h2>🏢 Preacreditación Masiva de Empresas y Staff</h2>
+            <h2>🏢 Preacreditación Masiva de Visitantes, Disertantes y Empresas</h2>
             <p>
-                Importe planillas con nóminas de personal de stands/empresas y staff de la organización. 
-                El sistema detecta automáticamente si la persona ya existe para <strong>darle la asistencia</strong> o si es nueva para <strong>darla de alta y acreditarla de inmediato</strong> con su certificado encolado.
+                Importe planillas con nóminas de participantes (<strong>Visitantes</strong>, <strong>Disertantes</strong> o personal de <strong>Empresas</strong>/stands). 
+                El sistema detecta automáticamente si la persona ya existe para <strong>otorgarle la asistencia</strong> o si es nueva para <strong>darla de alta y acreditarla de inmediato</strong> con su certificado correspondiente encolado.
             </p>
         </div>
         <div>
@@ -387,8 +397,12 @@
             <span class="kpi-lbl">Edición Vigente</span>
         </div>
         <div class="kpi-card">
-            <span class="kpi-val" style="color: #fbbf24;">{{ total_staff }}</span>
-            <span class="kpi-lbl">Staff Registrado</span>
+            <span class="kpi-val" style="color: #60a5fa;">{{ total_visitantes }}</span>
+            <span class="kpi-lbl">Visitantes Registrados</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-val" style="color: #fbbf24;">{{ total_disertantes }}</span>
+            <span class="kpi-lbl">Disertantes Registrados</span>
         </div>
         <div class="kpi-card">
             <span class="kpi-val" style="color: #a78bfa;">{{ total_personal_emp }}</span>
@@ -407,10 +421,10 @@
             <div class="dropzone-inner">
                 <div class="dropzone-icon">📤</div>
                 <h3 style="color: #fff; margin: 0 0 8px 0; font-size: 17px; font-weight: 700;">
-                    Seleccione o arrastre la planilla de Empresas / Staff
+                    Seleccione o arrastre la planilla de Visitantes / Disertantes / Empresas
                 </h3>
                 <p style="color: #94a3b8; font-size: 12.5px; margin: 0 0 15px 0;">
-                    Formatos soportados: <strong>.xlsx, .xls, .csv</strong> (Máximo 10 MB). Columnas reconocidas: <code>DNI</code>, <code>Nombre</code>, <code>Apellido</code>, <code>Email</code>, <code>Teléfono</code>, <code>Tipo</code>, <code>Empresa</code>, <code>Cargo</code>.
+                    Formatos soportados: <strong>.xlsx, .xls, .csv</strong> (Máximo 10 MB). Columnas reconocidas: <code>DNI</code>, <code>Nombre</code>, <code>Apellido</code>, <code>Email</code>, <code>Teléfono</code>, <code>Tipo</code> (VISITANTE / DISERTANTE / EMPRESA), <code>Empresa</code>, <code>Cargo</code>.
                 </p>
 
                 <div class="file-input-wrapper">
@@ -503,12 +517,14 @@
                         <td class="font-mono">{{ item.dni }}</td>
                         <td><strong>{{ item.nombre }}</strong></td>
                         <td>
-                            {% if item.tipo == 'STAFF' %}
-                                <span class="badge-tipo-staff">Staff</span>
+                            {% if item.tipo == 'VISITANTE' %}
+                                <span class="badge-tipo-visitante">Visitante</span>
+                            {% elif item.tipo == 'DISERTANTE' %}
+                                <span class="badge-tipo-disertante">Disertante</span>
                             {% elif item.tipo == 'EMPRESA' %}
                                 <span class="badge-tipo-empresa">Empresa</span>
                             {% else %}
-                                <span class="badge-tipo-empresa">{{ item.tipo }}</span>
+                                <span class="badge-tipo-visitante">{{ item.tipo }}</span>
                             {% endif %}
                         </td>
                         <td>{{ item.empresa }}</td>

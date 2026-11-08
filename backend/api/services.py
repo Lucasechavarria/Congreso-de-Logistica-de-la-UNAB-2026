@@ -924,7 +924,12 @@ def _upsert_asistente_preacreditado(
     grupo_raw: str = "",
     cargo_raw: str = ""
 ) -> Tuple[Asistente, str]:
-    """Crea o actualiza el registro en Asistente por DNI, Email o Nombre/Apellido."""
+    """
+    Verifica si el asistente ya está en la DDBB y compara sus datos.
+    - Si todo está ok (datos idénticos): NO modifica nada, retorna 'sin_cambios'.
+    - Si hay modificaciones o datos nuevos: actualiza solo lo que cambió, guarda y retorna 'actualizado'.
+    - Si no existe: crea el registro y retorna 'creado'.
+    """
     if len(dni_limpio) > 8:
         dni_limpio = dni_limpio[:8]
 
@@ -949,25 +954,47 @@ def _upsert_asistente_preacreditado(
     apellido_final = apellido_tit or "-"
 
     if asistente:
-        asistente.first_name = nombre_tit
-        if apellido_final:
+        cambios = False
+        if nombre_tit and asistente.first_name != nombre_tit:
+            asistente.first_name = nombre_tit
+            cambios = True
+        if apellido_final and apellido_final != "-" and asistente.last_name != apellido_final:
             asistente.last_name = apellido_final
+            cambios = True
         if not asistente.dni and dni_limpio:
             asistente.dni = dni_limpio
+            cambios = True
         elif asistente.dni and len(asistente.dni) == 9 and asistente.dni.endswith('0'):
             asistente.dni = asistente.dni[:8]
-        if telefono_raw:
+            cambios = True
+        elif dni_limpio and asistente.dni != dni_limpio and len(dni_limpio) in (7, 8):
+            if asistente.dni and asistente.dni.startswith('90') and len(asistente.dni) == 8:
+                asistente.dni = dni_limpio
+                cambios = True
+        if telefono_raw and asistente.phone != telefono_raw:
             asistente.phone = telefono_raw
-        if email_final and not email_final.startswith('sin-email') and (not asistente.email or asistente.email.startswith('sin-email')):
-            asistente.email = email_final
-        if empresa_obj:
+            cambios = True
+        if email_final and not email_final.startswith('sin-email'):
+            if not asistente.email or asistente.email.startswith('sin-email') or asistente.email.lower() != email_final.lower():
+                asistente.email = email_final
+                cambios = True
+        if empresa_obj and asistente.empresa_vinculada_id != empresa_obj.id:
             asistente.empresa_vinculada = empresa_obj
-        if comision_val:
+            cambios = True
+        if comision_val and asistente.comision != comision_val:
             asistente.comision = comision_val
-        asistente.rol_especifico = categoria
-        asistente.terminos_aceptados = True
-        asistente.save()
-        return asistente, "actualizado"
+            cambios = True
+        if categoria and asistente.rol_especifico != categoria:
+            asistente.rol_especifico = categoria
+            cambios = True
+        if not asistente.terminos_aceptados:
+            asistente.terminos_aceptados = True
+            cambios = True
+
+        if cambios:
+            asistente.save()
+            return asistente, "actualizado"
+        return asistente, "sin_cambios"
 
     asistente = Asistente.objects.create(
         dni=dni_limpio if dni_limpio else None,
@@ -990,14 +1017,13 @@ def _sincronizar_personal_empresa(
     asistente: Asistente,
     marcar_asistencia: bool
 ) -> None:
-    """Crea o actualiza el registro en PersonalEmpresa evitando duplicados y colisiones de clave única."""
+    """Crea o actualiza el registro en PersonalEmpresa evitando duplicados y modificaciones redundantes."""
     from django.db import IntegrityError
     from .models import PersonalEmpresa
 
     dni_limpio = data_fila['dni_limpio']
     dni_empresa = dni_limpio or (asistente.dni if asistente and asistente.dni else str(90000000 + asistente.id))
 
-    # Prioridad 1: Match por (empresa, dni) - Evita 100% de violaciones unique_together ('empresa', 'dni')
     p_emp = None
     if dni_empresa:
         p_emp = PersonalEmpresa.objects.filter(empresa=empresa_obj, dni=dni_empresa).first()
@@ -1027,13 +1053,22 @@ def _sincronizar_personal_empresa(
     try:
         with transaction.atomic():
             if p_emp:
+                cambios = False
                 for k, v in defaults.items():
-                    setattr(p_emp, k, v)
-                p_emp.save()
+                    if k == 'fecha_acreditacion':
+                        continue
+                    if getattr(p_emp, k) != v:
+                        setattr(p_emp, k, v)
+                        cambios = True
+                if marcar_asistencia and not p_emp.acreditado:
+                    p_emp.acreditado = True
+                    p_emp.fecha_acreditacion = timezone.now()
+                    cambios = True
+                if cambios:
+                    p_emp.save()
             else:
                 PersonalEmpresa.objects.create(empresa=empresa_obj, **defaults)
     except IntegrityError:
-        # Recuperación de colisión única: actualizar el registro que posee (empresa, dni)
         p_existente = PersonalEmpresa.objects.filter(empresa=empresa_obj, dni=dni_empresa).first()
         if p_existente:
             for k, v in defaults.items():
@@ -1126,6 +1161,7 @@ def _procesar_fila_preacreditacion(
             pass
 
     dni_display = data_fila['dni_limpio'] or (asistente.dni if asistente and asistente.dni else '-')
+    asistencia_texto = "Presente (Nueva)" if asistencia_nueva else ("Presente (Previa)" if inscripcion.asistencia_confirmada else "No marcada")
 
     return {
         'fila': data_fila['row_num'],
@@ -1136,6 +1172,7 @@ def _procesar_fila_preacreditacion(
         'empresa': empresa_obj.nombre_empresa if empresa_obj else '-',
         'cargo': cargo_limpio or '-',
         'accion': accion,
+        'asistencia': asistencia_texto,
         'asistencia_nueva': asistencia_nueva,
         'cert_creado': cert_creado,
         'certificado': tipo_cert if marcar_asistencia else '-',
@@ -1271,7 +1308,7 @@ def procesar_preacreditacion_masiva_staff_empresas(
     empresas_qs = Empresa.objects.filter(Q(edicion=edicion_activa) | Q(edicion__isnull=True))
     empresas_cache = {emp.nombre_empresa.strip().lower(): emp for emp in empresas_qs}
 
-    creados = actualizados = asistencias_otorgadas = asistencias_previas = certs_encolados = 0
+    creados = actualizados = sin_cambios = asistencias_otorgadas = asistencias_previas = certs_encolados = 0
     empresas_afectadas_ids = set()
     resumen_filas, errores = [], []
 
@@ -1289,8 +1326,10 @@ def procesar_preacreditacion_masiva_staff_empresas(
 
             if res_fila['accion'] == 'creado':
                 creados += 1
-            else:
+            elif res_fila['accion'] == 'actualizado':
                 actualizados += 1
+            else:
+                sin_cambios += 1
 
             if res_fila['asistencia_nueva']:
                 asistencias_otorgadas += 1
@@ -1308,6 +1347,7 @@ def procesar_preacreditacion_masiva_staff_empresas(
         'total_filas': len(resumen_filas) + len(errores),
         'creados': creados,
         'actualizados': actualizados,
+        'sin_cambios': sin_cambios,
         'asistencias_otorgadas': asistencias_otorgadas,
         'asistencias_previas': asistencias_previas,
         'certificados_encolados': certs_encolados,

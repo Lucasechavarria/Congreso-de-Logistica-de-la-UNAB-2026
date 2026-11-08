@@ -829,7 +829,7 @@
                                 <a href="{% url 'admin:admin-corregir-asistencia-email' %}?cert_id={{ item.id }}" class="btn-edit-action" title="Corregir datos de este participante">
                                     ✏️ Corregir
                                 </a>
-                                <button type="button" class="btn-retry-single" onclick="resetAndRetrySingle({{ item.id }})" title="Reintentar este certificado">
+                                <button type="button" class="btn-retry-single" data-cert-id="{{ item.id }}" onclick="resetAndRetrySingle(this.dataset.certId)" title="Reintentar este certificado">
                                     🔄
                                 </button>
                             </div>
@@ -1055,7 +1055,7 @@
                             <a href="${fixUrl}" class="btn-edit-action" title="Corregir datos de este participante">
                                 ✏️ Corregir
                             </a>
-                            <button type="button" class="btn-retry-single" onclick="resetAndRetrySingle(${item.id})" title="Reintentar este certificado">
+                            <button type="button" class="btn-retry-single" data-cert-id="${item.id}" onclick="resetAndRetrySingle(this.dataset.certId)" title="Reintentar este certificado">
                                 🔄
                             </button>
                         </div>

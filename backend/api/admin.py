@@ -19,7 +19,7 @@ from .email import send_certificate_email, send_broadcast_batch_email
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, Http404
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
+from django.db import transaction, IntegrityError
 import logging
 import os
 
@@ -392,102 +392,320 @@ def backup_database_view(request):
 def certificate_queue_view(request):
     """
     Muestra la interfaz de progreso y control para el envío de certificados por lotes.
+    Sincroniza preventivamente las asistencias confirmadas que aún no tengan registro en Certificado
+    y precarga los últimos registros reales de transmisión desde PostgreSQL para la consola en vivo.
     """
-    pendientes = Certificado.objects.filter(email_enviado=False).count()
-    pendientes_asistencia = Certificado.objects.filter(email_enviado=False, tipo_certificado='ASISTENCIA').count()
-    pendientes_disertante = Certificado.objects.filter(email_enviado=False, tipo_certificado='DISERTANTE').count()
-    pendientes_empresa = Certificado.objects.filter(email_enviado=False, tipo_certificado='EMPRESA').count()
-    enviados = Certificado.objects.filter(email_enviado=True).count()
+    try:
+        from .scheduler import iniciar_scheduler_en_segundo_plano
+        iniciar_scheduler_en_segundo_plano()
+    except Exception:
+        pass
 
-    ahora_local = timezone.localtime(timezone.now())
-    hora_valida = ahora_local.hour >= 18
-    hora_actual_str = ahora_local.strftime("%H:%M:%S")
+    try:
+        from .services import sincronizar_certificados_asistencia
+        sincronizar_certificados_asistencia()
+    except Exception as sync_err:
+        logger.warning(f"[CERTIFICADOS QUEUE] Advertencia al sincronizar asistencias: {sync_err}")
+
+    from .scheduler import obtener_estado_cola_certificados, obtener_lista_certificados_fallidos
+
+    # 1. Descarga directa de la lista de fallidos en Excel si se solicita
+    if request.GET.get('descargar') == 'fallidos_excel':
+        import io
+        import pandas as pd
+        fallidos = obtener_lista_certificados_fallidos(limit=5000)
+        data = []
+        for f in fallidos:
+            data.append({
+                'ID Certificado': f['id'],
+                'Participante': f['nombre'],
+                'DNI': f['dni'],
+                'Teléfono': f['telefono'],
+                'Email Registrado': f['email'],
+                'Tipo Certificado': f['tipo_display'],
+                'Intentos de Envío': f['intentos'],
+                'Motivo del Fallo / Error': f['error'],
+                'Fecha Generación': f.get('fecha_generacion', ''),
+            })
+        df = pd.DataFrame(data)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:  # type: ignore
+            df.to_excel(writer, sheet_name='Certificados Fallidos', index=False)
+        output.seek(0)
+        ts_now = timezone.localtime(timezone.now()).strftime('%Y%m%d_%H%M%S')
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="certificados_fallidos_{ts_now}.xlsx"'
+        return response
+
+    estado = obtener_estado_cola_certificados(since_log_id=0, limit=30)
+    certificados_fallidos = obtener_lista_certificados_fallidos(limit=100)
 
     context = {
-        'pendientes': pendientes,
-        'pendientes_asistencia': pendientes_asistencia,
-        'pendientes_disertante': pendientes_disertante,
-        'pendientes_empresa': pendientes_empresa,
-        'enviados': enviados,
-        'hora_valida': hora_valida,
-        'hora_actual_str': hora_actual_str,
+        'pendientes': estado['remaining'],
+        'pendientes_sin_intentar': estado['remaining_unattempted'],
+        'fallidos_previos': estado['failed_count'],
+        'pendientes_asistencia': estado['pendientes_asistencia'],
+        'pendientes_disertante': estado['pendientes_disertante'],
+        'pendientes_empresa': estado['pendientes_empresa'],
+        'enviados': estado['sent_total'],
+        'hora_valida': estado['hora_valida'],
+        'hora_actual_str': estado['hora_actual_str'],
+        'last_log_id': estado['last_log_id'],
+        'lock_busy': estado['lock_busy'],
+        'initial_logs_json': json.dumps(estado['recent_logs']),
+        'certificados_fallidos': certificados_fallidos,
+        'certificados_fallidos_json': json.dumps(certificados_fallidos),
     }
     return render(request, 'admin/certificate_queue.html', context)
+
+
+@admin.site.admin_view
+def certificate_queue_status_api(request):
+    """
+    Endpoint ligero en tiempo real para sincronizar la consola de /admin/certificate-queue/
+    con los envíos realizados en segundo plano o desde otros workers en PostgreSQL.
+    """
+    try:
+        from .scheduler import iniciar_scheduler_en_segundo_plano
+        iniciar_scheduler_en_segundo_plano()
+    except Exception:
+        pass
+
+    try:
+        raw_since = request.GET.get('since_log_id') or 0
+        since_log_id = max(0, int(raw_since))
+    except (TypeError, ValueError):
+        since_log_id = 0
+
+    if request.GET.get('sync') in ('1', 'true'):
+        try:
+            from .services import sincronizar_certificados_asistencia
+            sincronizar_certificados_asistencia()
+        except Exception:
+            pass
+
+    from .scheduler import obtener_estado_cola_certificados
+    estado = obtener_estado_cola_certificados(since_log_id=since_log_id, limit=40)
+    return JsonResponse({
+        'status': 'ok',
+        **estado,
+    })
+
 
 @admin.site.admin_view
 def process_certificate_batch_api(request):
     """
-    JSON API para procesar un lote de certificados con rate-limiting y protección de horario.
-    Parámetros admitidos:
-      - batch_size: int (por defecto 10, min 1, max 30)
-      - forzar: bool (por defecto false)
-      - delay: float (segundos entre envíos, por defecto 2.0)
+    JSON API para procesar un lote de certificados con coordinación en PostgreSQL
+    (pg_try_advisory_lock + select_for_update(skip_locked=True)), reutilización de conexión SMTP,
+    guardia de presupuesto de tiempo (<12s + 10s = <22s para evitar WORKER TIMEOUT de Gunicorn)
+    y prevención de Head-of-Line Blocking sobre certificados con errores previos.
     """
+    from django.core.mail import get_connection
+    from .services import sincronizar_certificados_asistencia
+    from .scheduler import (
+        es_horario_habilitado_certificados,
+        acquire_certificate_queue_lock,
+        reclamar_lote_certificados,
+        obtener_estado_cola_certificados,
+        mark_web_console_priority,
+        clear_web_console_priority,
+    )
+
     # 1. Parseo de parámetros
     try:
-        raw_batch = request.GET.get('batch_size') or request.POST.get('batch_size') or 10
-        batch_size = max(1, min(int(raw_batch), 30))
+        raw_batch = request.GET.get('batch_size') or request.POST.get('batch_size') or 5
+        batch_size = max(1, min(int(raw_batch), 25))
     except (TypeError, ValueError):
-        batch_size = 10
+        batch_size = 5
 
     forzar_raw = request.GET.get('forzar') or request.POST.get('forzar') or 'false'
     forzar = str(forzar_raw).lower() in ['true', '1', 'yes']
 
-    try:
-        raw_delay = request.GET.get('delay') or request.POST.get('delay') or 2.0
-        delay = max(0.0, min(float(raw_delay), 10.0))
-    except (TypeError, ValueError):
-        delay = 2.0
+    reintentar_raw = request.GET.get('reintentar_fallidos') or request.POST.get('reintentar_fallidos') or 'false'
+    reintentar_fallidos = str(reintentar_raw).lower() in ['true', '1', 'yes']
 
-    # 2. Validación de regla horaria (18:00 hs Argentina GMT-3)
+    try:
+        raw_after = request.GET.get('after_id') or request.POST.get('after_id') or 0
+        after_id = max(0, int(raw_after))
+    except (TypeError, ValueError):
+        after_id = 0
+
+    try:
+        raw_since_log = request.GET.get('since_log_id') or request.POST.get('since_log_id')
+        since_log_id_param = max(0, int(raw_since_log)) if raw_since_log is not None else None
+    except (TypeError, ValueError):
+        since_log_id_param = None
+
+    try:
+        raw_delay = request.GET.get('delay') if request.GET.get('delay') is not None else request.POST.get('delay')
+        delay = max(0.0, min(float(raw_delay if raw_delay is not None else 1.0), 3.0))
+    except (TypeError, ValueError):
+        delay = 1.0
+
+    # Sincronizar inscripciones confirmadas sin certificado antes de procesar
+    try:
+        sincronizar_certificados_asistencia()
+    except Exception as sync_err:
+        logger.warning(f"[CERTIFICADOS BATCH] Error sincronizando asistencias: {sync_err}")
+
+    # 2. Validación de regla horaria (18:00 hs del 7 de noviembre o posterior en Argentina GMT-3)
     ahora_local = timezone.localtime(timezone.now())
-    if not forzar and ahora_local.hour < 18:
-        remaining = Certificado.objects.filter(email_enviado=False).count()
+    if not forzar and not es_horario_habilitado_certificados(ahora_local):
+        estado = obtener_estado_cola_certificados(since_log_id=since_log_id_param or 0)
         return JsonResponse({
+            **estado,
             'status': 'blocked_by_time',
             'blocked_by_time': True,
             'message': f"Envío retenido: Son las {ahora_local.strftime('%H:%M:%S')} hs. El despacho está programado para después de las 18:00 hs (hora Argentina).",
             'processed': 0,
             'errors': 0,
-            'remaining': remaining,
             'logs': [f"⚠️ Bloqueo de horario: Hora actual {ahora_local.strftime('%H:%M:%S')} hs es previa a las 18:00 hs. Activá 'Forzar envío' para continuar."]
         })
 
-    # 3. Procesar lote
-    certificados = list(Certificado.objects.filter(email_enviado=False).order_by('id')[:batch_size])
-    logs = []
-    processed = 0
-    errors = 0
+    # Reservar prioridad para la consola web durante la sesión activa (incluyendo la pausa de 2s entre lotes)
+    mark_web_console_priority(25.0)
 
-    for idx, cert in enumerate(certificados):
-        destinatario = getattr(cert.asistente, 'email', '') or f"Asistente #{cert.asistente_id}"
-        tipo_display = cert.get_tipo_certificado_display()
+    log_id_before = (
+        LogEnvioEmail.objects.filter(tipo_email__startswith='certificado')
+        .order_by('-id')
+        .values_list('id', flat=True)
+        .first()
+        or 0
+    )
+    effective_since_log = since_log_id_param if since_log_id_param is not None else log_id_before
+
+    # 3. Adquirir bloqueo coordinado en PostgreSQL (pg_try_advisory_lock)
+    with acquire_certificate_queue_lock() as acquired:
+        if not acquired:
+            estado_bg = obtener_estado_cola_certificados(since_log_id=effective_since_log)
+            bg_logs = [item['message'] for item in estado_bg['recent_logs']]
+            bg_processed = sum(1 for item in estado_bg['recent_logs'] if item['exitoso'])
+            bg_errors = sum(1 for item in estado_bg['recent_logs'] if not item['exitoso'])
+            return JsonResponse({
+                **estado_bg,
+                'status': 'busy_background',
+                'processed': bg_processed,
+                'errors': bg_errors,
+                'remaining_retry': (
+                    Certificado.objects.filter(email_enviado=False, id__gt=after_id).count()
+                    if reintentar_fallidos
+                    else 0
+                ),
+                'last_processed_id': after_id,
+                'message': 'El proceso automático en PostgreSQL está finalizando una tanda en este instante. Sincronizando consola en vivo...',
+                'logs': bg_logs,
+            })
+
+        # 4. Selección del lote con select_for_update(skip_locked=True) en PostgreSQL
+        certificados = reclamar_lote_certificados(
+            batch_size=batch_size,
+            reintentar_fallidos=reintentar_fallidos,
+            after_id=after_id,
+            max_intentos_auto=None,
+        )
+
+        logs = []
+        processed = 0
+        errors = 0
+        last_processed_id = after_id
+        batch_start = time.monotonic()
+        MAX_BATCH_SECONDS = 12.0
+
+        # 5. Abrir una única conexión SMTP reutilizable (fail_silently=False para detectar rechazos/errores)
+        smtp_conn = None
+        smtp_open_failed = False
+        if certificados:
+            try:
+                smtp_conn = get_connection(fail_silently=False)
+                smtp_conn.open()
+            except Exception as conn_err:
+                logger.warning(f"[CERTIFICADOS BATCH] No se pudo pre-abrir conexión SMTP compartida: {conn_err}")
+                smtp_conn = None
+                smtp_open_failed = True
+
         try:
-            result = send_certificate_email(cert)
-            success = result[0] if isinstance(result, tuple) else bool(result)
-            if success:
-                logs.append(f"✓ Enviado con éxito a {destinatario} ({tipo_display})")
-                processed += 1
-            else:
-                motivo = result[1] if isinstance(result, tuple) and len(result) > 1 else "Error SMTP"
-                logs.append(f"✗ Falló el envío a {destinatario}: {motivo}")
-                errors += 1
-        except Exception as e:
-            logs.append(f"✗ Error crítico con {destinatario}: {str(e)}")
-            errors += 1
+            for idx, cert in enumerate(certificados):
+                # Guardia de presupuesto de tiempo para nunca alcanzar el timeout de 30s de Gunicorn
+                if (time.monotonic() - batch_start) >= MAX_BATCH_SECONDS:
+                    logs.append("⏱️ Límite de tiempo seguro por tanda alcanzado (12s). Continuando en el siguiente lote...")
+                    break
 
-        # Pausa entre envíos del lote para no saturar SMTP ni CPU
-        if delay > 0 and idx < len(certificados) - 1:
-            time.sleep(delay)
+                if cert.id > last_processed_id:
+                    last_processed_id = cert.id
 
-    remaining = Certificado.objects.filter(email_enviado=False).count()
+                try:
+                    cert.refresh_from_db(fields=['email_enviado', 'intentos'])
+                    if cert.email_enviado:
+                        processed += 1
+                        continue
+                except Exception:
+                    pass
+
+                destinatario = getattr(cert.asistente, 'email', '') or f"Asistente #{cert.asistente_id}"
+                tipo_display = cert.get_tipo_certificado_display()
+                try:
+                    result = send_certificate_email(cert, connection=smtp_conn)
+                    success = result[0] if isinstance(result, tuple) else bool(result)
+                    if success:
+                        logs.append(f"✓ Enviado con éxito a {destinatario} ({tipo_display})")
+                        processed += 1
+                    else:
+                        motivo = result[1] if isinstance(result, tuple) and len(result) > 1 else "Error SMTP"
+                        logs.append(f"✗ Falló el envío a {destinatario}: {motivo}")
+                        errors += 1
+                        es_error_smtp = "Fallo en PDF o SMTP" in str(motivo)
+                        if smtp_open_failed and es_error_smtp:
+                            break
+                        if (
+                            smtp_conn is not None
+                            and es_error_smtp
+                            and idx < len(certificados) - 1
+                            and (time.monotonic() - batch_start) < MAX_BATCH_SECONDS
+                        ):
+                            try:
+                                smtp_conn.close()
+                                smtp_conn.open()
+                            except Exception:
+                                smtp_conn = None
+                                break
+                except Exception as e:
+                    logs.append(f"✗ Error crítico con {destinatario}: {str(e)}")
+                    errors += 1
+                    if smtp_open_failed:
+                        break
+
+                # Pausa entre envíos del lote solo si queda margen en el presupuesto de tiempo
+                if delay > 0 and idx < len(certificados) - 1:
+                    if (time.monotonic() - batch_start + delay) < MAX_BATCH_SECONDS:
+                        time.sleep(delay)
+        finally:
+            if smtp_conn is not None:
+                try:
+                    smtp_conn.close()
+                except Exception:
+                    pass
+
+    estado_final = obtener_estado_cola_certificados(since_log_id=effective_since_log)
+    remaining_retry = (
+        Certificado.objects.filter(email_enviado=False, id__gt=last_processed_id).count()
+        if reintentar_fallidos
+        else 0
+    )
+    restantes_modo_actual = remaining_retry if reintentar_fallidos else estado_final.get('remaining_unattempted', 0)
+    if restantes_modo_actual <= 0:
+        clear_web_console_priority()
 
     return JsonResponse({
+        **estado_final,
         'status': 'ok',
         'processed': processed,
         'errors': errors,
-        'remaining': remaining,
-        'logs': logs
+        'remaining_retry': remaining_retry,
+        'last_processed_id': last_processed_id,
+        'logs': logs,
     })
 
 
@@ -747,27 +965,33 @@ def dashboard_api_view(request):
     })
 
 
-# Inyectar el dashboard y centro de respaldos en el Admin de Django
+# Inyectar el dashboard y centro de respaldos manuales en el Admin de Django
 def respaldos_admin_view(request):
     """
-    Panel unificado para gestión de respaldos del sistema.
+    Panel unificado para gestión manual de respaldos del sistema.
     Permite:
-    1. Descargar al instante el paquete .zip completo (Excel + JSON + SQL).
+    1. Descargar al instante el paquete .zip completo (Excel + JSON + SQL PostgreSQL).
     2. Enviar de inmediato el respaldo por correo a las casillas personal e institucional.
-    3. Configurar las casillas de correo y habilitar/deshabilitar la programación en Celery Beat.
+    3. Configurar las casillas de correo de destino.
     """
     if not request.user.is_staff:
         raise PermissionDenied
 
     from .models import ConfiguracionRespaldo
     from .backup_service import generar_paquete_backup, ejecutar_respaldo_programado
+    from .scheduler import limpiar_tareas_respaldo_programadas_db
 
+    limpiar_tareas_respaldo_programadas_db()
     config = ConfiguracionRespaldo.get_solo()
 
     # 1. Descarga directa del ZIP al navegador
     if request.GET.get('descargar') == 'zip':
         try:
-            zip_path, zip_name, _ = generar_paquete_backup()
+            zip_path, zip_name, size_bytes = generar_paquete_backup()
+            config.ultimo_respaldo_fecha = timezone.now()
+            config.ultimo_respaldo_archivo = zip_name
+            config.ultimo_respaldo_estado = f"✓ Descarga manual directa (.ZIP) generada: {zip_name} ({round(size_bytes / 1024, 1)} KB)"
+            config.save(update_fields=['ultimo_respaldo_fecha', 'ultimo_respaldo_archivo', 'ultimo_respaldo_estado'])
             with open(zip_path, 'rb') as f:
                 content = f.read()
             response = HttpResponse(content, content_type='application/zip')
@@ -781,20 +1005,36 @@ def respaldos_admin_view(request):
     # 2. Acciones del formulario POST
     if request.method == 'POST':
         accion = request.POST.get('accion')
-        config.activo = 'activo' in request.POST
-        config.enviar_por_email = 'enviar_por_email' in request.POST
-        config.email_personal = request.POST.get('email_personal', '').strip()
-        config.email_institucional = request.POST.get('email_institucional', '').strip()
-        config.save()
-
         if accion == 'enviar_ahora':
-            res = ejecutar_respaldo_programado()
+            if 'email_personal' in request.POST:
+                config.email_personal = request.POST.get('email_personal', '').strip()
+            if 'email_institucional' in request.POST:
+                config.email_institucional = request.POST.get('email_institucional', '').strip()
+            config.activo = False
+            config.save(update_fields=['email_personal', 'email_institucional', 'activo'])
+
+            destinos = []
+            if config.email_personal and config.email_personal.strip():
+                destinos.append(config.email_personal.strip())
+            if config.email_institucional and config.email_institucional.strip():
+                destinos.append(config.email_institucional.strip())
+
+            res = ejecutar_respaldo_programado(destinos_forzados=destinos if destinos else None)
             if res.get('emails_enviados'):
                 messages.success(request, f"¡Respaldo enviado exitosamente por email a: {', '.join(res.get('emails_enviados'))}! Archivo: {res.get('archivo')}")
+                if res.get('emails_fallidos'):
+                    messages.warning(request, f"Algunos destinatarios presentaron error: {' | '.join(res.get('emails_fallidos'))}")
+            elif res.get('emails_fallidos'):
+                messages.error(request, f"⚠️ Archivo ZIP generado localmente ({res.get('archivo')}), pero falló el envío por email: {' | '.join(res.get('emails_fallidos'))}")
             else:
                 messages.warning(request, f"✓ Archivo ZIP generado localmente ({res.get('archivo')}), pero no se envió ningún email. Revisá las casillas configuradas.")
         else:
-            messages.success(request, "Configuración de respaldos guardada exitosamente.")
+            config.activo = False
+            config.enviar_por_email = True
+            config.email_personal = request.POST.get('email_personal', '').strip()
+            config.email_institucional = request.POST.get('email_institucional', '').strip()
+            config.save()
+            messages.success(request, "Casillas de correo para respaldos manuales guardadas exitosamente.")
 
         return redirect('admin:admin-respaldos')
 
@@ -804,6 +1044,45 @@ def respaldos_admin_view(request):
 def gdrive_backup_view(request):
     """Redirecciona al panel unificado de respaldos."""
     return redirect('admin:admin-respaldos')
+
+
+@admin.site.admin_view
+def reintentar_certificado_individual_api(request, cert_id):
+    """
+    Reinicia el contador de intentos de un certificado fallido a 0 para que sea
+    elegible de inmediato en la cola normal de despacho, o lo despacha de forma individual.
+    """
+    if request.method not in ('POST', 'GET'):
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    cert = Certificado.objects.select_related('asistente').filter(id=cert_id).first()
+    if not cert:
+        return JsonResponse({'status': 'error', 'message': 'Certificado no encontrado'}, status=404)
+
+    cert.intentos = 0
+    cert.save(update_fields=['intentos'])
+
+    if request.GET.get('enviar_ahora') in ('1', 'true') or request.POST.get('enviar_ahora') in ('1', 'true'):
+        from .email import send_certificate_email
+        res = send_certificate_email(cert)
+        success = res[0] if isinstance(res, tuple) else bool(res)
+        motivo = res[1] if isinstance(res, tuple) and len(res) > 1 else ("Enviado exitosamente" if success else "Error SMTP")
+        return JsonResponse({
+            'status': 'ok' if success else 'failed',
+            'success': success,
+            'message': f"{'✓' if success else '✗'} {motivo}",
+            'cert_id': cert.id,
+            'email_enviado': cert.email_enviado,
+            'intentos': cert.intentos
+        })
+
+    return JsonResponse({
+        'status': 'ok',
+        'success': True,
+        'message': f"Certificado #{cert.id} reiniciado exitosamente. Se procesará en la próxima tanda.",
+        'cert_id': cert.id,
+        'intentos': 0
+    })
 
 
 def patch_admin_urls():
@@ -819,6 +1098,8 @@ def patch_admin_urls():
             path('backup-db/', admin.site.admin_view(backup_database_view), name='admin-backup-db'),
             path('gdrive-backup/', admin.site.admin_view(gdrive_backup_view), name='admin-gdrive-backup'),
             path('certificate-queue/', admin.site.admin_view(certificate_queue_view), name='admin-certificate-queue'),
+            path('certificate-queue-status/', admin.site.admin_view(certificate_queue_status_api), name='certificate-queue-status'),
+            path('certificate-queue/reintentar/<int:cert_id>/', admin.site.admin_view(reintentar_certificado_individual_api), name='admin-certificate-reintentar-individual'),
             path('process-certificate-batch/', admin.site.admin_view(process_certificate_batch_api), name='process-certificate-batch'),
             path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
             path('corregir-asistencia-email/', admin.site.admin_view(corregir_asistencia_email_view), name='admin-corregir-asistencia-email'),
@@ -1536,10 +1817,37 @@ def corregir_asistencia_email_view(request):
                     insc.save()
 
                 if cert_sel:
-                    cert_sel.tipo_certificado = tipo_cert
-                    if not cert_sel.edicion:
-                        cert_sel.edicion = edicion_activa
-                    cert_sel.save(update_fields=['tipo_certificado', 'edicion'])
+                    target_edicion = cert_sel.edicion or edicion_activa
+                    duplicado = (
+                        Certificado.objects.filter(
+                            asistente=asistente_sel,
+                            edicion=target_edicion,
+                            tipo_certificado=tipo_cert,
+                        )
+                        .exclude(pk=cert_sel.pk)
+                        .first()
+                    )
+                    if duplicado:
+                        cert_sel = duplicado
+                        if not cert_sel.email_enviado and accion == 'solo_guardar':
+                            cert_sel.intentos = 0
+                            cert_sel.save(update_fields=['intentos'])
+                    else:
+                        cert_sel.tipo_certificado = tipo_cert
+                        cert_sel.edicion = target_edicion
+                        update_fields = ['tipo_certificado', 'edicion']
+                        if not cert_sel.email_enviado and accion == 'solo_guardar':
+                            cert_sel.intentos = 0
+                            update_fields.append('intentos')
+                        try:
+                            with transaction.atomic():
+                                cert_sel.save(update_fields=update_fields)
+                        except IntegrityError:
+                            cert_sel = Certificado.objects.filter(
+                                asistente=asistente_sel,
+                                edicion=target_edicion,
+                                tipo_certificado=tipo_cert,
+                            ).first() or cert_sel
                 else:
                     cert_sel, _ = Certificado.objects.get_or_create(
                         asistente=asistente_sel,

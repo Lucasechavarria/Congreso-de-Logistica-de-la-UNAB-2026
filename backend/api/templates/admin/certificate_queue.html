@@ -429,6 +429,195 @@
         transform: none !important;
         border: 1px solid rgba(255,255,255,0.05);
     }
+
+    /* Panel de Certificados con Incidencias / Fallidos */
+    .failed-certs-container {
+        margin-top: 35px;
+        background: #090d16;
+        border: 1px solid rgba(244, 63, 94, 0.35);
+        border-radius: 12px;
+        padding: 22px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.45);
+    }
+
+    .failed-certs-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 10px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .failed-certs-title {
+        color: var(--neon-magenta);
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .failed-certs-desc {
+        color: #94a3b8;
+        font-size: 13px;
+        line-height: 1.5;
+        margin: 0 0 18px 0;
+    }
+
+    .btn-download-failed {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #e11d48, #be123c);
+        color: #ffffff !important;
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 9px 16px;
+        border-radius: 8px;
+        text-decoration: none !important;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
+        transition: all 0.2s ease;
+    }
+    .btn-download-failed:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.1);
+        box-shadow: 0 4px 15px rgba(225, 29, 72, 0.55);
+    }
+
+    .failed-certs-table-wrapper {
+        overflow-x: auto;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .failed-certs-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+        color: #e2e8f0;
+    }
+
+    .failed-certs-table th {
+        background: #111827;
+        color: #94a3b8;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.6px;
+        padding: 12px 14px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+    }
+
+    .failed-certs-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        vertical-align: middle;
+    }
+
+    .failed-certs-table tr:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .email-badge {
+        font-family: 'Fira Code', monospace;
+        font-size: 11.5px;
+        color: #cbd5e1;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 3px 8px;
+        border-radius: 6px;
+        display: inline-block;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .email-badge-warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .cert-type-pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 9999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .cert-type-asistencia { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.35); }
+    .cert-type-disertante { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .cert-type-empresa { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35); }
+
+    .error-reason-box {
+        color: #fca5a5;
+        font-size: 12px;
+        line-height: 1.4;
+        max-width: 320px;
+    }
+
+    .error-icon {
+        color: #f43f5e;
+        font-weight: bold;
+        margin-right: 4px;
+    }
+
+    .badge-intentos {
+        background: rgba(244, 63, 94, 0.18);
+        color: #fda4af;
+        border: 1px solid rgba(244, 63, 94, 0.35);
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+    }
+
+    .action-btn-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-edit-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #2563eb;
+        color: #ffffff !important;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 11.5px;
+        font-weight: 600;
+        text-decoration: none !important;
+        transition: background 0.2s ease;
+        white-space: nowrap;
+    }
+    .btn-edit-action:hover {
+        background: #1d4ed8;
+    }
+
+    .btn-retry-single {
+        background: #334155;
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 5px 9px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-retry-single:hover {
+        background: #475569;
+    }
 </style>
 {% endblock %}
 
@@ -440,8 +629,8 @@
     </div>
 
     <!-- Banner de Horario Oficial -->
-    <div class="time-banner {% if hora_valida %}time-banner-ok{% else %}time-banner-wait{% endif %}">
-        <div>
+    <div id="time-banner" class="time-banner {% if hora_valida %}time-banner-ok{% else %}time-banner-wait{% endif %}">
+        <div id="time-banner-text">
             {% if hora_valida %}
                 <span>✓ Horario Habilitado: {{ hora_actual_str }} hs (GMT-3). Ventana de envío después de las 18:00 hs activa.</span>
             {% else %}
@@ -459,8 +648,8 @@
             <div class="config-item">
                 <label for="batch-size-select">Tamaño de Lote:</label>
                 <select id="batch-size-select" class="config-select">
-                    <option value="5">5 por tanda (Prudente)</option>
-                    <option value="10" selected>10 por tanda (Recomendado)</option>
+                    <option value="5" selected>5 por tanda (Recomendado - Seguro)</option>
+                    <option value="10">10 por tanda (Estándar)</option>
                     <option value="15">15 por tanda (Rápido)</option>
                     <option value="20">20 por tanda (Máximo)</option>
                 </select>
@@ -468,8 +657,8 @@
             <div class="config-item">
                 <label for="delay-select">Pausa entre envíos:</label>
                 <select id="delay-select" class="config-select">
-                    <option value="1">1 segundo</option>
-                    <option value="2" selected>2 segundos (Recomendado)</option>
+                    <option value="1" selected>1 segundo (Recomendado)</option>
+                    <option value="2">2 segundos (Prudente)</option>
                     <option value="3">3 segundos (Alta seguridad)</option>
                 </select>
             </div>
@@ -488,20 +677,20 @@
             <span class="stat-value" id="pendientes-count">{{ pendientes }}</span>
             <span class="stat-label">Pendientes</span>
             <div class="breakdown-tags">
-                <span class="breakdown-pill" title="Asistencia">Asist: {{ pendientes_asistencia|default:pendientes }}</span>
-                <span class="breakdown-pill" title="Disertante">Disert: {{ pendientes_disertante|default:0 }}</span>
-                <span class="breakdown-pill" title="Empresa">Emp: {{ pendientes_empresa|default:0 }}</span>
+                <span class="breakdown-pill" id="asist-pendientes-pill" title="Asistencia">Asist: {{ pendientes_asistencia|default:pendientes }}</span>
+                <span class="breakdown-pill" id="disert-pendientes-pill" title="Disertante">Disert: {{ pendientes_disertante|default:0 }}</span>
+                <span class="breakdown-pill" id="emp-pendientes-pill" title="Empresa">Emp: {{ pendientes_empresa|default:0 }}</span>
             </div>
         </div>
         <div class="stat-item" id="stat-item-procesados">
             <span class="stat-value" id="procesados-count" style="color: var(--color-primary); text-shadow: 0 0 10px rgba(167, 139, 250, 0.2);">0</span>
             <span class="stat-label">Enviados (Sesión)</span>
             <div class="breakdown-tags">
-                <span class="breakdown-pill">Total Histórico: {{ enviados|default:0 }}</span>
+                <span class="breakdown-pill" id="total-historico-pill">Total Histórico: {{ enviados|default:0 }}</span>
             </div>
         </div>
         <div class="stat-item" id="stat-item-errores">
-            <span class="stat-value" id="errores-count" style="color: var(--neon-magenta); text-shadow: 0 0 10px rgba(244, 63, 94, 0.2);">0</span>
+            <span class="stat-value" id="errores-count" style="color: var(--neon-magenta); text-shadow: 0 0 10px rgba(244, 63, 94, 0.2);">{{ fallidos_previos|default:0 }}</span>
             <span class="stat-label">Errores</span>
             <div class="breakdown-tags">
                 <span class="breakdown-pill" id="subtext-status">En espera</span>
@@ -548,11 +737,90 @@
                 <div class="terminal-dot dot-yellow"></div>
                 <div class="terminal-dot dot-green"></div>
             </div>
-            <div class="terminal-title">SMTP Transmission logs</div>
+            <div class="terminal-title">SMTP Transmission logs (PostgreSQL Live Sync)</div>
             <div style="width: 42px;"></div>
         </div>
         <div class="log-container" id="log-box">
-            <div class="log-entry"><span class="log-timestamp">INIT</span><span class="log-text">Consola de transmisión inicializada. Esperando comando...</span></div>
+            <div class="log-entry"><span class="log-timestamp">INIT</span><span class="log-text">Consola de transmisión inicializada y sincronizada con PostgreSQL. Esperando comando o transmisión automática...</span></div>
+        </div>
+    </div>
+
+    <!-- Panel de Certificados con Incidencias de Envío / Fallidos -->
+    <div class="failed-certs-container" id="failed-certs-panel" {% if not certificados_fallidos %}style="display: none;"{% endif %}>
+        <div class="failed-certs-header">
+            <div class="failed-certs-title">
+                ⚠️ Certificados con Incidencias de Envío (<span id="failed-certs-badge-count">{{ fallidos_previos|default:0 }}</span>)
+            </div>
+            <div class="failed-certs-actions">
+                <a href="?descargar=fallidos_excel" class="btn-download-failed" id="download-failed-excel-btn">
+                    📊 Descargar Planilla de Fallidos (.xlsx)
+                </a>
+            </div>
+        </div>
+        <p class="failed-certs-desc">
+            A continuación se listan los certificados que no pudieron ser entregados, detallando el <strong>motivo exacto del fallo</strong> (ej: errores tipográficos en el correo, dominios inexistentes o rechazos SMTP). Podés corregir los datos de cada participante directamente con el botón de edición o reintentar el despacho.
+        </p>
+        <div class="failed-certs-table-wrapper">
+            <table class="failed-certs-table" id="failed-certs-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Participante</th>
+                        <th>DNI</th>
+                        <th>Email Registrado</th>
+                        <th>Tipo</th>
+                        <th>Intentos</th>
+                        <th>Motivo del Fallo / Error</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="failed-certs-tbody">
+                    {% for item in certificados_fallidos %}
+                    <tr id="failed-row-{{ item.id }}">
+                        <td class="font-mono">#{{ item.id }}</td>
+                        <td>
+                            <strong>{{ item.nombre }}</strong>
+                            {% if item.telefono %}
+                                <div class="text-xs text-muted" style="font-size: 11px; color: #94a3b8;">📱 {{ item.telefono }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="font-mono">{{ item.dni|default:"-" }}</td>
+                        <td>
+                            <span class="email-badge {% if 'typo' in item.error|lower or 'inválido' in item.error|lower or 'sin email' in item.error|lower or 'sin correo' in item.error|lower %}email-badge-warning{% endif %}">
+                                {{ item.email|default:"(Sin email)" }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="cert-type-pill cert-type-{{ item.tipo|lower }}">{{ item.tipo_display }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge-intentos">{{ item.intentos }}</span>
+                        </td>
+                        <td>
+                            <div class="error-reason-box" title="{{ item.error }}">
+                                <span class="error-icon">✗</span> {{ item.error }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-btn-group">
+                                <a href="{% url 'admin:admin-corregir-asistencia-email' %}?cert_id={{ item.id }}" class="btn-edit-action" title="Corregir datos de este participante">
+                                    ✏️ Corregir
+                                </a>
+                                <button type="button" class="btn-retry-single" onclick="resetAndRetrySingle({{ item.id }})" title="Reintentar este certificado">
+                                    🔄
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="no-failed-row">
+                        <td colspan="8" style="text-align: center; color: #94a3b8; padding: 25px;">
+                            ✨ No hay certificados con incidencias registradas.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -572,16 +840,35 @@
     const pendientesEl = document.getElementById('pendientes-count');
     const procesadosEl = document.getElementById('procesados-count');
     const erroresEl = document.getElementById('errores-count');
+    const asistPill = document.getElementById('asist-pendientes-pill');
+    const disertPill = document.getElementById('disert-pendientes-pill');
+    const empPill = document.getElementById('emp-pendientes-pill');
+    const totalHistoricoPill = document.getElementById('total-historico-pill');
     
     const statPendientesItem = document.getElementById('stat-item-pendientes');
     const statProcesadosItem = document.getElementById('stat-item-procesados');
     const statErroresItem = document.getElementById('stat-item-errores');
+    const timeBanner = document.getElementById('time-banner');
+    const timeBannerText = document.getElementById('time-banner-text');
+    const failedPanel = document.getElementById('failed-certs-panel');
+    const failedBadgeCount = document.getElementById('failed-certs-badge-count');
+    const failedTbody = document.getElementById('failed-certs-tbody');
     
     let totalPendientes = parseInt("{{ pendientes }}") || 0;
+    let pendientesSinIntentarInicial = parseInt("{{ pendientes_sin_intentar|default:pendientes }}") || 0;
+    let enviadosHistoricos = parseInt("{{ enviados|default:0 }}") || 0;
     let procesados = 0;
-    let errores = 0;
+    let errores = parseInt("{{ fallidos_previos|default:0 }}") || 0;
     let isPaused = false;
     let isRunning = false;
+    let retryFailedMode = false;
+    let retryAfterId = 0;
+    let intentadosReintentoSesion = 0;
+    let consecutiveServerErrors = 0;
+    let lastSeenLogId = parseInt("{{ last_log_id|default:0 }}") || 0;
+    let horaValidaActual = {{ hora_valida|yesno:"true,false" }};
+    const initialLockBusy = {{ lock_busy|yesno:"true,false" }};
+    const initialLogs = {{ initial_logs_json|default:"[]"|safe }};
 
     // Radio del círculo SVG es r=50
     const circleRadius = 50;
@@ -589,6 +876,296 @@
 
     progressFill.style.strokeDasharray = circumference;
     progressFill.style.strokeDashoffset = circumference;
+
+    function updateRadialFromGlobal(sentCount, remainingCount) {
+        const totalUniverse = sentCount + remainingCount;
+        if (totalUniverse <= 0) {
+            progressPercentText.innerText = "0%";
+            progressFill.style.strokeDashoffset = circumference;
+            return;
+        }
+        const percent = Math.min(100, (sentCount / Math.max(1, totalUniverse)) * 100);
+        progressPercentText.innerText = `${Math.round(percent)}%`;
+        progressFill.style.strokeDashoffset = circumference - (percent / 100) * circumference;
+    }
+
+    function updateTimeBanner(data) {
+        if (!data || typeof data.hora_valida !== 'boolean') {
+            return;
+        }
+        const horaStr = data.hora_actual_str || '';
+        if (timeBanner && timeBannerText) {
+            if (data.hora_valida) {
+                timeBanner.classList.remove('time-banner-wait');
+                timeBanner.classList.add('time-banner-ok');
+                timeBannerText.innerHTML = `<span>✓ Horario Habilitado: ${horaStr} hs (GMT-3). Ventana de envío después de las 18:00 hs activa.</span>`;
+            } else {
+                timeBanner.classList.remove('time-banner-ok');
+                timeBanner.classList.add('time-banner-wait');
+                timeBannerText.innerHTML = `<span>⏳ En espera de las 18:00 hs. Hora oficial actual: ${horaStr} hs (GMT-3).</span>`;
+            }
+        }
+        if (data.hora_valida && !horaValidaActual) {
+            horaValidaActual = true;
+            if (forzarCheckbox && !isRunning) {
+                forzarCheckbox.checked = true;
+            }
+        }
+    }
+
+    function updateBreakdownCounters(data) {
+        if (typeof data.pendientes_asistencia === 'number' && asistPill) {
+            asistPill.innerText = `Asist: ${data.pendientes_asistencia}`;
+        }
+        if (typeof data.pendientes_disertante === 'number' && disertPill) {
+            disertPill.innerText = `Disert: ${data.pendientes_disertante}`;
+        }
+        if (typeof data.pendientes_empresa === 'number' && empPill) {
+            empPill.innerText = `Emp: ${data.pendientes_empresa}`;
+        }
+        if (typeof data.sent_total === 'number') {
+            enviadosHistoricos = data.sent_total;
+            if (totalHistoricoPill) {
+                totalHistoricoPill.innerText = `Total Histórico: ${data.sent_total}`;
+            }
+        }
+        updateTimeBanner(data);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderFailedCertificates(failedList) {
+        if (!failedPanel || !failedTbody) return;
+        if (!Array.isArray(failedList) || failedList.length === 0) {
+            if (failedBadgeCount) failedBadgeCount.innerText = "0";
+            failedTbody.innerHTML = `
+                <tr id="no-failed-row">
+                    <td colspan="8" style="text-align: center; color: #94a3b8; padding: 25px;">
+                        ✨ No hay certificados con incidencias registradas.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        if (failedBadgeCount) failedBadgeCount.innerText = failedList.length;
+        failedPanel.style.display = "block";
+
+        let html = '';
+        failedList.forEach(item => {
+            const errLower = (item.error || '').toLowerCase();
+            const isWarning = errLower.includes('typo') || errLower.includes('inválido') || errLower.includes('invalido') || errLower.includes('sin email') || errLower.includes('sin correo');
+            const emailBadgeCls = isWarning ? 'email-badge email-badge-warning' : 'email-badge';
+            const telHtml = item.telefono ? `<div style="font-size: 11px; color: #94a3b8;">📱 ${escapeHtml(item.telefono)}</div>` : '';
+            const fixUrl = `{% url 'admin:admin-corregir-asistencia-email' %}?cert_id=${item.id}`;
+
+            html += `
+                <tr id="failed-row-${item.id}">
+                    <td class="font-mono">#${item.id}</td>
+                    <td>
+                        <strong>${escapeHtml(item.nombre)}</strong>
+                        ${telHtml}
+                    </td>
+                    <td class="font-mono">${escapeHtml(item.dni || '-')}</td>
+                    <td>
+                        <span class="${emailBadgeCls}">${escapeHtml(item.email || '(Sin email)')}</span>
+                    </td>
+                    <td>
+                        <span class="cert-type-pill cert-type-${(item.tipo || '').toLowerCase()}">${escapeHtml(item.tipo_display || item.tipo)}</span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge-intentos">${item.intentos}</span>
+                    </td>
+                    <td>
+                        <div class="error-reason-box" title="${escapeHtml(item.error || '')}">
+                            <span class="error-icon">✗</span> ${escapeHtml(item.error || 'Fallo de envío')}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="action-btn-group">
+                            <a href="${fixUrl}" class="btn-edit-action" title="Corregir datos de este participante">
+                                ✏️ Corregir
+                            </a>
+                            <button type="button" class="btn-retry-single" onclick="resetAndRetrySingle(${item.id})" title="Reintentar este certificado">
+                                🔄
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        failedTbody.innerHTML = html;
+    }
+
+    async function resetAndRetrySingle(certId) {
+        try {
+            const url = `{% url 'admin:admin-certificate-queue' %}reintentar/${certId}/?enviar_ahora=1`;
+            addLog(`🔄 Reintentando despacho de certificado #${certId}...`, "log-warning");
+            const response = await fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data && data.success) {
+                addLog(`✓ Certificado #${certId} procesado exitosamente: ${data.message || 'Enviado'}`, "log-success");
+                const row = document.getElementById(`failed-row-${certId}`);
+                if (row) row.remove();
+                if (pollQueueStatus) pollQueueStatus();
+            } else {
+                addLog(`✗ Reintento de certificado #${certId} no completado: ${data ? data.message : 'Error'}`, "log-error");
+            }
+        } catch (err) {
+            addLog(`✗ Error al conectar para reintentar certificado #${certId}: ${err.message}`, "log-error");
+        }
+    }
+
+    function ingestRecentLogs(recentLogs) {
+        let newSuccess = 0;
+        let newErrors = 0;
+        let renderedCount = 0;
+        if (!Array.isArray(recentLogs)) {
+            return { newSuccess, newErrors, renderedCount };
+        }
+        recentLogs.forEach(item => {
+            if (item && typeof item.id === 'number' && item.id > lastSeenLogId) {
+                lastSeenLogId = item.id;
+                const cls = item.level === 'success' ? 'log-success' : 'log-error';
+                addLog(item.message, cls, item.timestamp || null);
+                renderedCount += 1;
+                if (item.exitoso || item.level === 'success') {
+                    newSuccess += 1;
+                } else {
+                    newErrors += 1;
+                }
+            }
+        });
+        return { newSuccess, newErrors, renderedCount };
+    }
+
+    function renderInitialLogs() {
+        updateRadialFromGlobal(enviadosHistoricos, totalPendientes);
+        if (totalPendientes === 0 && enviadosHistoricos > 0) {
+            progressStatusText.innerText = "¡Cola completada!";
+            subtextStatus.innerText = "Finalizado";
+        } else if (initialLockBusy) {
+            progressStatusText.innerText = `⚡ Auto-lote PostgreSQL activo | Pendientes: ${totalPendientes}`;
+            subtextStatus.innerText = "Auto-lote activo";
+        }
+        if (!Array.isArray(initialLogs) || initialLogs.length === 0) {
+            return;
+        }
+        addLog(`📡 Cargando últimos ${initialLogs.length} registros de transmisión desde PostgreSQL...`, "log-warning", "SYNC");
+        initialLogs.forEach(item => {
+            const cls = item.level === 'success' ? 'log-success' : 'log-error';
+            addLog(item.message, cls, item.timestamp || null);
+            if (typeof item.id === 'number' && item.id > lastSeenLogId) {
+                lastSeenLogId = item.id;
+            }
+        });
+    }
+
+    async function pollQueueStatus() {
+        try {
+            const url = `{% url "admin:certificate-queue-status" %}?since_log_id=${lastSeenLogId}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data || data.status !== 'ok') return;
+
+            updateBreakdownCounters(data);
+            if (Array.isArray(data.failed_certificates)) {
+                renderFailedCertificates(data.failed_certificates);
+            }
+
+            // Mientras el bucle manual (processNextBatch) está activo, NO ingerir recent_logs aquí
+            // para evitar robar logs ni desincronizar el contador procesados.
+            if (isRunning) {
+                return;
+            }
+
+            const ingested = ingestRecentLogs(data.recent_logs);
+            const newSuccess = ingested.newSuccess;
+            const newErrors = ingested.newErrors;
+
+            if (newSuccess > 0 || newErrors > 0 || data.remaining !== totalPendientes) {
+                procesados += newSuccess;
+                totalPendientes = data.remaining;
+                pendientesSinIntentarInicial = (typeof data.remaining_unattempted === 'number') ? data.remaining_unattempted : data.remaining;
+                errores = (typeof data.failed_count === 'number') ? data.failed_count : errores;
+
+                procesadosEl.innerText = procesados;
+                pendientesEl.innerText = totalPendientes;
+                erroresEl.innerText = errores;
+
+                let enviadosTotales = (typeof data.sent_total === 'number') ? data.sent_total : (enviadosHistoricos + procesados);
+                updateRadialFromGlobal(enviadosTotales, totalPendientes);
+
+                if (totalPendientes === 0) {
+                    progressStatusText.innerText = "¡Cola completada!";
+                    subtextStatus.innerText = "Finalizado";
+                    startBtn.disabled = true;
+                    startBtn.innerText = "Finalizado";
+                } else if (newSuccess > 0 || newErrors > 0 || data.lock_busy) {
+                    progressStatusText.innerText = `⚡ Auto-lote PostgreSQL activo | Pendientes: ${totalPendientes}`;
+                    subtextStatus.innerText = "Auto-lote activo";
+                    startBtn.disabled = false;
+                    if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
+                        startBtn.innerText = "Iniciar Envío por Lotes";
+                    }
+                } else if (totalPendientes > 0 && !data.lock_busy && newSuccess === 0) {
+                    startBtn.disabled = false;
+                    if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
+                        startBtn.innerText = "Iniciar Envío por Lotes";
+                    }
+                    if (subtextStatus.innerText === "Auto-lote activo" || subtextStatus.innerText === "Finalizado") {
+                        subtextStatus.innerText = "En espera";
+                        progressStatusText.innerText = "Listo para comenzar (sincronizado)";
+                    }
+                }
+            } else if (data.lock_busy) {
+                progressStatusText.innerText = `⚡ Auto-lote PostgreSQL transmitiendo en segundo plano...`;
+                subtextStatus.innerText = "Auto-lote activo";
+            } else if (totalPendientes > 0 && !data.lock_busy && newSuccess === 0) {
+                startBtn.disabled = false;
+                if (startBtn.innerText === "Nada que procesar" || startBtn.innerText === "Finalizado") {
+                    startBtn.innerText = "Iniciar Envío por Lotes";
+                }
+                if (subtextStatus.innerText === "Auto-lote activo") {
+                    subtextStatus.innerText = "En espera";
+                    progressStatusText.innerText = "Listo para comenzar (sincronizado)";
+                }
+            } else if (totalPendientes === 0 && enviadosHistoricos > 0) {
+                updateRadialFromGlobal(enviadosHistoricos, 0);
+                progressStatusText.innerText = "¡Cola completada!";
+                subtextStatus.innerText = "Finalizado";
+            }
+        } catch (err) {
+            // Ignorar errores silenciosos de polling
+        }
+    }
+
+    renderInitialLogs();
+    setInterval(pollQueueStatus, 3000);
 
     startBtn.addEventListener('click', () => {
         if (isRunning && isPaused) {
@@ -602,11 +1179,26 @@
             return;
         }
 
+        // Si no quedan certificados sin intentar pero sí hay pendientes (fallidos previos), activar modo reintento
+        if (pendientesSinIntentarInicial === 0 && totalPendientes > 0) {
+            retryFailedMode = true;
+            retryAfterId = 0;
+            intentadosReintentoSesion = 0;
+        } else if (!retryFailedMode) {
+            intentadosReintentoSesion = 0;
+        }
+
         isRunning = true;
         isPaused = false;
+        consecutiveServerErrors = 0;
         startBtn.style.display = "none";
         pauseBtn.style.display = "block";
-        addLog("Iniciando procesamiento de lotes controlados...", "log-warning");
+        addLog(
+            retryFailedMode
+                ? "🔄 Reintentando envío de certificados con incidencias previas..."
+                : "Iniciando procesamiento de lotes controlados...",
+            "log-warning"
+        );
         progressStatusText.innerText = "Procesando...";
         subtextStatus.innerText = "En transmisión";
         processNextBatch();
@@ -627,15 +1219,80 @@
             return;
         }
 
-        const batchSize = batchSizeSelect ? batchSizeSelect.value : 10;
-        const delay = delaySelect ? delaySelect.value : 2;
+        const batchSize = batchSizeSelect ? batchSizeSelect.value : 5;
+        const delay = delaySelect ? delaySelect.value : 1;
         const forzar = forzarCheckbox ? forzarCheckbox.checked : false;
+        const afterIdParam = retryFailedMode ? retryAfterId : 0;
 
-        const url = `{% url "admin:process-certificate-batch" %}?batch_size=${batchSize}&delay=${delay}&forzar=${forzar}`;
+        const url = `{% url "admin:process-certificate-batch" %}?batch_size=${batchSize}&delay=${delay}&forzar=${forzar}&reintentar_fallidos=${retryFailedMode}&after_id=${afterIdParam}&since_log_id=${lastSeenLogId}`;
 
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (response.redirected || response.status === 401 || response.status === 403 || (response.url && response.url.includes('/login'))) {
+                addLog("⚠️ La sesión de administrador expiró o no tiene permisos. Por favor recargá la página e iniciá sesión nuevamente.", "log-error");
+                progressStatusText.innerText = "Sesión expirada";
+                subtextStatus.innerText = "Sesión expirada";
+                pauseBtn.style.display = "none";
+                startBtn.style.display = "block";
+                startBtn.innerText = "Recargar / Reintentar";
+                isRunning = false;
+                return;
+            }
+
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+            const rawText = await response.text();
+            let data = null;
+            if (contentType.includes('application/json') || rawText.trim().startsWith('{')) {
+                try {
+                    data = JSON.parse(rawText);
+                } catch (parseErr) {
+                    data = null;
+                }
+            }
+
+            if (!response.ok || response.status >= 500 || !data) {
+                // El servidor o proxy Nginx devolvió error HTTP 500/502/504 o HTML no-JSON
+                consecutiveServerErrors += 1;
+                if (batchSizeSelect) batchSizeSelect.value = "5";
+                if (delaySelect) delaySelect.value = "1";
+
+                if (consecutiveServerErrors <= 3 && !isPaused) {
+                    addLog(
+                        `⚠️ El servidor demoró más de lo esperado (HTTP ${response.status || 'Timeout'}). Ajustando a lote seguro (5 certs, 1s) y continuando automáticamente en 4s... (Intento ${consecutiveServerErrors}/3)`,
+                        "log-warning"
+                    );
+                    progressStatusText.innerText = "Recuperando conexión...";
+                    subtextStatus.innerText = "Auto-reintento";
+                    setTimeout(processNextBatch, 4000);
+                    return;
+                }
+
+                addLog(
+                    `✗ El servidor respondió con estado HTTP ${response.status} tras varios intentos. Hacé clic en 'Reintentar Lote' para continuar desde donde quedó.`,
+                    "log-error"
+                );
+                progressStatusText.innerText = "Pausa por timeout de red";
+                subtextStatus.innerText = "Reintento disponible";
+                pauseBtn.style.display = "none";
+                startBtn.style.display = "block";
+                startBtn.innerText = "Reintentar Lote";
+                isRunning = false;
+                return;
+            }
+
+            consecutiveServerErrors = 0;
+            updateBreakdownCounters(data);
+            if (Array.isArray(data.failed_certificates)) {
+                renderFailedCertificates(data.failed_certificates);
+            }
 
             if (data.status === 'blocked_by_time') {
                 addLog(data.message, "log-warning");
@@ -648,13 +1305,65 @@
                 return;
             }
 
+            if (data.status === 'busy_background') {
+                const ingested = ingestRecentLogs(data.recent_logs);
+                if (typeof data.last_log_id === 'number' && data.last_log_id > lastSeenLogId) {
+                    lastSeenLogId = data.last_log_id;
+                }
+                procesados += (data.processed || ingested.newSuccess || 0);
+                totalPendientes = data.remaining;
+                pendientesSinIntentarInicial = (typeof data.remaining_unattempted === 'number') ? data.remaining_unattempted : data.remaining;
+                if (typeof data.failed_count === 'number') {
+                    errores = data.failed_count;
+                }
+                procesadosEl.innerText = procesados;
+                pendientesEl.innerText = totalPendientes;
+                erroresEl.innerText = errores;
+                let enviadosTotales = (typeof data.sent_total === 'number') ? data.sent_total : (enviadosHistoricos + procesados);
+                updateRadialFromGlobal(enviadosTotales, totalPendientes);
+
+                if (totalPendientes === 0) {
+                    addLog("✨ ¡Procesamiento masivo finalizado exitosamente!", "log-success");
+                    progressStatusText.innerText = "¡Procesamiento completo!";
+                    subtextStatus.innerText = "Finalizado";
+                    pauseBtn.style.display = "none";
+                    startBtn.style.display = "block";
+                    startBtn.disabled = true;
+                    startBtn.innerText = "Finalizado";
+                    progressPercentText.innerText = "100%";
+                    progressFill.style.strokeDashoffset = 0;
+                    isRunning = false;
+                    return;
+                }
+
+                progressStatusText.innerText = "Sincronizando con lote PostgreSQL activo...";
+                subtextStatus.innerText = "Coordinando PG";
+                if (!isPaused) {
+                    setTimeout(processNextBatch, 2000);
+                }
+                return;
+            }
+
             if (data.status === 'ok') {
-                let batchProcessed = data.processed;
-                let batchErrors = data.errors;
+                const ingested = ingestRecentLogs(data.recent_logs);
+                if (typeof data.last_log_id === 'number' && data.last_log_id > lastSeenLogId) {
+                    lastSeenLogId = data.last_log_id;
+                }
+                let batchProcessed = data.processed || 0;
+                let batchErrors = data.errors || 0;
                 let nuevosPendientes = data.remaining;
+                let restantesSinIntentar = (typeof data.remaining_unattempted === 'number') ? data.remaining_unattempted : nuevosPendientes;
+                let fallidosTotales = (typeof data.failed_count === 'number') ? data.failed_count : 0;
+                if (typeof data.last_processed_id === 'number' && data.last_processed_id > retryAfterId) {
+                    retryAfterId = data.last_processed_id;
+                }
+                let restantesReintento = (typeof data.remaining_retry === 'number') ? data.remaining_retry : 0;
+                let restantesModoActual = retryFailedMode ? restantesReintento : restantesSinIntentar;
                 
                 procesados += batchProcessed;
-                errores += batchErrors;
+                errores = fallidosTotales;
+                pendientesSinIntentarInicial = restantesSinIntentar;
+                totalPendientes = nuevosPendientes;
                 
                 procesadosEl.innerText = procesados;
                 erroresEl.innerText = errores;
@@ -672,15 +1381,24 @@
                 statPendientesItem.classList.add('bounce-active');
                 setTimeout(() => statPendientesItem.classList.remove('bounce-active'), 400);
                 
-                let targetTotal = totalPendientes > 0 ? totalPendientes : (procesados + nuevosPendientes);
-                let percent = targetTotal > 0 ? Math.min(100, (procesados / targetTotal) * 100) : 100;
-                progressPercentText.innerText = `${Math.round(percent)}%`;
-                
-                let offset = circumference - (percent / 100) * circumference;
-                progressFill.style.strokeDashoffset = offset;
-                progressStatusText.innerText = `Enviados: ${procesados} de ${targetTotal}`;
+                if (retryFailedMode) {
+                    intentadosReintentoSesion += (batchProcessed + batchErrors);
+                    let targetTotal = Math.max(1, intentadosReintentoSesion + restantesReintento);
+                    let percent = Math.min(100, (intentadosReintentoSesion / targetTotal) * 100);
+                    progressPercentText.innerText = `${Math.round(percent)}%`;
+                    progressFill.style.strokeDashoffset = circumference - (percent / 100) * circumference;
+                } else {
+                    let enviadosTotales = (typeof data.sent_total === 'number') ? data.sent_total : (enviadosHistoricos + procesados);
+                    updateRadialFromGlobal(enviadosTotales, nuevosPendientes);
+                }
+                progressStatusText.innerText = `Enviados en sesión: ${procesados} | Restantes en tanda: ${restantesModoActual}`;
 
-                data.logs.forEach(msg => {
+                const hasRecentLogsPayload = Array.isArray(data.recent_logs) && data.recent_logs.length > 0;
+                (data.logs || []).forEach(msg => {
+                    const isWarningNote = msg.includes("⏱️") || msg.includes("ℹ️") || msg.includes("⚠️");
+                    if (hasRecentLogsPayload && !isWarningNote) {
+                        return;
+                    }
                     let entryClass = "log-warning";
                     if (msg.includes("✓") || msg.toLowerCase().includes("éxito") || msg.toLowerCase().includes("exito")) {
                         entryClass = "log-success";
@@ -690,12 +1408,14 @@
                     addLog(msg, entryClass);
                 });
 
-                if (data.remaining > 0) {
+                // Continuar mientras queden certificados por recorrer en la pasada actual
+                const debeContinuar = restantesModoActual > 0;
+
+                if (debeContinuar) {
                     if (!isPaused) {
-                        // Pausa de 4 segundos entre tandas de lotes para protección de SMTP y memoria
-                        setTimeout(processNextBatch, 4000);
+                        setTimeout(processNextBatch, 2000);
                     }
-                } else {
+                } else if (nuevosPendientes === 0) {
                     addLog("✨ ¡Procesamiento masivo finalizado exitosamente!", "log-success");
                     progressStatusText.innerText = "¡Procesamiento completo!";
                     subtextStatus.innerText = "Finalizado";
@@ -705,6 +1425,26 @@
                     startBtn.innerText = "Finalizado";
                     progressPercentText.innerText = "100%";
                     progressFill.style.strokeDashoffset = 0;
+                    retryAfterId = 0;
+                    intentadosReintentoSesion = 0;
+                    isRunning = false;
+                } else {
+                    // Se procesaron todos los pendientes de esta pasada, pero quedaron algunos con error de email/destinatario
+                    addLog(
+                        `ℹ️ Tanda finalizada. Se enviaron ${procesados} certificado(s). Quedan ${fallidosTotales || nuevosPendientes} con incidencia de correo (podés corregirlos en 'Incidencias Asistencia / Email' o pulsar Reintentar Fallidos).`,
+                        "log-warning"
+                    );
+                    progressStatusText.innerText = `Finalizado (${fallidosTotales || nuevosPendientes} con incidencia)`;
+                    subtextStatus.innerText = "Con incidencias";
+                    progressPercentText.innerText = "100%";
+                    progressFill.style.strokeDashoffset = 0;
+                    pauseBtn.style.display = "none";
+                    startBtn.style.display = "block";
+                    startBtn.disabled = false;
+                    retryFailedMode = true;
+                    retryAfterId = 0;
+                    intentadosReintentoSesion = 0;
+                    startBtn.innerText = `🔄 Reintentar Fallidos (${fallidosTotales || nuevosPendientes})`;
                     isRunning = false;
                 }
             } else {
@@ -716,6 +1456,16 @@
                 isRunning = false;
             }
         } catch (e) {
+            consecutiveServerErrors += 1;
+            if (batchSizeSelect) batchSizeSelect.value = "5";
+            if (delaySelect) delaySelect.value = "1";
+
+            if (consecutiveServerErrors <= 3 && !isPaused) {
+                addLog(`⚠️ Interrupción temporal de red (${e.message}). Reintentando tanda en 4 segundos...`, "log-warning");
+                setTimeout(processNextBatch, 4000);
+                return;
+            }
+
             addLog("Error de conexión al servidor: " + e.message, "log-error");
             progressStatusText.innerText = "Error de conexión";
             pauseBtn.style.display = "none";
@@ -725,13 +1475,13 @@
         }
     }
 
-    function addLog(msg, className = "") {
+    function addLog(msg, className = "", customTimestamp = null) {
         const entryDiv = document.createElement('div');
         entryDiv.className = "log-entry " + className;
         
         const timeSpan = document.createElement('span');
         timeSpan.className = "log-timestamp";
-        timeSpan.innerText = new Date().toLocaleTimeString();
+        timeSpan.innerText = customTimestamp || new Date().toLocaleTimeString();
         
         const textSpan = document.createElement('span');
         textSpan.className = "log-text";

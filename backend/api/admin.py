@@ -387,6 +387,75 @@ def backup_database_view(request):
     return redirect('admin:admin-respaldos')
 
 
+@admin.site.admin_view
+def preacreditacion_masiva_view(request):
+    """
+    Panel unificado para la preacreditación y asistencia masiva de Personal de Empresas y Staff.
+    Soporta:
+    - Descarga de plantilla oficial de ejemplo (.xlsx)
+    - Procesamiento atómico con upsert por DNI/Email
+    - Confirmación inmediata de asistencia, sincronización de personal empresa y encolado de certificados.
+    """
+    from .services import generar_plantilla_preacreditacion_staff_empresas, procesar_preacreditacion_masiva_staff_empresas
+
+    # 1. Descarga de plantilla de ejemplo oficial si se solicita
+    if request.GET.get('descargar_plantilla') == '1':
+        plantilla_bytes = generar_plantilla_preacreditacion_staff_empresas()
+        response = HttpResponse(
+            plantilla_bytes,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="plantilla_preacreditacion_staff_empresas.xlsx"'
+        return response
+
+    resultado = None
+    error_general = None
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, "Por favor seleccione un archivo Excel (.xlsx) o CSV para procesar.")
+        else:
+            marcar_asistencia = request.POST.get('marcar_asistencia') == 'on'
+            enviar_email = request.POST.get('enviar_email') == 'on'
+            try:
+                resultado = procesar_preacreditacion_masiva_staff_empresas(
+                    archivo,
+                    marcar_asistencia=marcar_asistencia,
+                    enviar_email=enviar_email
+                )
+                msg_txt = (
+                    f"✅ ¡Preacreditación Procesada con Éxito! "
+                    f"Total filas: {resultado['total_procesados']} | "
+                    f"Nuevos registrados: {resultado['creados']} | "
+                    f"Actualizados: {resultado['actualizados']} | "
+                    f"Asistencias otorgadas: {resultado['asistencias_otorgadas']} | "
+                    f"Certificados encolados: {resultado['certificados_encolados']}."
+                )
+                messages.success(request, msg_txt)
+            except Exception as e:
+                error_general = str(e)
+                messages.error(request, f"Error al procesar la planilla: {str(e)}")
+
+    # Métricas actuales para contexto
+    edicion_activa = Edicion.objects.filter(activa=True).first()
+    total_staff = Asistente.objects.filter(rol_especifico='STAFF').count()
+    total_personal_emp = PersonalEmpresa.objects.count()
+    total_acreditados_emp = PersonalEmpresa.objects.filter(acreditado=True).count()
+
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Preacreditación Masiva de Personal de Empresas y Staff',
+        'resultado': resultado,
+        'error_general': error_general,
+        'edicion_activa': edicion_activa,
+        'total_staff': total_staff,
+        'total_personal_emp': total_personal_emp,
+        'total_acreditados_emp': total_acreditados_emp,
+    }
+    return render(request, 'admin/preacreditacion_masiva.html', context)
+
+
 
 @admin.site.admin_view
 def certificate_queue_view(request):
@@ -1105,6 +1174,7 @@ def patch_admin_urls():
             path('manual-certificate/', admin.site.admin_view(manual_certificate_view), name='admin-manual-certificate'),
             path('corregir-asistencia-email/', admin.site.admin_view(corregir_asistencia_email_view), name='admin-corregir-asistencia-email'),
             path('asistentes-search/', admin.site.admin_view(asistentes_search_api), name='admin-asistentes-search'),
+            path('preacreditacion-masiva/', admin.site.admin_view(preacreditacion_masiva_view), name='admin-preacreditacion-masiva'),
         ]
         return custom_urls + urls
 

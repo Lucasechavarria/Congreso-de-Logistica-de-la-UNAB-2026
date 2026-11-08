@@ -771,6 +771,364 @@ def procesar_archivo_preacreditacion_empresa(empresa: Empresa, file_obj) -> Dict
     }
 
 
+def generar_plantilla_preacreditacion_staff_empresas() -> bytes:
+    """
+    Genera un archivo Excel (.xlsx) con el formato oficial para la carga de
+    preacreditación masiva de personal de empresas y staff con ejemplos claros.
+    """
+    import io
+    import pandas as pd
+
+    data = [
+        {
+            "DNI": "35123456",
+            "Nombre": "Juan",
+            "Apellido": "Pérez",
+            "Email": "juan.perez@empresa.com",
+            "Teléfono": "1134567890",
+            "Tipo": "EMPRESA",
+            "Empresa": "Global Express Logística",
+            "Cargo": "Coordinador de Stand"
+        },
+        {
+            "DNI": "40987654",
+            "Nombre": "Lucía",
+            "Apellido": "Gómez",
+            "Email": "lucia.gomez@unab.edu.ar",
+            "Teléfono": "1198765432",
+            "Tipo": "STAFF",
+            "Empresa": "",
+            "Cargo": "Staff Recepción y Acreditación"
+        },
+        {
+            "DNI": "38555666",
+            "Nombre": "Carlos",
+            "Apellido": "Rodríguez",
+            "Email": "carlos.rodriguez@techlogistics.com",
+            "Teléfono": "1144445555",
+            "Tipo": "EMPRESA",
+            "Empresa": "Tech Logistics S.A.",
+            "Cargo": "Promotor Técnico"
+        }
+    ]
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Preacreditacion Staff Empresas', index=False)
+        worksheet = writer.sheets['Preacreditacion Staff Empresas']
+        for col in worksheet.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = col[0].column_letter
+            worksheet.column_dimensions[col_letter].width = max(max_len + 4, 15)
+    output.seek(0)
+    return output.getvalue()
+
+
+def procesar_preacreditacion_masiva_staff_empresas(
+    file_obj,
+    marcar_asistencia: bool = True,
+    enviar_email: bool = False,
+    edicion_id: int | None = None
+) -> Dict[str, Any]:
+    """
+    Servicio de procesamiento unificado para la preacreditación y confirmación
+    de asistencia de personal de Empresas y Staff.
+
+    Lógica de Negocio (Upsert Inteligente):
+    - Si la persona ya existe en el sistema (por DNI o Email):
+      Actualiza datos de contacto y rol/empresa, asegura inscripción en la edición activa,
+      marca asistencia si marcar_asistencia=True, sincroniza PersonalEmpresa y asegura
+      el certificado correspondiente en cola.
+    - Si la persona NO existe en el sistema:
+      Crea el Asistente con sus datos, lo inscribe en la edición activa, marca su asistencia
+      de inmediato, sincroniza en PersonalEmpresa y encola su Certificado.
+    """
+    import re
+    import zipfile
+    import pandas as pd
+    from django.db.models import Q
+    from .models import PersonalEmpresa, Acreditacion
+
+    validar_archivo_excel_seguro(file_obj, max_size_mb=10)
+
+    filename = getattr(file_obj, 'name', '').lower()
+    try:
+        file_obj.seek(0)
+        if filename.endswith('.csv'):
+            df = pd.read_csv(file_obj)
+        else:
+            df = pd.read_excel(file_obj, engine='openpyxl')
+    except zipfile.BadZipFile:
+        raise ValueError("El archivo Excel está corrupto o no se puede descomprimir de forma segura (BadZipFile).")
+    except pd.errors.EmptyDataError:
+        raise ValueError("El archivo subido está totalmente vacío.")
+    except Exception as e:
+        raise ValueError(f"Ocurrió un error al leer la planilla Excel: {str(e)}")
+
+    if df is None or df.empty:
+        raise ValueError("La planilla Excel no contiene filas de datos para procesar.")
+
+    def clean_header(col_name: object) -> str:
+        c = str(col_name).strip().upper()
+        return c.replace('Á', 'A').replace('É', 'E').replace('Í', 'I').replace('Ó', 'O').replace('Ú', 'U')
+
+    df.columns = [clean_header(col) for col in df.columns]
+
+    col_dni = next((c for c in df.columns if any(k in c for k in ['DNI', 'DOCUMENTO', 'IDENTIFICACION'])), None)
+    col_nombre = next((c for c in df.columns if any(k in c for k in ['NOMBRE', 'FIRST NAME'])), None)
+    col_apellido = next((c for c in df.columns if any(k in c for k in ['APELLIDO', 'LAST NAME'])), None)
+    col_email = next((c for c in df.columns if any(k in c for k in ['EMAIL', 'CORREO', 'MAIL'])), None)
+    col_telefono = next((c for c in df.columns if any(k in c for k in ['TELEFONO', 'CELULAR', 'PHONE'])), None)
+    col_tipo = next((c for c in df.columns if any(k in c for k in ['TIPO', 'ROL', 'PERFIL', 'CATEGORIA'])), None)
+    col_empresa = next((c for c in df.columns if any(k in c for k in ['EMPRESA', 'SPONSOR', 'STAND', 'ORGANIZACION'])), None)
+    col_cargo = next((c for c in df.columns if any(k in c for k in ['CARGO', 'PUESTO', 'FUNCION'])), None)
+
+    if not col_dni and not (col_nombre or col_apellido):
+        raise ValueError(
+            "Los encabezados de la planilla no coinciden con las columnas requeridas. "
+            "Se requiere al menos DNI, Nombre y Apellido (o Nombre Completo)."
+        )
+
+    edicion_activa = None
+    if edicion_id:
+        edicion_activa = Edicion.objects.filter(id=edicion_id).first()
+    if not edicion_activa:
+        edicion_activa = Edicion.objects.filter(activa=True).first()
+    if not edicion_activa:
+        raise ValueError("No hay una edición activa configurada en el sistema. Configure o active una edición antes de procesar.")
+
+    # Precargar empresas existentes de la edición
+    empresas_qs = Empresa.objects.filter(Q(edicion=edicion_activa) | Q(edicion__isnull=True))
+    empresas_cache = {}
+    for emp in empresas_qs:
+        empresas_cache[emp.nombre_empresa.strip().lower()] = emp
+        if emp.cuit:
+            cuit_clean = re.sub(r'\D', '', emp.cuit)
+            if cuit_clean:
+                empresas_cache[cuit_clean] = emp
+
+    EMAIL_REGEX = re.compile(r'^[\w\.-]+@[\w\.-]+\.\w+$')
+
+    total_filas = 0
+    creados = 0
+    actualizados = 0
+    asistencias_otorgadas = 0
+    asistencias_previas = 0
+    certificados_encolados = 0
+    empresas_afectadas_ids = set()
+    errores = []
+    resumen_filas = []
+
+    with transaction.atomic():
+        for idx, row in df.iterrows():
+            row_num = idx + 2
+
+            dni_raw = sanitize_cell_text(row[col_dni]) if col_dni and pd.notna(row[col_dni]) else ""
+            nombre_raw = sanitize_cell_text(row[col_nombre]) if col_nombre and pd.notna(row[col_nombre]) else ""
+            apellido_raw = sanitize_cell_text(row[col_apellido]) if col_apellido and pd.notna(row[col_apellido]) else ""
+            email_raw = sanitize_cell_text(row[col_email]).lower() if col_email and pd.notna(row[col_email]) else ""
+            telefono_raw = sanitize_cell_text(row[col_telefono]) if col_telefono and pd.notna(row[col_telefono]) else ""
+            tipo_raw = sanitize_cell_text(row[col_tipo]).upper() if col_tipo and pd.notna(row[col_tipo]) else ""
+            empresa_raw = sanitize_cell_text(row[col_empresa]) if col_empresa and pd.notna(row[col_empresa]) else ""
+            cargo_raw = sanitize_cell_text(row[col_cargo]) if col_cargo and pd.notna(row[col_cargo]) else ""
+
+            # Fila vacía
+            if not dni_raw and not nombre_raw and not apellido_raw and not email_raw:
+                continue
+
+            total_filas += 1
+
+            # Separar nombre completo si viene junto
+            if not apellido_raw and nombre_raw and ' ' in nombre_raw:
+                parts = nombre_raw.split(' ', 1)
+                nombre_raw = parts[0]
+                apellido_raw = parts[1]
+
+            dni_limpio = re.sub(r'\D', '', dni_raw)
+            if len(dni_limpio) == 9 and dni_limpio.endswith('0'):
+                dni_limpio = dni_limpio[:8]
+
+            if not dni_limpio:
+                errores.append(f"Fila {row_num}: DNI ausente o inválido ('{dni_raw}').")
+                continue
+
+            if not nombre_raw:
+                nombre_raw = f"Participante {dni_limpio}"
+
+            nombre_tit = nombre_raw.title()
+            apellido_tit = apellido_raw.title() if apellido_raw else ""
+
+            # Validar o sanitizar email
+            email_final = email_raw
+            if not email_final or not EMAIL_REGEX.match(email_final):
+                email_final = f"sin-email-{dni_limpio}@sin-email.congreso.unab"
+
+            # Determinar rol / tipo
+            tipo_upper = tipo_raw.upper()
+            es_staff = any(k in tipo_upper for k in ['STAFF', 'ORGANIZ', 'SOPORTE', 'LOGISTICA']) or any(k in cargo_raw.upper() for k in ['STAFF', 'ORGANIZADOR', 'COORDINADOR GENERAL'])
+            es_empresa = (not es_staff and (bool(empresa_raw) or any(k in tipo_upper for k in ['EMPRESA', 'STAND', 'SPONSOR', 'EXPOSITOR'])))
+
+            # Resolver empresa si aplica
+            empresa_obj = None
+            if es_empresa and empresa_raw:
+                emp_key = empresa_raw.strip().lower()
+                cuit_cand = re.sub(r'\D', '', empresa_raw)
+                empresa_obj = empresas_cache.get(emp_key) or (empresas_cache.get(cuit_cand) if cuit_cand else None)
+                if not empresa_obj:
+                    empresa_obj = Empresa.objects.filter(
+                        Q(edicion=edicion_activa) | Q(edicion__isnull=True),
+                        nombre_empresa__icontains=empresa_raw.strip()
+                    ).first()
+                if not empresa_obj:
+                    empresa_obj = Empresa.objects.create(
+                        nombre_empresa=empresa_raw.strip(),
+                        edicion=edicion_activa,
+                        estado='CONFIRMADA',
+                        nombre_contacto=f"{nombre_tit} {apellido_tit}".strip(),
+                        email_contacto=email_final if not email_final.startswith('sin-email') else f"contacto@{re.sub(r'[^a-zA-Z0-9]', '', empresa_raw.lower())}.com"
+                    )
+                    empresas_cache[emp_key] = empresa_obj
+
+            if empresa_obj:
+                empresas_afectadas_ids.add(empresa_obj.id)
+
+            # --- UPSERT ASISTENTE ---
+            asistente = Asistente.objects.filter(dni=dni_limpio).first()
+            if not asistente and email_final and not email_final.startswith('sin-email'):
+                asistente = Asistente.objects.filter(email=email_final).first()
+
+            accion_asistente = "actualizado"
+            if asistente:
+                asistente.first_name = nombre_tit
+                if apellido_tit:
+                    asistente.last_name = apellido_tit
+                if not asistente.dni and dni_limpio:
+                    asistente.dni = dni_limpio
+                if telefono_raw:
+                    asistente.phone = telefono_raw
+                if email_final and not email_final.startswith('sin-email') and (not asistente.email or asistente.email.startswith('sin-email')):
+                    asistente.email = email_final
+                if es_staff:
+                    asistente.rol_especifico = 'STAFF'
+                if empresa_obj:
+                    asistente.empresa_vinculada = empresa_obj
+                asistente.terminos_aceptados = True
+                asistente.save()
+                actualizados += 1
+            else:
+                asistente = Asistente.objects.create(
+                    dni=dni_limpio,
+                    first_name=nombre_tit,
+                    last_name=apellido_tit,
+                    email=email_final,
+                    phone=telefono_raw,
+                    profile_type=Asistente.ProfileType.VISITOR,
+                    rol_especifico='STAFF' if es_staff else None,
+                    empresa_vinculada=empresa_obj if es_empresa else None,
+                    terminos_aceptados=True
+                )
+                accion_asistente = "creado"
+                creados += 1
+
+            # --- VINCULAR INSCRIPCIÓN ---
+            inscripcion, _ = Inscripcion.objects.get_or_create(
+                asistente=asistente,
+                edicion=edicion_activa,
+                defaults={'empresa': empresa_obj if es_empresa else None}
+            )
+            if empresa_obj and not inscripcion.empresa:
+                inscripcion.empresa = empresa_obj
+                inscripcion.save(update_fields=['empresa'])
+
+            # --- MARCAR ASISTENCIA ---
+            if marcar_asistencia:
+                if not inscripcion.asistencia_confirmada:
+                    inscripcion.asistencia_confirmada = True
+                    inscripcion.fecha_confirmacion = timezone.now()
+                    inscripcion.save(update_fields=['asistencia_confirmada', 'fecha_confirmacion'])
+                    asistencias_otorgadas += 1
+                else:
+                    asistencias_previas += 1
+
+                Acreditacion.objects.get_or_create(
+                    inscripcion=inscripcion,
+                    defaults={
+                        'fecha_acreditacion': inscripcion.fecha_confirmacion or timezone.now(),
+                        'metodo': 'MANUAL_DNI',
+                        'es_reingreso': False,
+                        'observaciones': f'Preacreditación masiva: {"Staff" if es_staff else (empresa_obj.nombre_empresa if empresa_obj else "Empresas")}'
+                    }
+                )
+
+            # --- SINCRONIZAR PERSONAL EMPRESA ---
+            if es_empresa and empresa_obj:
+                PersonalEmpresa.objects.update_or_create(
+                    empresa=empresa_obj,
+                    dni=dni_limpio,
+                    defaults={
+                        'nombre': nombre_tit,
+                        'apellido': apellido_tit,
+                        'cargo': cargo_raw or 'Personal de Empresa',
+                        'email': email_final if not email_final.startswith('sin-email') else '',
+                        'telefono': telefono_raw,
+                        'acreditado': marcar_asistencia,
+                        'fecha_acreditacion': timezone.now() if marcar_asistencia else None,
+                        'asistente': asistente,
+                    }
+                )
+
+            # --- ENCOLAR CERTIFICADO ---
+            cert_tipo = Certificado.TipoCertificado.EMPRESA if (es_empresa and empresa_obj) else Certificado.TipoCertificado.ASISTENCIA
+            if marcar_asistencia and inscripcion.asistencia_confirmada:
+                _, cert_created = Certificado.objects.get_or_create(
+                    asistente=asistente,
+                    edicion=edicion_activa,
+                    tipo_certificado=cert_tipo,
+                    defaults={'email_enviado': False}
+                )
+                if cert_created:
+                    certificados_encolados += 1
+
+            # --- ENVÍO DE EMAIL (OPCIONAL) ---
+            if marcar_asistencia and enviar_email and not email_final.startswith('sin-email'):
+                try:
+                    from .email import send_attendance_confirmation_email
+                    send_attendance_confirmation_email(asistente, inscripcion)
+                except Exception as mail_err:
+                    logger.warning(f"[PREACREDITACION EMAIL] No se pudo enviar email a {email_final}: {mail_err}")
+
+            resumen_filas.append({
+                'fila': row_num,
+                'dni': dni_limpio,
+                'nombre': f"{nombre_tit} {apellido_tit}".strip(),
+                'email': email_final,
+                'tipo': 'STAFF' if es_staff else ('EMPRESA' if empresa_obj else 'GENERAL'),
+                'empresa': empresa_obj.nombre_empresa if empresa_obj else '-',
+                'cargo': cargo_raw or '-',
+                'accion': accion_asistente,
+                'asistencia': 'Confirmada' if marcar_asistencia else 'Pendiente',
+                'certificado': cert_tipo if marcar_asistencia else '-',
+            })
+
+        # Recalcular cantidad de representantes de empresas afectadas
+        for emp_id in empresas_afectadas_ids:
+            total_rep = PersonalEmpresa.objects.filter(empresa_id=emp_id).count()
+            Empresa.objects.filter(id=emp_id).update(cantidad_representantes=total_rep)
+
+    return {
+        'total_filas': total_filas,
+        'creados': creados,
+        'actualizados': actualizados,
+        'asistencias_otorgadas': asistencias_otorgadas,
+        'asistencias_previas': asistencias_previas,
+        'certificados_encolados': certificados_encolados,
+        'empresas_afectadas_count': len(empresas_afectadas_ids),
+        'resumen_filas': resumen_filas[:100],
+        'total_procesados': len(resumen_filas),
+        'errores': errores,
+    }
+
+
 
 
 

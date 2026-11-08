@@ -2129,6 +2129,149 @@ class BatchQueueResilienceAndSchedulerTests(TestCase):
         self.assertTrue(cert.email_enviado)
 
 
+class PreacreditacionMasivaStaffEmpresasTests(TestCase):
+    def setUp(self):
+        self.edicion, _ = Edicion.objects.get_or_create(
+            anio=2026,
+            defaults={'nombre': "Congreso Logística 2026", 'activa': True}
+        )
+        if not self.edicion.activa:
+            self.edicion.activa = True
+            self.edicion.save()
+
+        self.admin, _ = User.objects.get_or_create(
+            username='admin_preacred',
+            defaults={'email': 'admin@unab.edu.ar', 'is_superuser': True, 'is_staff': True}
+        )
+        self.admin.is_staff = True
+        self.admin.is_superuser = True
+        self.admin.set_password('pass123')
+        self.admin.save()
+        self.client.force_login(self.admin)
+
+    def test_descargar_plantilla_preacreditacion_excel(self):
+        url = reverse('admin:admin-preacreditacion-masiva') + '?descargar_plantilla=1'
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', res['Content-Type'])
+        self.assertIn('plantilla_preacreditacion_staff_empresas.xlsx', res['Content-Disposition'])
+
+    def test_procesar_preacreditacion_masiva_upsert_existente_y_nuevo(self):
+        import io
+        import pandas as pd
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from api.models import Asistente, Inscripcion, Empresa, PersonalEmpresa, Certificado, Acreditacion
+
+        # 1. Crear un asistente pre-existente en el sistema (por ejemplo, registrado online pero sin asistencia)
+        asistente_existente = Asistente.objects.create(
+            first_name="María",
+            last_name="Staff",
+            dni="30111222",
+            email="maria.staff@unab.edu.ar",
+            profile_type=Asistente.ProfileType.VISITOR
+        )
+        insc_previa = Inscripcion.objects.create(
+            asistente=asistente_existente,
+            edicion=self.edicion,
+            asistencia_confirmada=False
+        )
+
+        # 2. Armar planilla Excel en memoria:
+        # - Fila 1: María Staff (ya en sistema) -> debe recibir rol STAFF, confirmar asistencia y encolar cert ASISTENCIA
+        # - Fila 2: Lucas Nuevo (no está en sistema) -> debe crearse, asociarse a "Logística Sur S.A.", confirmar asistencia y cert EMPRESA
+        data = [
+            {
+                "DNI": "30111222",
+                "Nombre": "María Elena",
+                "Apellido": "Staff",
+                "Email": "maria.staff@unab.edu.ar",
+                "Teléfono": "1144556677",
+                "Tipo": "STAFF",
+                "Empresa": "",
+                "Cargo": "Coordinadora de Acreditación"
+            },
+            {
+                "DNI": "38999888",
+                "Nombre": "Lucas",
+                "Apellido": "Nuevo",
+                "Email": "lucas@logisticasur.com",
+                "Teléfono": "1199887766",
+                "Tipo": "EMPRESA",
+                "Empresa": "Logística Sur S.A.",
+                "Cargo": "Promotor Stand"
+            }
+        ]
+        df = pd.DataFrame(data)
+        out = io.BytesIO()
+        with pd.ExcelWriter(out, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
+        out.seek(0)
+
+        uploaded_file = SimpleUploadedFile(
+            "preacreditacion_test.xlsx",
+            out.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        url = reverse('admin:admin-preacreditacion-masiva')
+        res = self.client.post(url, {
+            'archivo': uploaded_file,
+            'marcar_asistencia': 'on',
+        })
+        self.assertEqual(res.status_code, 200)
+
+        # 3. Verificaciones sobre el asistente existente (María Staff)
+        asistente_existente.refresh_from_db()
+        self.assertEqual(asistente_existente.first_name, "María Elena")
+        self.assertEqual(asistente_existente.rol_especifico, "STAFF")
+        self.assertEqual(asistente_existente.phone, "1144556677")
+
+        insc_previa.refresh_from_db()
+        self.assertTrue(insc_previa.asistencia_confirmada)
+        self.assertIsNotNone(insc_previa.fecha_confirmacion)
+
+        # Certificado encolado para María (ASISTENCIA)
+        cert_maria = Certificado.objects.filter(asistente=asistente_existente, edicion=self.edicion).first()
+        self.assertIsNotNone(cert_maria)
+        self.assertEqual(cert_maria.tipo_certificado, Certificado.TipoCertificado.ASISTENCIA)
+        self.assertFalse(cert_maria.email_enviado)
+
+        # 4. Verificaciones sobre el asistente nuevo (Lucas Nuevo)
+        asistente_lucas = Asistente.objects.filter(dni="38999888").first()
+        self.assertIsNotNone(asistente_lucas)
+        self.assertEqual(asistente_lucas.first_name, "Lucas")
+        self.assertEqual(asistente_lucas.last_name, "Nuevo")
+        self.assertEqual(asistente_lucas.email, "lucas@logisticasur.com")
+
+        # Empresa creada o vinculada
+        empresa_sur = Empresa.objects.filter(nombre_empresa="Logística Sur S.A.").first()
+        self.assertIsNotNone(empresa_sur)
+        self.assertEqual(asistente_lucas.empresa_vinculada, empresa_sur)
+
+        # PersonalEmpresa creado con acreditado=True
+        p_emp = PersonalEmpresa.objects.filter(dni="38999888", empresa=empresa_sur).first()
+        self.assertIsNotNone(p_emp)
+        self.assertTrue(p_emp.acreditado)
+        self.assertEqual(p_emp.asistente, asistente_lucas)
+
+        # Inscripción activa y confirmada
+        insc_lucas = Inscripcion.objects.filter(asistente=asistente_lucas, edicion=self.edicion).first()
+        self.assertIsNotNone(insc_lucas)
+        self.assertTrue(insc_lucas.asistencia_confirmada)
+        self.assertEqual(insc_lucas.empresa, empresa_sur)
+
+        # Certificado encolado para Lucas (EMPRESA)
+        cert_lucas = Certificado.objects.filter(asistente=asistente_lucas, edicion=self.edicion).first()
+        self.assertIsNotNone(cert_lucas)
+        self.assertEqual(cert_lucas.tipo_certificado, Certificado.TipoCertificado.EMPRESA)
+        self.assertFalse(cert_lucas.email_enviado)
+
+        # Auditoría en Acreditacion
+        self.assertTrue(Acreditacion.objects.filter(inscripcion=insc_lucas).exists())
+        self.assertTrue(Acreditacion.objects.filter(inscripcion=insc_previa).exists())
+
+
+
 
 
 
